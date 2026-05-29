@@ -1,0 +1,99 @@
+@import "tailwindcss";
+
+:root {
+  --bg-main: #FFFAF5;
+  --bg-card: #FFFFFF;
+  --bg-input: #F8F8F8;
+  --text-primary: #1A1A1A;
+  --text-secondary: #666666;
+  --text-muted: #999999;
+  --color-primary: #D62300;
+  --color-secondary: #FFC72C;
+  --border-color: #E8E8E8;
+  --radius-card: 16px;
+  --radius-input: 10px;
+  --radius-btn: 8px;
+  --shadow-card: 0 2px 12px rgba(0,0,0,0.08);
+  --font-display: 'DM Sans', sans-serif;
+  --font-body: 'DM Sans', sans-serif;
+}
+
+@theme {
+  /* Brand Colors Map for Tailwind v4 */
+  --color-primary: var(--color-primary);      /* #D62300 */
+  --color-secondary: var(--color-secondary);  /* #FFC72C */
+  --color-dark: #1A1A1A;
+  --color-surface: var(--bg-main);            /* #FFFAF5 */
+  --color-card: var(--bg-card);               /* #FFFFFF */
+  --color-input-bg: var(--bg-input);          /* #F8F8F8 */
+  --color-border-line: var(--border-color);   /* #E8E8E8 */
+  
+  /* Brand Fonts Map */
+  --font-bebas: var(--font-body);
+  --font-sans: var(--font-body);
+  
+  /* Styling Tokens */
+  --shadow-premium: var(--shadow-card);
+  --shadow-glass: 0 4px 16px 0 rgba(0, 0, 0, 0.04);
+}
+
+/* Scrollbars for Light Theme */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-main);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-primary);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-secondary);
+}
+
+/* Global Reset & Base Light Styling */
+html, body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-main); /* Warm cream background */
+  color: var(--text-primary);       /* #1A1A1A */
+  font-family: var(--font-body);    /* 'DM Sans' default for body */
+  font-size: 15px;
+  line-height: 1.6;
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Transition Utilities */
+.transition-smooth {
+  transition: all 0.2s ease;
+}
+
+/* Stepper Circle custom indicators */
+.step-circle {
+  transition: all 0.2s ease;
+}
+
+/* Typography Overrides */
+* {
+  font-family: 'DM Sans', sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6, .font-heading {
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* Glassmorphism panel tailored for Light Theme */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-card);
+}
