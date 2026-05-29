@@ -68,7 +68,7 @@ export const useCartStore = create((set, get) => ({
     set({ coupon: null })
   },
 
-  getCartTotals: () => {
+  getCartTotals: (deliveryType = 'delivery') => {
     const { cartItems, coupon } = get()
     
     // Calculate raw items subtotal
@@ -101,22 +101,26 @@ export const useCartStore = create((set, get) => ({
     let couponDiscount = 0
     if (coupon) {
       if (coupon.type === 'fixed') {
-        couponDiscount = Math.min(coupon.value, subtotal)
+        couponDiscount = Math.min(parseFloat(coupon.value), subtotal)
       } else if (coupon.type === 'percent') {
-        couponDiscount = (subtotal * (coupon.value / 100))
+        couponDiscount = (subtotal * (parseFloat(coupon.value) / 100))
         // Apply max_discount if specified
         if (coupon.max_discount) {
-          couponDiscount = Math.min(couponDiscount, coupon.max_discount)
+          couponDiscount = Math.min(couponDiscount, parseFloat(coupon.max_discount))
         }
       }
     }
 
-    const total = Math.max(0, subtotal - couponDiscount)
+    const shippingFee = deliveryType === 'pickup' || subtotal >= 300000 || coupon?.type === 'free_ship'
+      ? 0
+      : 15000
+    const total = Math.max(0, subtotal - couponDiscount + shippingFee)
 
     return {
       subtotal,
       productSavings,
       couponDiscount,
+      shippingFee,
       totalSavings: productSavings + couponDiscount,
       total
     }

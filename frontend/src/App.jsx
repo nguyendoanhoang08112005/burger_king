@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { 
   BrowserRouter as Router, 
   Routes, 
@@ -7,23 +7,23 @@ import {
   useNavigate, 
   useParams, 
   useSearchParams,
+  useLocation,
   Navigate
 } from 'react-router-dom'
+import AOS from 'aos'
+import 'aos/dist/aos.css'
 import { 
   ShoppingBag, 
   User as UserIcon, 
   MapPin, 
-  Menu as MenuIcon, 
   X, 
   ChevronRight, 
   Plus, 
   Minus, 
   Trash2, 
-  Star, 
   Clock, 
   Phone, 
   Tag, 
-  Percent, 
   CheckCircle, 
   AlertCircle, 
   CreditCard, 
@@ -48,6 +48,27 @@ import { useUiStore } from './store/uiStore'
 import apiClient from './api/axios'
 
 // --- CORE LAYOUT COMPONENTS ---
+
+function ProtectedRoute({ children }) {
+  const isAuthenticated = useAuthStore(state => state.isAuthenticated)
+  const location = useLocation()
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location.pathname }} replace />
+  }
+
+  return children
+}
+
+function AosRefresh() {
+  const location = useLocation()
+
+  useEffect(() => {
+    AOS.refresh()
+  }, [location])
+
+  return null
+}
 
 // 1. Toast Notification
 function Toast() {
@@ -194,11 +215,24 @@ function Footer() {
 function CartDrawer() {
   const { cartDrawerOpen, setCartDrawerOpen, showToast } = useUiStore()
   const { cartItems, updateQuantity, removeItem, getCartTotals } = useCartStore()
+  const isAuthenticated = useAuthStore(state => state.isAuthenticated)
   const navigate = useNavigate()
 
   if (!cartDrawerOpen) return null
 
   const totals = getCartTotals()
+
+  const handleCheckout = () => {
+    if (!isAuthenticated) {
+      setCartDrawerOpen(false)
+      showToast('Vui lòng đăng nhập để đặt hàng!', 'error')
+      navigate('/login', { state: { from: '/checkout' } })
+      return
+    }
+
+    setCartDrawerOpen(false)
+    navigate('/checkout')
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -329,6 +363,12 @@ function CartDrawer() {
                   <span>-{formatVND(totals.couponDiscount)}</span>
                 </div>
               )}
+              <div className="flex justify-between">
+                <span>Phí giao hàng</span>
+                <span className="text-[#1A1A1A] font-semibold">
+                  {totals.shippingFee === 0 ? 'Miễn phí' : formatVND(totals.shippingFee)}
+                </span>
+              </div>
             </div>
 
             <div className="border-t border-[#E8E8E8] pt-3 flex justify-between items-center">
@@ -338,10 +378,7 @@ function CartDrawer() {
 
             {/* Checkout Trigger */}
             <button 
-              onClick={() => {
-                setCartDrawerOpen(false)
-                navigate('/checkout')
-              }}
+              onClick={handleCheckout}
               className="w-full bg-primary hover:opacity-90 text-white font-semibold py-3.5 rounded-[8px] tracking-wider text-sm transition hover:-translate-y-[1px] active:translate-y-0 flex items-center justify-center gap-2 shadow-glass"
             >
               TIẾN HÀNH THANH TOÁN
@@ -390,7 +427,7 @@ function MobileNav() {
 // --- POPULAR / SHARED SCREEN PORTION COMPONENTS ---
 
 // Product Card
-function ProductCard({ product, onSelect }) {
+function ProductCard({ product, onSelect, index = 0 }) {
   const addItem = useCartStore(state => state.addItem)
   const showToast = useUiStore(state => state.showToast)
 
@@ -404,6 +441,8 @@ function ProductCard({ product, onSelect }) {
 
   return (
     <div 
+      data-aos="fade-up"
+      data-aos-delay={index * 80}
       onClick={() => onSelect(product)}
       className="group relative flex flex-col rounded-2xl bg-white border border-[#E8E8E8] overflow-hidden shadow-glass cursor-pointer transition-all duration-200 hover:-translate-y-1.5 hover:shadow-premium"
     >
@@ -673,6 +712,7 @@ function Home({ onSelectProduct }) {
       setCombos(combosRes.data)
       setBranches(branchesRes.data)
       setLoading(false)
+      setTimeout(() => AOS.refresh(), 0)
     }).catch(err => {
       console.error(err)
       setLoading(false)
@@ -735,13 +775,15 @@ function Home({ onSelectProduct }) {
       {/* Category grid navigations */}
       <section className="max-w-7xl mx-auto py-16 px-6 md:px-12">
         <div className="text-center mb-12">
-          <h2 className="font-bold text-[clamp(24px,3vw,36px)] text-[#1A1A1A] uppercase">THỰC ĐƠN ĐA DẠNG</h2>
+          <h2 data-aos="fade-up" className="font-bold text-[clamp(24px,3vw,36px)] text-[#1A1A1A] uppercase">THỰC ĐƠN ĐA DẠNG</h2>
           <p className="text-xs text-[#666666] max-w-xs mx-auto mt-2">Tuyển chọn các hương vị đỉnh cao tinh chế thủ công.</p>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-          {categories.map((cat) => (
+          {categories.map((cat, index) => (
             <Link 
               key={cat.id} 
+              data-aos="zoom-in"
+              data-aos-delay={index * 100}
               to={`/menu?category=${cat.slug}`}
               className="group relative h-40 rounded-2xl overflow-hidden border border-[#E8E8E8] shadow-glass cursor-pointer flex flex-col justify-end p-4 transition-all duration-200 hover:-translate-y-1 bg-white hover:shadow-premium"
             >
@@ -767,7 +809,7 @@ function Home({ onSelectProduct }) {
         <div className="max-w-7xl mx-auto px-6 md:px-12">
           <div className="flex justify-between items-end mb-10">
             <div>
-              <h2 className="font-bold text-[clamp(24px,3vw,36px)] text-[#1A1A1A] uppercase">SẢN PHẨM NỔI BẬT</h2>
+              <h2 data-aos="fade-up" className="font-bold text-[clamp(24px,3vw,36px)] text-[#1A1A1A] uppercase">SẢN PHẨM NỔI BẬT</h2>
               <p className="text-xs text-[#666666] mt-1">Được đề xuất nhiều nhất từ các đầu bếp danh tiếng.</p>
             </div>
             <Link to="/menu" className="flex items-center gap-1 text-primary hover:opacity-85 font-bold text-xs tracking-wider uppercase transition">
@@ -775,8 +817,8 @@ function Home({ onSelectProduct }) {
             </Link>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {featuredProducts.slice(0, 3).map((p) => (
-              <ProductCard key={p.id} product={p} onSelect={onSelectProduct} />
+            {featuredProducts.slice(0, 3).map((p, index) => (
+              <ProductCard key={p.id} product={p} onSelect={onSelectProduct} index={index} />
             ))}
           </div>
         </div>
@@ -785,12 +827,12 @@ function Home({ onSelectProduct }) {
       {/* Value Combo Sets */}
       <section className="max-w-7xl mx-auto py-16 px-6 md:px-12">
         <div className="text-center mb-12">
-          <h2 className="font-bold text-[clamp(24px,3vw,36px)] text-[#1A1A1A] uppercase">SAVING VALUE COMBOS</h2>
+          <h2 data-aos="fade-up" className="font-bold text-[clamp(24px,3vw,36px)] text-[#1A1A1A] uppercase">SAVING VALUE COMBOS</h2>
           <p className="text-xs text-[#666666] max-w-xs mx-auto mt-2">Bữa ăn thịnh soạn tiết kiệm tới 35% cho gia đình & bạn bè.</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {combos.map((combo) => (
-            <div key={combo.id} className="flex flex-col sm:flex-row gap-6 p-[28px_32px] rounded-2xl bg-white border border-[#E8E8E8] shadow-glass">
+          {combos.map((combo, index) => (
+            <div key={combo.id} data-aos="zoom-in" data-aos-delay={index * 100} className="flex flex-col sm:flex-row gap-6 p-[28px_32px] rounded-2xl bg-white border border-[#E8E8E8] shadow-glass">
               <img 
                 src={combo.image} 
                 alt={combo.name} 
@@ -835,12 +877,12 @@ function Home({ onSelectProduct }) {
       {/* Branches maps */}
       <section className="max-w-7xl mx-auto py-16 px-6 md:px-12">
         <div className="text-center mb-12">
-          <h2 className="font-bold text-[clamp(24px,3vw,36px)] text-[#1A1A1A] uppercase">ĐỊA CHỈ CHI NHÁNH</h2>
+          <h2 data-aos="fade-up" className="font-bold text-[clamp(24px,3vw,36px)] text-[#1A1A1A] uppercase">ĐỊA CHỈ CHI NHÁNH</h2>
           <p className="text-xs text-[#666666] max-w-xs mx-auto mt-2">Dễ dàng tìm thấy các cửa hàng Hamburger King gần bạn nhất.</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {branches.map((b) => (
-            <div key={b.id} className="p-[28px_32px] rounded-2xl bg-white border border-[#E8E8E8] flex flex-col justify-between shadow-premium hover:border-gray-300 transition">
+          {branches.map((b, index) => (
+            <div key={b.id} data-aos="fade-up" data-aos-delay={index * 120} className="p-[28px_32px] rounded-2xl bg-white border border-[#E8E8E8] flex flex-col justify-between shadow-premium hover:border-gray-300 transition">
               <div>
                 <h4 className="font-bold text-sm text-[#1A1A1A]">{b.name}</h4>
                 <p className="text-xs text-[#666666] leading-relaxed mt-2">{b.address}</p>
@@ -867,37 +909,84 @@ function Home({ onSelectProduct }) {
 
 // 2. Menu Page
 function Menu({ onSelectProduct }) {
+  const ITEMS_PER_PAGE = 9
   const [products, setProducts] = useState([])
   const [categories, setCategories] = useState([])
   const [searchParams, setSearchParams] = useSearchParams()
   const [search, setSearch] = useState('')
   const [sortBy, setSortBy] = useState('sort_order')
   const [loading, setLoading] = useState(true)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
 
   const activeCategory = searchParams.get('category') || ''
 
   useEffect(() => {
-    setLoading(true)
+    const params = {
+      page: currentPage,
+      per_page: ITEMS_PER_PAGE,
+      sort_by: sortBy,
+    }
+
+    if (activeCategory) params.category = activeCategory
+    if (search) params.search = search
+
     Promise.all([
       apiClient.get('/categories'),
-      apiClient.get(`/products?category=${activeCategory}&search=${search}&sort_by=${sortBy}`)
+      apiClient.get('/products', { params })
     ]).then(([catsRes, productsRes]) => {
       setCategories(catsRes.data)
       setProducts(productsRes.data.data || [])
+      setTotalPages(productsRes.data.last_page || 1)
       setLoading(false)
+      setTimeout(() => AOS.refresh(), 0)
     }).catch(err => {
       console.error(err)
       setLoading(false)
     })
-  }, [activeCategory, search, sortBy])
+  }, [activeCategory, search, sortBy, currentPage])
 
   const handleCategorySelect = (slug) => {
-    if (activeCategory === slug) {
-      searchParams.delete('category')
+    const nextParams = new URLSearchParams(searchParams)
+    if (!slug || activeCategory === slug) {
+      nextParams.delete('category')
     } else {
-      searchParams.set('category', slug)
+      nextParams.set('category', slug)
     }
-    setSearchParams(searchParams)
+    setLoading(true)
+    setCurrentPage(1)
+    setSearchParams(nextParams)
+  }
+
+  const handleSearchChange = (value) => {
+    setLoading(true)
+    setSearch(value)
+    setCurrentPage(1)
+  }
+
+  const handleSortChange = (value) => {
+    setLoading(true)
+    setSortBy(value)
+    setCurrentPage(1)
+  }
+
+  const handlePageChange = (page) => {
+    if (page < 1 || page > totalPages || page === currentPage) return
+    setLoading(true)
+    setCurrentPage(page)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const getPageNumbers = () => {
+    const pages = []
+    for (let page = 1; page <= totalPages; page += 1) {
+      if (page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1) {
+        pages.push(page)
+      } else if (pages[pages.length - 1] !== '...') {
+        pages.push('...')
+      }
+    }
+    return pages
   }
 
   return (
@@ -907,7 +996,8 @@ function Menu({ onSelectProduct }) {
         <div className="p-6 rounded-2xl bg-white border border-[#E8E8E8] shadow-glass">
           <h3 className="font-bold text-xl text-primary tracking-wide uppercase mb-4">DANH MỤC</h3>
           <div className="flex flex-row md:flex-col overflow-x-auto md:overflow-x-visible gap-2 pb-2 md:pb-0">
-            <button 
+            <button
+              data-aos="fade-right"
               onClick={() => handleCategorySelect('')}
               className={`text-left text-xs font-semibold px-4 py-2.5 rounded-[10px] border transition whitespace-nowrap md:whitespace-normal ${
                 activeCategory === '' 
@@ -917,9 +1007,11 @@ function Menu({ onSelectProduct }) {
             >
               TẤT CẢ
             </button>
-            {categories.map((cat) => (
+            {categories.map((cat, index) => (
               <button 
                 key={cat.id}
+                data-aos="fade-right"
+                data-aos-delay={index * 50}
                 onClick={() => handleCategorySelect(cat.slug)}
                 className={`text-left text-xs font-semibold px-4 py-2.5 rounded-[10px] border transition whitespace-nowrap md:whitespace-normal ${
                   activeCategory === cat.slug 
@@ -938,7 +1030,7 @@ function Menu({ onSelectProduct }) {
           <h3 className="font-bold text-xl text-primary tracking-wide uppercase mb-4">SẮP XẾP</h3>
           <select 
             value={sortBy} 
-            onChange={(e) => setSortBy(e.target.value)}
+            onChange={(e) => handleSortChange(e.target.value)}
             className="w-full bg-[#F8F8F8] border border-[#E8E8E8] text-xs text-[#1A1A1A] rounded-[10px] px-4 py-3 focus:outline-none focus:border-primary focus:ring-3 focus:ring-primary/10"
           >
             <option value="sort_order">Mặc định</option>
@@ -957,10 +1049,12 @@ function Menu({ onSelectProduct }) {
             type="text" 
             placeholder="Tìm kiếm chiếc Hamburger nướng lửa hồng của bạn..." 
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
             className="w-full bg-[#F8F8F8] border border-[#E8E8E8] rounded-[10px] px-5 py-3 text-sm text-[#1A1A1A] focus:outline-none focus:border-primary focus:ring-3 focus:ring-primary/10 transition-all duration-200"
           />
         </div>
+
+        <h2 data-aos="fade-up" className="sr-only">THỰC ĐƠN ĐA DẠNG</h2>
 
         {/* Grids */}
         {loading ? (
@@ -974,11 +1068,47 @@ function Menu({ onSelectProduct }) {
             <p className="text-gray-400 text-sm mt-1">Vui lòng thử tìm kiếm với cụm từ khác.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {products.map((p) => (
-              <ProductCard key={p.id} product={p} onSelect={onSelectProduct} />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {products.map((p, index) => (
+                <ProductCard key={p.id} product={p} onSelect={onSelectProduct} index={index} />
+              ))}
+            </div>
+
+            {totalPages > 1 && (
+              <div className="flex flex-wrap items-center justify-center gap-2 pt-4">
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="px-4 py-2 rounded-[8px] bg-white border border-[#E8E8E8] text-xs font-semibold text-[#1A1A1A] disabled:opacity-40 disabled:cursor-not-allowed hover:border-primary transition"
+                >
+                  ← Trước
+                </button>
+                {getPageNumbers().map((page, index) => page === '...' ? (
+                  <span key={`ellipsis-${index}`} className="px-2 text-xs text-gray-400">...</span>
+                ) : (
+                  <button
+                    key={page}
+                    onClick={() => handlePageChange(page)}
+                    className={`min-w-9 px-3 py-2 rounded-[8px] border text-xs font-semibold transition ${
+                      currentPage === page
+                        ? 'bg-primary text-white border-primary'
+                        : 'bg-white text-[#1A1A1A] border-[#E8E8E8] hover:border-primary'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className="px-4 py-2 rounded-[8px] bg-white border border-[#E8E8E8] text-xs font-semibold text-[#1A1A1A] disabled:opacity-40 disabled:cursor-not-allowed hover:border-primary transition"
+                >
+                  Sau →
+                </button>
+              </div>
+            )}
+          </>
         )}
       </main>
     </div>
@@ -995,6 +1125,7 @@ function Combos() {
       .then(res => {
         setCombos(res.data)
         setLoading(false)
+        setTimeout(() => AOS.refresh(), 0)
       })
       .catch(err => {
         console.error(err)
@@ -1013,15 +1144,15 @@ function Combos() {
   return (
     <div className="max-w-7xl mx-auto py-12 px-6 md:px-12 bg-[#FFFAF5] text-[#1A1A1A]">
       <div className="text-center mb-12">
-        <h1 className="font-bold text-[clamp(24px,3vw,36px)] text-primary uppercase">SAVING VALUE COMBOS</h1>
+        <h1 data-aos="fade-up" className="font-bold text-[clamp(24px,3vw,36px)] text-primary uppercase">SAVING VALUE COMBOS</h1>
         <p className="text-xs text-[#666666] max-w-sm mx-auto mt-2">
           Các thực đơn hoàn hảo dành cho tiệc nhóm, ghép đôi, hoặc chiêu đãi bản thân với mức giá tiết kiệm lên tới 35% hàng ngày!
         </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {combos.map((combo) => (
-          <div key={combo.id} className="flex flex-col sm:flex-row gap-6 p-[28px_32px] rounded-2xl bg-white border border-[#E8E8E8] shadow-premium">
+        {combos.map((combo, index) => (
+          <div key={combo.id} data-aos="zoom-in" data-aos-delay={index * 100} className="flex flex-col sm:flex-row gap-6 p-[28px_32px] rounded-2xl bg-white border border-[#E8E8E8] shadow-premium">
             <img 
               src={combo.image} 
               alt={combo.name} 
@@ -1074,6 +1205,7 @@ function Branches() {
       .then(res => {
         setBranches(res.data)
         setLoading(false)
+        setTimeout(() => AOS.refresh(), 0)
       })
       .catch(err => {
         console.error(err)
@@ -1092,15 +1224,15 @@ function Branches() {
   return (
     <div className="max-w-7xl mx-auto py-12 px-6 md:px-12 bg-[#FFFAF5] text-[#1A1A1A]">
       <div className="text-center mb-12">
-        <h1 className="font-bold text-[clamp(24px,3vw,36px)] text-primary uppercase">HỆ THỐNG CỬA HÀNG</h1>
+        <h1 data-aos="fade-up" className="font-bold text-[clamp(24px,3vw,36px)] text-primary uppercase">HỆ THỐNG CỬA HÀNG</h1>
         <p className="text-xs text-[#666666] max-w-sm mx-auto mt-2">
           Hamburger King hoạt động 3 chi nhánh trung tâm sẵn sàng giao nóng hổi trong vòng 20 phút.
         </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        {branches.map((b) => (
-          <div key={b.id} className="p-[28px_32px] rounded-2xl bg-white border border-[#E8E8E8] flex flex-col justify-between shadow-premium hover:border-gray-400 transition">
+        {branches.map((b, index) => (
+          <div key={b.id} data-aos="fade-up" data-aos-delay={index * 120} className="p-[28px_32px] rounded-2xl bg-white border border-[#E8E8E8] flex flex-col justify-between shadow-premium hover:border-gray-400 transition">
             <div>
               <div className="h-12 w-12 rounded-xl bg-primary/10 border border-primary/10 flex items-center justify-center mb-4">
                 <MapPin className="w-6 h-6 text-primary animate-float" />
@@ -1139,6 +1271,8 @@ function Login() {
   const setLogin = useAuthStore(state => state.setLogin)
   const showToast = useUiStore(state => state.showToast)
   const navigate = useNavigate()
+  const location = useLocation()
+  const from = location.state?.from || '/'
 
   const handleLogin = (e) => {
     e.preventDefault()
@@ -1149,7 +1283,7 @@ function Login() {
         setLogin(res.data.user, res.data.access_token)
         showToast('Đăng nhập thành công! Chào mừng quay trở lại.')
         setLoading(false)
-        navigate('/')
+        navigate(from, { replace: true })
       })
       .catch(err => {
         console.error(err)
@@ -1367,7 +1501,7 @@ function Checkout() {
   const [note, setNote] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const totals = getCartTotals()
+  const totals = getCartTotals(deliveryType)
 
   useEffect(() => {
     // Load customer address book
@@ -1713,7 +1847,7 @@ function Checkout() {
         </main>
 
         {/* Refactored Light Card "Tóm tắt đơn hàng" */}
-        <aside className="space-y-6">
+        <aside className="space-y-6" data-aos="fade-left">
           <div className="p-[28px_32px] rounded-2xl bg-white border border-[#E8E8E8] shadow-premium">
             <h3 className="font-bold text-[22px] text-[#1A1A1A] uppercase tracking-wide mb-4">TÓM TẮT ĐƠN HÀNG</h3>
             
@@ -1788,9 +1922,9 @@ function Checkout() {
               <div className="flex justify-between">
                 <span>Phí giao hàng</span>
                 <span className="text-[#1A1A1A] font-semibold">
-                  {deliveryType === 'pickup' || totals.subtotal >= 300000 || (coupon && coupon.type === 'free_ship')
+                  {totals.shippingFee === 0
                     ? 'Miễn phí' 
-                    : formatVND(15000)
+                    : formatVND(totals.shippingFee)
                   }
                 </span>
               </div>
@@ -1801,10 +1935,7 @@ function Checkout() {
               
               {/* Product Total: DM Sans 24px primary red */}
               <span className="font-bold text-2xl text-primary">
-                {formatVND(
-                  totals.total + 
-                  (deliveryType === 'pickup' || totals.subtotal >= 300000 || (coupon && coupon.type === 'free_ship') ? 0 : 15000)
-                )}
+                {formatVND(totals.total)}
               </span>
             </div>
           </div>
@@ -1883,7 +2014,6 @@ function OrderDetailTracking() {
   const [loading, setLoading] = useState(true)
   const [params] = useSearchParams()
   const showToast = useUiStore(state => state.showToast)
-  const navigate = useNavigate()
 
   const loadOrder = () => {
     setLoading(true)
@@ -1898,6 +2028,7 @@ function OrderDetailTracking() {
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadOrder()
     const paymentStatus = params.get('payment')
     if (paymentStatus === 'success') {
@@ -1905,6 +2036,7 @@ function OrderDetailTracking() {
     } else if (paymentStatus === 'failed') {
       showToast('Giao dịch thanh toán thất bại hoặc bị hủy.', 'error')
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [code])
 
   const handleCancel = () => {
@@ -2604,7 +2736,9 @@ function Admin() {
 
   useEffect(() => {
     if (user?.role !== 'admin') return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadAdminData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab])
 
   const handleUpdateOrderStatus = (orderId, status) => {
@@ -2946,9 +3080,20 @@ function Admin() {
 function App() {
   const [selectedProduct, setSelectedProduct] = useState(null)
 
+  useEffect(() => {
+    AOS.init({
+      duration: 500,
+      easing: 'ease-out-cubic',
+      once: true,
+      offset: 60,
+      delay: 0,
+    })
+  }, [])
+
   return (
     <Router>
       <div className="min-h-screen bg-[#FFFAF5] text-[#1A1A1A] flex flex-col antialiased selection:bg-primary selection:text-white pb-16 md:pb-0">
+        <AosRefresh />
         
         {/* Global Toast Alerts */}
         <Toast />
@@ -2972,7 +3117,7 @@ function App() {
             <Route path="/register" element={<Register />} />
             
             {/* Checkout & tracking */}
-            <Route path="/checkout" element={<Checkout />} />
+            <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
             <Route path="/checkout/payment-mock" element={<PaymentMock />} />
             <Route path="/orders/tracking/:code" element={<OrderDetailTracking />} />
             

@@ -28,8 +28,10 @@ class CustomerController extends Controller
     {
         $query = Product::with(['category', 'sizes'])->where('is_available', true);
 
-        // Filter by Category
-        if ($request->has('category')) {
+        // Filter by category id when provided. Empty/all means "all products".
+        if ($request->filled('category_id') && $request->category_id !== 'all') {
+            $query->where('category_id', $request->category_id);
+        } elseif ($request->filled('category') && $request->category !== 'all') {
             $query->whereHas('category', function($q) use ($request) {
                 $q->where('slug', $request->category);
             });
@@ -52,7 +54,7 @@ class CustomerController extends Controller
             $query->orderBy('sort_order', 'ASC');
         }
 
-        return response()->json($query->paginate(12));
+        return response()->json($query->paginate($request->get('per_page', 9)));
     }
 
     public function productDetail($slug)
@@ -181,6 +183,7 @@ class CustomerController extends Controller
             'code' => $coupon->code,
             'type' => $coupon->type,
             'value' => (float) $coupon->value,
+            'max_discount' => $coupon->max_discount !== null ? (float) $coupon->max_discount : null,
             'discount' => (float) $discount,
             'message' => 'Áp dụng mã giảm giá thành công!'
         ]);

@@ -47,7 +47,7 @@ class OrderService
                     throw new Exception("Sản phẩm {$product->name} hiện đang hết hàng.");
                 }
 
-                $price = $product->active_price;
+                $price = $product->sale_price ?? $product->base_price;
 
                 // Handle size extra price
                 if (!empty($item['size'])) {
