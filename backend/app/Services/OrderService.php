@@ -9,20 +9,16 @@ use App\Models\Product;
 use App\Models\ProductSize;
 use App\Models\ProductTopping;
 use App\Models\Coupon;
+use App\Models\Setting;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Exception;
 
 class OrderService
 {
-    public function calculateShippingFee($subtotal, ?Coupon $coupon, $deliveryType): float
+    public function calculateShippingFee($subtotal, ?Coupon $coupon, $deliveryType, ?array $address = null): float
     {
         if ($deliveryType === 'pickup') {
-            return 0.00;
-        }
-
-        // Free shipping for orders above 300,000 VND
-        if ($subtotal >= 300000) {
             return 0.00;
         }
 
@@ -31,7 +27,17 @@ class OrderService
             return 0.00;
         }
 
-        return 15000.00; // Flat shipping rate: 15,000 VND
+        $result = app(ShippingService::class)->calculate(
+            (float) $subtotal,
+            isset($address['lat']) ? (float) $address['lat'] : null,
+            isset($address['lng']) ? (float) $address['lng'] : null
+        );
+
+        if (!empty($result['out_of_range'])) {
+            throw new Exception($result['message'] ?? 'Dia chi giao hang nam ngoai pham vi phuc vu.');
+        }
+
+        return (float) ($result['fee'] ?? 0);
     }
 
     public function createOrder($user, array $data): Order
@@ -67,6 +73,10 @@ class OrderService
                         $topping = ProductTopping::findOrFail($toppingId);
                         if (!$topping->is_available) {
                             throw new Exception("Topping {$topping->name} hiện đang hết hàng.");
+                        }
+                        $allowedCategoryIds = $topping->category_ids ?? [];
+                        if (!empty($allowedCategoryIds) && !in_array((int) $product->category_id, array_map('intval', $allowedCategoryIds), true)) {
+                            throw new Exception("Topping {$topping->name} không áp dụng cho sản phẩm {$product->name}.");
                         }
                         $toppingsList[] = [
                             'id' => $topping->id,
@@ -104,14 +114,18 @@ class OrderService
             }
 
             // 3. Calculate shipping fee
-            $shippingFee = $this->calculateShippingFee($subtotal, $couponModel, $data['delivery_type']);
+            $shippingFee = $this->calculateShippingFee($subtotal, $couponModel, $data['delivery_type'], $data['address'] ?? null);
 
             // 4. Calculate total
             $total = max(0.00, $subtotal - $discount + $shippingFee);
 
             // 5. Check if user is paying with loyalty points
-            if ($user && !empty($data['use_loyalty_points']) && $data['payment_method'] === 'loyalty') {
-                $pointsNeeded = (int) ($total / 100); // 1 point = 100 VND
+            $isLoyaltyPayment = in_array($data['payment_method'], ['loyalty', 'loyalty_points'], true);
+            $loyaltyPointsNeeded = 0;
+            if ($user && ($isLoyaltyPayment || !empty($data['use_loyalty_points']))) {
+                $vndPerPoint = max(1, (float) Setting::get('loyalty.vnd_per_point', 100));
+                $pointsNeeded = (int) ceil($total / $vndPerPoint);
+                $loyaltyPointsNeeded = $pointsNeeded;
                 $userBalance = $user->loyalty_balance;
                 if ($userBalance < $pointsNeeded) {
                     throw new Exception("Điểm tích lũy không đủ để thực hiện thanh toán này (Cần {$pointsNeeded} điểm, có {$userBalance} điểm).");
@@ -168,11 +182,10 @@ class OrderService
             }
 
             // 9. Debit Loyalty Points if user paid via points
-            if ($user && !empty($data['use_loyalty_points']) && $data['payment_method'] === 'loyalty') {
-                $pointsNeeded = (int) (($subtotal - $discount + $shippingFee) / 100);
-                if ($pointsNeeded > 0) {
+            if ($user && ($isLoyaltyPayment || !empty($data['use_loyalty_points']))) {
+                if ($loyaltyPointsNeeded > 0) {
                     $user->loyaltyPoints()->create([
-                        'points' => $pointsNeeded,
+                        'points' => $loyaltyPointsNeeded,
                         'type' => 'redeem',
                         'description' => "Thanh toán đơn hàng {$order->order_code}",
                         'order_id' => $order->id

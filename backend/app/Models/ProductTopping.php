@@ -15,10 +15,12 @@ class ProductTopping extends Model
         'image',
         'is_available',
         'category',
+        'category_ids',
     ];
 
     protected $casts = [
         'price' => 'decimal:2',
         'is_available' => 'boolean',
+        'category_ids' => 'array',
     ];
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { 
   BrowserRouter as Router, 
   Routes, 
@@ -12,6 +12,7 @@ import {
 } from 'react-router-dom'
 import AOS from 'aos'
 import 'aos/dist/aos.css'
+import { Toaster } from 'react-hot-toast'
 import { 
   ShoppingBag, 
   User as UserIcon, 
@@ -31,9 +32,7 @@ import {
   Gift, 
   Bell, 
   Heart,
-  TrendingUp,
-  Package,
-  Layers
+  Package
 } from 'lucide-react'
 
 // Utilities
@@ -46,6 +45,20 @@ import { useUiStore } from './store/uiStore'
 
 // Axios
 import apiClient from './api/axios'
+import BlogSlider from './components/BlogSlider'
+import ScrollToTopButton from './components/ScrollToTopButton'
+import BlogPage from './pages/BlogPage'
+import BlogDetailPage from './pages/BlogDetailPage'
+import AdminPanel from './admin/AdminPanel'
+import { initDarkMode } from './utils/darkMode'
+
+const apiOrigin = (apiClient.defaults.baseURL || 'http://localhost:8000/api').replace(/\/api\/?$/, '')
+
+const assetUrl = value => {
+  if (!value) return ''
+  if (/^(https?:)?\/\//.test(value) || value.startsWith('data:') || value.startsWith('blob:')) return value
+  return `${apiOrigin}${value.startsWith('/') ? value : `/${value}`}`
+}
 
 // --- CORE LAYOUT COMPONENTS ---
 
@@ -98,21 +111,36 @@ function Header() {
   const { cartItems } = useCartStore()
   const { setCartDrawerOpen } = useUiStore()
   const navigate = useNavigate()
+  const location = useLocation()
 
   const totalQuantity = cartItems.reduce((sum, item) => sum + item.quantity, 0)
+  const navClass = (path) => (
+    location.pathname === path
+      ? 'text-primary font-bold transition'
+      : 'text-[#1A1A1A] hover:text-primary transition'
+  )
+  const handleHomeClick = (event) => {
+    event.preventDefault()
+    if (location.pathname === '/') {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+      return
+    }
+    navigate('/')
+  }
 
   return (
     <header className="sticky top-0 z-40 w-full bg-white shadow-premium border-b border-[#E8E8E8] py-4 px-6 md:px-12 flex items-center justify-between">
-      <Link to="/" className="flex items-center gap-2">
+      <a href="/" onClick={handleHomeClick} className="flex items-center gap-2">
         <span className="font-extrabold text-3xl tracking-wider text-primary">HAMBURGER</span>
         <span className="font-extrabold text-3xl tracking-wider text-white bg-primary px-2 py-0.5 rounded-[8px] ml-1">KING</span>
-      </Link>
+      </a>
 
       <nav className="hidden md:flex items-center gap-8 font-semibold text-sm tracking-wide">
-        <Link to="/" className="hover:text-primary transition text-[#1A1A1A]">TRANG CHỦ</Link>
-        <Link to="/menu" className="hover:text-primary transition text-[#1A1A1A]">THỰC ĐƠN</Link>
-        <Link to="/combos" className="hover:text-primary transition text-[#1A1A1A]">VALUE COMBOS</Link>
-        <Link to="/branches" className="hover:text-primary transition text-[#1A1A1A]">CHI NHÁNH</Link>
+        <a href="/" onClick={handleHomeClick} className={navClass('/')}>TRANG CHỦ</a>
+        <Link to="/menu" className={navClass('/menu')}>THỰC ĐƠN</Link>
+        <Link to="/combos" className={navClass('/combos')}>VALUE COMBOS</Link>
+        <Link to="/branches" className={navClass('/branches')}>CHI NHÁNH</Link>
+        <Link to="/blog" className={location.pathname.startsWith('/blog') ? 'text-primary font-bold transition' : 'text-[#1A1A1A] hover:text-primary transition'}>BLOG</Link>
       </nav>
 
       <div className="flex items-center gap-4">
@@ -511,19 +539,24 @@ function ProductDetailModal({ product, onClose }) {
   const [selectedToppings, setSelectedToppings] = useState([])
   const [quantity, setQuantity] = useState(1)
   const [allToppings, setToppings] = useState([])
+  const availableSizes = (product?.sizes || [])
+    .filter(item => item.is_available !== false)
+    .sort((a, b) => ['S', 'M', 'L', 'XL'].indexOf(a.size) - ['S', 'M', 'L', 'XL'].indexOf(b.size))
 
   useEffect(() => {
-    // Fetch toppings list
-    apiClient.get('/products')
-      .then(() => {
-        setToppings([
-          { id: 1, name: 'Phô Mai Cheddar Lá', price: 10000.00, category: 'cheese', icon: '🧀' },
-          { id: 2, name: 'Thịt Xông Khói Giòn', price: 15000.00, category: 'meat', icon: '🥓' },
-          { id: 3, name: 'Hành Tây Xào Caramel', price: 5000.00, category: 'veggie', icon: '🧅' },
-          { id: 4, name: 'Sốt BBQ Đặc Biệt', price: 5000.00, category: 'sauce', icon: '🏺' }
-        ])
-      })
+    const categoryId = product?.category_id || product?.category?.id
+    apiClient.get('/toppings', { params: { category_id: categoryId || undefined } })
+      .then(res => setToppings(res.data || []))
+      .catch(() => setToppings([]))
   }, [product])
+
+  useEffect(() => {
+    if (!availableSizes.length) return
+    if (!availableSizes.some(item => item.size === size)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSize(availableSizes[0].size)
+    }
+  }, [availableSizes, size])
 
   if (!product) return null
 
@@ -531,7 +564,7 @@ function ProductDetailModal({ product, onClose }) {
   let basePrice = parseFloat(product.sale_price ?? product.base_price)
   
   // Size pricing upcharges
-  const sizeModel = product.sizes?.find(s => s.size === size)
+  const sizeModel = availableSizes.find(s => s.size === size)
   if (sizeModel) {
     basePrice += parseFloat(sizeModel.extra_price)
   }
@@ -601,9 +634,9 @@ function ProductDetailModal({ product, onClose }) {
           {/* Size radio pickers */}
           <div className="mt-6">
             <h4 className="font-bold text-[20px] text-[#1A1A1A] tracking-wide uppercase mb-3">CHỌN KÍCH CỠ</h4>
-            <div className="grid grid-cols-4 gap-2">
-              {['S', 'M', 'L', 'XL'].map((s) => {
-                const sModel = product.sizes?.find(sz => sz.size === s)
+            <div className={`grid gap-2 ${availableSizes.length >= 4 ? 'grid-cols-4' : availableSizes.length === 3 ? 'grid-cols-3' : availableSizes.length === 2 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+              {availableSizes.map((sModel) => {
+                const s = sModel.size
                 const extra = sModel ? parseFloat(sModel.extra_price) : 0
                 return (
                   <button 
@@ -640,7 +673,11 @@ function ProductDetailModal({ product, onClose }) {
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <span className="text-lg">{topping.icon}</span>
+                      {topping.image ? (
+                        <img src={assetUrl(topping.image)} alt="" className="w-6 h-6 rounded-full object-cover bg-white" />
+                      ) : (
+                        <span className="text-lg">{topping.category === 'cheese' ? '🧀' : topping.category === 'meat' ? '🥓' : topping.category === 'veggie' ? '🧅' : '🏺'}</span>
+                      )}
                       <span className="text-xs font-bold text-[#1A1A1A]">{topping.name}</span>
                     </div>
                     <span className="text-xs font-semibold text-primary">+{formatVND(topping.price)}</span>
@@ -696,21 +733,24 @@ function Home({ onSelectProduct }) {
   const [featuredProducts, setFeatured] = useState([])
   const [combos, setCombos] = useState([])
   const [branches, setBranches] = useState([])
+  const [blogPosts, setBlogPosts] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     Promise.all([
       apiClient.get('/banners'),
       apiClient.get('/categories'),
-      apiClient.get('/products?is_featured=1'),
+      apiClient.get('/products', { params: { featured: true, limit: 3 } }),
       apiClient.get('/combos'),
-      apiClient.get('/branches')
-    ]).then(([bannersRes, catsRes, productsRes, combosRes, branchesRes]) => {
+      apiClient.get('/branches'),
+      apiClient.get('/posts/featured')
+    ]).then(([bannersRes, catsRes, productsRes, combosRes, branchesRes, postsRes]) => {
       setBanners(bannersRes.data)
       setCategories(catsRes.data)
-      setFeatured(productsRes.data.data || [])
+      setFeatured(Array.isArray(productsRes.data) ? productsRes.data : (productsRes.data.data || []))
       setCombos(combosRes.data)
       setBranches(branchesRes.data)
+      setBlogPosts(postsRes.data || [])
       setLoading(false)
       setTimeout(() => AOS.refresh(), 0)
     }).catch(err => {
@@ -728,32 +768,30 @@ function Home({ onSelectProduct }) {
   }
 
   // Use seeded hero banner as active backdrop
-  const activeHero = banners.find(b => b.position === 'hero') || {
-    title: 'BURGER LỬA HỒNG - ĐẬM ĐÀ VỊ KHÓI',
-    subtitle: 'Trải nghiệm dòng burger cao cấp nướng bằng tay ngập tràn nhân thịt bò Mỹ tươi.',
-    image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&q=80&w=1200'
-  }
+  const activeHero = banners.find(b => b.position === 'hero')
 
   return (
     <div className="bg-[#FFFAF5] text-[#1A1A1A]">
       {/* Premium Hero Banner */}
       <section className="relative w-full h-[65vh] flex items-center bg-black overflow-hidden">
         <div className="absolute inset-0 z-0">
-          <img 
-            src={activeHero.image} 
-            alt="Burger Hero Backdrop" 
-            className="w-full h-full object-cover opacity-70 animate-scale-slow"
-          />
+          {activeHero?.image && (
+            <img
+              src={activeHero.image}
+              alt={activeHero.title}
+              className="w-full h-full object-cover opacity-70 animate-scale-slow"
+            />
+          )}
           <div className="absolute inset-0 bg-[#FFFAF5]/30" />
         </div>
 
         <div className="relative z-10 max-w-7xl mx-auto px-6 md:px-12 w-full">
           <span className="text-[#FFC72C] font-semibold text-lg tracking-widest uppercase mb-3 block animate-float">BẾP THỦ CÔNG HOẠT ĐỘNG ONLINE</span>
           <h1 className="font-extrabold text-[clamp(36px,5vw,64px)] leading-none text-white tracking-[-0.5px] uppercase max-w-2xl drop-shadow-lg">
-            {activeHero.title}
+            {activeHero?.title || 'Hamburger King'}
           </h1>
           <p className="text-sm md:text-base text-white max-w-md mt-6 leading-relaxed">
-            {activeHero.subtitle}
+            {activeHero?.subtitle || 'Dữ liệu banner đang được cập nhật.'}
           </p>
           <div className="flex gap-4 mt-8">
             <Link 
@@ -858,21 +896,7 @@ function Home({ onSelectProduct }) {
         </div>
       </section>
 
-      {/* Brand story */}
-      <section className="bg-white border-t border-[#E8E8E8] py-16 px-6 md:px-12">
-        <div className="max-w-4xl mx-auto text-center">
-          <span className="font-bold text-primary text-lg tracking-wider block mb-3 uppercase">CÂU CHUYỆN THƯƠNG HIỆU</span>
-          <h2 className="font-bold text-[clamp(24px,3vw,36px)] text-[#1A1A1A] uppercase leading-tight">ĐẰNG SAU CHIẾC HAMBURGER NƯỚNG LỬA HỒNG TUYỆT HẢO</h2>
-          <p className="text-sm text-[#666666] leading-relaxed mt-6">
-            Mỗi chiếc bánh Hamburger tại Hamburger King được tạo ra từ niềm đam mê thuần túy đối với nghệ thuật ẩm thực. Chúng tôi nướng thịt bò Mỹ nguyên bản trên ngọn lửa nướng hồng rực để giữ lại vị thịt đậm đà, mọng nước đặc trưng của khói bếp. Sự kết hợp giữa lớp vỏ bánh brioche nướng bơ mềm mại, phô mai Cheddar béo ngậy tan chảy, cùng các loại rau củ trồng hữu cơ sạch tạo nên một kiệt tác thực thụ ngay trên đĩa ăn của bạn.
-          </p>
-          <img 
-            src="https://images.unsplash.com/photo-1550547660-d9450f859349?auto=format&fit=crop&q=80&w=600" 
-            alt="Juicy flame grilling burger patty" 
-            className="w-full h-80 object-cover rounded-2xl mt-10 shadow-premium"
-          />
-        </div>
-      </section>
+      <BlogSlider posts={blogPosts} />
 
       {/* Branches maps */}
       <section className="max-w-7xl mx-auto py-16 px-6 md:px-12">
@@ -1473,6 +1497,79 @@ function Register() {
 
 // 6. Checkout Screen (includes multi-address selections, Mock Payment redirections)
 // Refactored to light theme with custom borders, rounded inputs, and premium typography
+function usePaymentMethods() {
+  const [methods, setMethods] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let ignore = false
+    apiClient.get('/payment-methods')
+      .then(res => {
+        if (!ignore) setMethods(res.data?.data || [])
+      })
+      .catch(() => {
+        if (!ignore) {
+          setMethods([{ key: 'cod', name: 'Tiền mặt khi nhận hàng (COD)', icon: 'cod', is_default: true }])
+        }
+      })
+      .finally(() => {
+        if (!ignore) setLoading(false)
+      })
+
+    return () => {
+      ignore = true
+    }
+  }, [])
+
+  return { methods, loading }
+}
+
+function paymentIcon(key) {
+  if (key === 'loyalty_points') return <Gift className="w-5 h-5 text-yellow-500" />
+  return <CreditCard className="w-5 h-5 text-gray-400" />
+}
+
+function PaymentMethodSelector({ selected, onChange }) {
+  const { methods, loading } = usePaymentMethods()
+
+  if (loading) {
+    return (
+      <div className="space-y-2">
+        {[1, 2].map(item => <div key={item} className="h-[58px] bg-[#F5F5F5] rounded-[10px] animate-pulse" />)}
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-2">
+      {methods.map(method => (
+        <div
+          key={method.key}
+          onClick={() => onChange(method.key)}
+          className={`flex items-center justify-between p-4 rounded-[10px] border cursor-pointer transition-smooth hover:-translate-y-[1px] ${
+            selected === method.key
+              ? 'border-primary bg-primary/5 text-[#1A1A1A]'
+              : 'border-[#E8E8E8] bg-white text-gray-500 hover:border-gray-400'
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            {paymentIcon(method.key)}
+            <div>
+              <span className="text-xs font-semibold text-[#1A1A1A]">{method.name}</span>
+              {method.description && <p className="text-[10px] text-gray-400 mt-0.5">{method.description}</p>}
+            </div>
+          </div>
+          <span className={`w-5 h-5 rounded-full border flex items-center justify-center ${
+            selected === method.key ? 'border-primary text-primary' : 'border-gray-400'
+          }`}>
+            {selected === method.key && <span className="w-2.5 h-2.5 rounded-full bg-primary" />}
+          </span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function Checkout() {
   const { cartItems, getCartTotals, coupon, applyCoupon, removeCoupon, clearCart } = useCartStore()
   const { showToast } = useUiStore()
@@ -1537,6 +1634,7 @@ function Checkout() {
     const payload = {
       delivery_type: deliveryType,
       payment_method: paymentMethod,
+      use_loyalty_points: paymentMethod === 'loyalty_points',
       coupon_code: coupon ? coupon.code : null,
       note,
       scheduled_at: isScheduled ? scheduledAt : null,
@@ -1575,7 +1673,7 @@ function Checkout() {
         showToast('Đơn hàng đã được đặt thành công!')
         setLoading(false)
         
-        // Redirect to either local mock payment gateway or order-tracking
+        // Redirect to the payment gateway URL returned by the backend.
         if (res.data.payment_url) {
           // If the gateway is online, let's redirect
           window.location.href = res.data.payment_url
@@ -1791,36 +1889,9 @@ function Checkout() {
             <div className="p-[28px_32px] rounded-2xl bg-white border border-[#E8E8E8] shadow-premium space-y-6">
               <h2 className="font-bold text-[22px] text-[#1A1A1A] uppercase tracking-wide">PHƯƠNG THỨC THANH TOÁN</h2>
               
-              <div className="space-y-2">
-                {[
-                  { id: 'cod', name: 'Tiền mặt khi nhận hàng (COD)', icon: <CreditCard className="w-5 h-5 text-gray-400" /> },
-                  { id: 'vnpay', name: 'Thanh toán trực tuyến VNPay', icon: <CreditCard className="w-5 h-5 text-gray-400" /> },
-                  { id: 'momo', name: 'Ví điện tử MoMo', icon: <CreditCard className="w-5 h-5 text-gray-400" /> },
-                  { id: 'loyalty', name: 'Thanh toán bằng điểm tích lũy', icon: <Gift className="w-5 h-5 text-gray-400" /> },
-                ].map((pay) => (
-                  <div 
-                    key={pay.id}
-                    onClick={() => setPayment(pay.id)}
-                    className={`flex items-center justify-between p-4 rounded-[10px] border cursor-pointer transition-smooth hover:-translate-y-[1px] ${
-                      paymentMethod === pay.id 
-                        ? 'border-primary bg-primary/5 text-[#1A1A1A]' 
-                        : 'border-[#E8E8E8] bg-white text-gray-500 hover:border-gray-400'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      {pay.icon}
-                      <span className="text-xs font-semibold text-[#1A1A1A]">{pay.name}</span>
-                    </div>
-                    <span className={`w-5 h-5 rounded-full border flex items-center justify-center ${
-                      paymentMethod === pay.id ? 'border-primary text-primary' : 'border-gray-400'
-                    }`}>
-                      {paymentMethod === pay.id && <span className="w-2.5 h-2.5 rounded-full bg-primary" />}
-                    </span>
-                  </div>
-                ))}
-              </div>
+              <PaymentMethodSelector selected={paymentMethod} onChange={setPayment} />
 
-              {paymentMethod === 'loyalty' && (
+              {paymentMethod === 'loyalty_points' && (
                 <p className="text-[10px] text-gray-400 italic">
                   Quy đổi: 1 điểm = 100 ₫ giảm giá trực tiếp. Đơn hàng sẽ được khấu trừ điểm nạp sẵn.
                 </p>
@@ -1940,68 +2011,6 @@ function Checkout() {
             </div>
           </div>
         </aside>
-      </div>
-    </div>
-  )
-}
-
-// 7. Interactive Mock Payment screens
-function PaymentMock() {
-  const [params] = useSearchParams()
-  const navigate = useNavigate()
-  const orderCode = params.get('order_code')
-  const amount = params.get('amount')
-  const gateway = params.get('gateway')
-
-  const handleSimulate = (status) => {
-    // Call backend payment callback
-    apiClient.get(`/payment/${gateway}/callback?order_code=${orderCode}&status=${status}`)
-      .then(() => {
-        navigate(`/orders/tracking/${orderCode}?payment=${status}`)
-      }).catch(err => {
-        console.error(err)
-        navigate(`/orders/tracking/${orderCode}?payment=failed`)
-      })
-  }
-
-  return (
-    <div className="min-h-[80vh] bg-[#FFFAF5] text-[#1A1A1A] flex items-center justify-center p-6">
-      <div className="w-full max-w-md p-8 rounded-2xl bg-white border border-[#E8E8E8] shadow-premium text-center space-y-6 animate-float">
-        <div className="h-16 w-16 bg-primary/10 border border-primary/10 rounded-full flex items-center justify-center mx-auto text-primary animate-float">
-          <CreditCard className="w-8 h-8" />
-        </div>
-
-        <div>
-          <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">CỔNG THANH TOÁN THỬ NGHIỆM</span>
-          <h2 className="font-bold text-3xl text-[#1A1A1A] uppercase tracking-wide mt-2">
-            MOCK GATEWAY {gateway?.toUpperCase()}
-          </h2>
-          <p className="text-xs text-[#666666] mt-2 leading-relaxed">
-            Chào mừng bạn đến cổng thanh toán giả lập. Bạn đang thanh toán đơn hàng: <strong className="text-primary">{orderCode}</strong>
-          </p>
-        </div>
-
-        <div className="p-4 rounded-xl bg-[#F8F8F8] border border-[#E8E8E8] space-y-2">
-          <div className="flex justify-between text-xs text-gray-500">
-            <span>Số tiền thanh toán</span>
-            <span className="text-primary font-bold text-sm">{formatVND(parseFloat(amount))}</span>
-          </div>
-        </div>
-
-        <div className="space-y-2 pt-4">
-          <button 
-            onClick={() => handleSimulate('success')}
-            className="w-full bg-[#FFC72C] hover:opacity-90 text-[#1A1A1A] font-semibold py-3.5 rounded-[8px] tracking-wider text-sm transition hover:-translate-y-[1px] active:translate-y-0"
-          >
-            GIẢ LẬP GIAO DỊCH THÀNH CÔNG
-          </button>
-          <button 
-            onClick={() => handleSimulate('failed')}
-            className="w-full bg-[#F5F5F5] hover:bg-[#E8E8E8] border border-[#E8E8E8] text-[#666666] font-semibold py-3.5 rounded-[8px] tracking-wider text-xs transition"
-          >
-            GIẢ LẬP GIAO DỊCH THẤT BẠI / HỦY
-          </button>
-        </div>
       </div>
     </div>
   )
@@ -2675,412 +2684,130 @@ function Profile() {
   )
 }
 
-// 10. Admin Panel & Dashboard Management (includes charts & reports)
-function Admin() {
-  const { user } = useAuthStore()
-  const { showToast } = useUiStore()
-  
-  const [stats, setStats] = useState(null)
-  const [orders, setOrders] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState('orders')
+// --- MAIN ROUTER APP ---
 
-  // Products CRUD states
-  const [products, setProducts] = useState([])
-  const [cats, setCats] = useState([])
-  
-  // New Product Modal fields
-  const [newP, setNewP] = useState({
-    name: '',
-    category_id: '',
-    base_price: '',
-    thumbnail: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&q=80&w=400',
-    description: 'Thơm ngon nướng lửa hồng nguyên bản đặc trưng của Hamburger King.'
-  })
-
-  // Coupons state
-  const [coupons, setCoupons] = useState([])
-  const [newC, setNewC] = useState({
-    code: '',
-    type: 'percent',
-    value: '',
-    min_order: '0',
-    usage_limit: '100'
-  })
-
-  const loadAdminData = () => {
-    setLoading(true)
-    apiClient.get('/admin/dashboard')
-      .then(res => {
-        setStats(res.data)
-        setLoading(false)
-      }).catch(err => {
-        console.error(err)
-        setLoading(false)
-      })
-
-    if (tab === 'orders') {
-      apiClient.get('/admin/orders').then(res => setOrders(res.data.data || []))
-    } else if (tab === 'products') {
-      Promise.all([
-        apiClient.get('/admin/products'),
-        apiClient.get('/admin/categories')
-      ]).then(([pRes, cRes]) => {
-        setProducts(pRes.data)
-        setCats(cRes.data)
-      })
-    } else if (tab === 'coupons') {
-      apiClient.get('/admin/coupons').then(res => setCoupons(res.data))
-    }
-  }
+function PublicSettingsLoader() {
+  const location = useLocation()
+  const isAdminRoute = location.pathname.startsWith('/admin')
+  const [maintenance, setMaintenance] = useState(null)
 
   useEffect(() => {
-    if (user?.role !== 'admin') return
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadAdminData()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab])
+    let ignore = false
+    apiClient.get('/settings/public')
+      .then(({ data }) => {
+        if (ignore) return
+        const settings = data.data || {}
+        const root = document.documentElement
 
-  const handleUpdateOrderStatus = (orderId, status) => {
-    apiClient.post(`/admin/orders/${orderId}/status`, { status })
-      .then(() => {
-        showToast('Cập nhật trạng thái đơn hàng thành công!')
-        loadAdminData()
-      }).catch(err => {
-        console.error(err)
-        showToast('Lỗi cập nhật đơn.', 'error')
+        if (settings['appearance.primary_color']) root.style.setProperty('--color-primary', settings['appearance.primary_color'])
+        if (settings['appearance.secondary_color']) root.style.setProperty('--color-secondary', settings['appearance.secondary_color'])
+        if (settings['appearance.font_family']) root.style.setProperty('--font-main', settings['appearance.font_family'])
+        if (settings['seo.meta_title']) document.title = settings['seo.meta_title']
+
+        const description = document.querySelector('meta[name="description"]') || document.createElement('meta')
+        description.setAttribute('name', 'description')
+        description.setAttribute('content', settings['seo.meta_description'] || '')
+        if (!description.parentNode) document.head.appendChild(description)
+
+        const favicon = settings['general.favicon']
+        if (favicon) {
+          const link = document.querySelector('link[rel="icon"]') || document.createElement('link')
+          link.setAttribute('rel', 'icon')
+          link.setAttribute('href', assetUrl(favicon))
+          if (!link.parentNode) document.head.appendChild(link)
+        }
+
+        setMaintenance(settings['general.maintenance_mode'] ? settings['general.maintenance_message'] : null)
       })
-  }
+      .catch(() => {})
 
-  const handleCreateProduct = (e) => {
-    e.preventDefault()
-    apiClient.post('/admin/products', newP)
-      .then(res => {
-        setProducts([...products, res.data.product])
-        showToast('Thêm sản phẩm mới thành công!')
-      }).catch(err => {
-        console.error(err)
-        showToast('Lỗi thêm sản phẩm.', 'error')
-      })
-  }
-
-  const handleDeleteProduct = (id) => {
-    if (window.confirm('Xóa sản phẩm này chứ? (Soft Delete)')) {
-      apiClient.delete(`/admin/products/${id}`)
-        .then(() => {
-          setProducts(products.filter(p => p.id !== id))
-          showToast('Xóa sản phẩm thành công.')
-        })
+    return () => {
+      ignore = true
     }
-  }
+  }, [])
 
-  const handleCreateCoupon = (e) => {
-    e.preventDefault()
-    apiClient.post('/admin/coupons', newC)
-      .then(res => {
-        setCoupons([res.data.coupon, ...coupons])
-        showToast('Tạo mã giảm giá mới thành công!')
-      }).catch(err => {
-        console.error(err)
-        showToast('Lỗi tạo mã giảm giá.', 'error')
-      })
-  }
-
-  if (user?.role !== 'admin') {
-    return <Navigate to="/" />
-  }
-
-  if (loading && !stats) {
-    return (
-      <div className="h-screen flex items-center justify-center bg-[#FFFAF5]">
-        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-primary"></div>
-      </div>
-    )
-  }
+  if (!maintenance || isAdminRoute) return null
 
   return (
-    <div className="max-w-7xl mx-auto py-10 px-6 md:px-12 bg-[#FFFAF5] text-[#1A1A1A]">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-[#E8E8E8] pb-6 mb-8 gap-4">
-        <div>
-          <span className="text-xs text-primary font-bold uppercase tracking-wider">HỆ THỐNG QUẢN TRỊ VIÊN</span>
-          <h1 className="font-extrabold text-2xl text-[#1A1A1A] uppercase tracking-[0.3px] mt-1">DASHBOARD TRUNG TÂM</h1>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          {[
-            { id: 'orders', name: 'ĐƠN HÀNG', icon: <Package className="w-4 h-4" /> },
-            { id: 'products', name: 'SẢN PHẨM (CRUD)', icon: <Layers className="w-4 h-4" /> },
-            { id: 'coupons', name: 'MÃ GIẢM GIÁ', icon: <Tag className="w-4 h-4" /> },
-          ].map((t) => (
-            <button 
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={`font-semibold px-4 py-2 rounded-[8px] text-xs tracking-wider transition flex items-center gap-1.5 ${
-                tab === t.id ? 'bg-[#FFC72C] text-[#1A1A1A] font-bold shadow' : 'bg-white border border-[#E8E8E8] text-gray-500 hover:border-gray-400'
-              }`}
-            >
-              {t.icon}
-              {t.name}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Analytics Widgets */}
-      {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-10">
-          {[
-            { title: 'TỔNG DOANH THU', value: formatVND(stats.metrics.total_sales), icon: <TrendingUp className="w-6 h-6 text-primary" />, bg: 'bg-[#FFC72C]/10 border-[#FFC72C]/20' },
-            { title: 'ĐƠN HÀNG CHỜ', value: stats.metrics.pending_orders, icon: <Package className="w-6 h-6 text-primary animate-float" />, bg: 'bg-primary/5 border-primary/10' },
-            { title: 'KHÁCH HÀNG', value: stats.metrics.active_customers, icon: <UserIcon className="w-6 h-6 text-blue-500" />, bg: 'bg-blue-500/5 border-blue-500/10' },
-            { title: 'MÓN ĂN TRÊN KỆ', value: stats.metrics.total_products, icon: <Layers className="w-6 h-6 text-green-500" />, bg: 'bg-green-500/5 border-green-500/10' },
-          ].map((w, idx) => (
-            <div key={idx} className={`p-5 rounded-2xl border ${w.bg} flex justify-between items-center shadow-glass`}>
-              <div>
-                <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">{w.title}</span>
-                <h4 className="font-heading text-xl md:text-2xl text-[#1A1A1A] mt-2 leading-none">{w.value}</h4>
-              </div>
-              <div className="h-10 w-10 rounded-xl bg-white/5 flex items-center justify-center shrink-0">
-                {w.icon}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Tab Panels */}
-      <div className="p-6 rounded-2xl bg-white border border-[#E8E8E8] min-h-[40vh] shadow-glass">
-        {tab === 'orders' && (
-          <div className="space-y-6">
-            <h2 className="font-bold text-xl text-[#1A1A1A] uppercase tracking-[0.3px] border-b border-[#E8E8E8] pb-3">BÀN XỬ LÝ ĐƠN HÀNG</h2>
-            
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs divide-y divide-[#E8E8E8]">
-                <thead>
-                  <tr className="text-gray-400 font-bold uppercase tracking-wide">
-                    <th className="pb-3">Mã đơn</th>
-                    <th className="pb-3">Khách hàng</th>
-                    <th className="pb-3">Thời gian</th>
-                    <th className="pb-3">Món ăn</th>
-                    <th className="pb-3">Tổng cộng</th>
-                    <th className="pb-3">Trạng thái</th>
-                    <th className="pb-3 text-right">Xử lý nhanh</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#E8E8E8] text-[#666666]">
-                  {orders.map((o) => (
-                    <tr key={o.id} className="hover:bg-[#F8F8F8] transition">
-                      <td className="py-4 font-bold text-[#1A1A1A]">{o.order_code}</td>
-                      <td className="py-4">{o.user?.name ?? 'Khách lẻ'} - {o.address?.phone ?? 'N/A'}</td>
-                      <td className="py-4">{formatDate(o.created_at)}</td>
-                      <td className="py-4 truncate max-w-xs">{o.items?.map(i => i.product_name).join(', ')}</td>
-                      <td className="py-4 font-bold text-primary">{formatVND(o.total)}</td>
-                      <td className="py-4">
-                        <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded ${
-                          o.status === 'delivered' ? 'bg-green-500/10 text-green-600' : 'bg-primary/10 text-primary'
-                        }`}>{o.status}</span>
-                      </td>
-                      <td className="py-4 text-right">
-                        <select 
-                          value={o.status}
-                          onChange={(e) => handleUpdateOrderStatus(o.id, e.target.value)}
-                          className="bg-white border border-[#E8E8E8] text-[10px] text-[#1A1A1A] rounded px-2 py-1 focus:outline-none"
-                        >
-                          <option value="pending">Chờ xử lý</option>
-                          <option value="confirmed">Xác nhận</option>
-                          <option value="preparing">Đang nấu</option>
-                          <option value="delivering">Đang giao</option>
-                          <option value="delivered">Đã giao</option>
-                          <option value="cancelled">Hủy đơn</option>
-                        </select>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {tab === 'products' && (
-          <div className="space-y-8">
-            <div className="flex flex-col sm:flex-row gap-6">
-              {/* Product Form */}
-              <form onSubmit={handleCreateProduct} className="w-full sm:w-80 shrink-0 p-5 rounded-xl border border-[#E8E8E8] bg-[#F8F8F8] space-y-4">
-                <h3 className="font-bold text-base text-primary uppercase tracking-[0.3px]">THÊM BÁNH MỚI</h3>
-                
-                <div>
-                  <label className="block text-[9px] font-bold text-gray-500 mb-1 uppercase">Tên sản phẩm</label>
-                  <input 
-                    type="text" 
-                    required
-                    placeholder="VD: Bacon Cheese Deluxe" 
-                    value={newP.name}
-                    onChange={(e) => setNewP({ ...newP, name: e.target.value })}
-                    className="w-full bg-white border border-[#E8E8E8] rounded-lg px-3 py-2 text-xs text-[#1A1A1A] focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[9px] font-bold text-gray-500 mb-1 uppercase">Danh mục</label>
-                  <select 
-                    required
-                    value={newP.category_id}
-                    onChange={(e) => setNewP({ ...newP, category_id: e.target.value })}
-                    className="w-full bg-white border border-[#E8E8E8] text-xs text-[#1A1A1A] rounded-lg px-3 py-2 focus:outline-none"
-                  >
-                    <option value="">Chọn danh mục</option>
-                    {cats.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[9px] font-bold text-gray-500 mb-1 uppercase">Giá gốc (VND)</label>
-                  <input 
-                    type="number" 
-                    required
-                    placeholder="99000" 
-                    value={newP.base_price}
-                    onChange={(e) => setNewP({ ...newP, base_price: e.target.value })}
-                    className="w-full bg-white border border-[#E8E8E8] rounded-lg px-3 py-2 text-xs text-[#1A1A1A] focus:outline-none"
-                  />
-                </div>
-
-                <button 
-                  type="submit" 
-                  className="w-full bg-primary hover:opacity-90 text-white font-semibold py-2.5 rounded-lg text-xs tracking-wider uppercase transition hover:-translate-y-[1px]"
-                >
-                  LƯU LÊN KỆ BÁNH
-                </button>
-              </form>
-
-              {/* Products list grid */}
-              <div className="flex-1 overflow-x-auto">
-                <h3 className="font-bold text-base text-[#1A1A1A] uppercase tracking-[0.3px] mb-4">SẢN PHẨM HIỆN TẠI TRÊN KỆ</h3>
-                <table className="w-full text-left text-xs divide-y divide-[#E8E8E8]">
-                  <thead>
-                    <tr className="text-gray-400 font-bold uppercase tracking-wide">
-                      <th className="pb-3">Hình</th>
-                      <th className="pb-3">Tên sản phẩm</th>
-                      <th className="pb-3">Danh mục</th>
-                      <th className="pb-3">Giá bán</th>
-                      <th className="pb-3 text-right">Thao tác</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#E8E8E8] text-[#666666]">
-                    {products.map((p) => (
-                      <tr key={p.id} className="hover:bg-[#F8F8F8] transition">
-                        <td className="py-3">
-                          <img src={p.thumbnail} alt={p.name} className="w-10 h-10 object-cover rounded-lg" />
-                        </td>
-                        <td className="py-3 font-bold text-[#1A1A1A]">{p.name}</td>
-                        <td className="py-3">{p.category?.name ?? 'N/A'}</td>
-                        <td className="py-3 font-semibold text-primary text-sm">{formatVND(p.base_price)}</td>
-                        <td className="py-3 text-right">
-                          <button 
-                            onClick={() => handleDeleteProduct(p.id)}
-                            className="text-primary hover:opacity-80 p-1.5 transition text-xs font-semibold"
-                          >
-                            Xóa bánh
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {tab === 'coupons' && (
-          <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row gap-6">
-              {/* Coupon Form */}
-              <form onSubmit={handleCreateCoupon} className="w-full sm:w-80 shrink-0 p-5 rounded-xl border border-[#E8E8E8] bg-[#F8F8F8] space-y-4">
-                <h3 className="font-bold text-base text-primary uppercase tracking-[0.3px]">TẠO MÃ GIẢM GIÁ</h3>
-                
-                <div>
-                  <label className="block text-[9px] font-bold text-gray-500 mb-1 uppercase">Mã CODE</label>
-                  <input 
-                    type="text" 
-                    required
-                    placeholder="VD: BURGERVIP" 
-                    value={newC.code}
-                    onChange={(e) => setNewC({ ...newC, code: e.target.value.toUpperCase() })}
-                    className="w-full bg-white border border-[#E8E8E8] rounded-lg px-3 py-2 text-xs text-[#1A1A1A] focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[9px] font-bold text-gray-500 mb-1 uppercase">Kiểu giảm</label>
-                  <select 
-                    value={newC.type}
-                    onChange={(e) => setNewC({ ...newC, type: e.target.value })}
-                    className="w-full bg-white border border-[#E8E8E8] text-xs text-[#1A1A1A] rounded-lg px-3 py-2 focus:outline-none"
-                  >
-                    <option value="percent">Giảm theo %</option>
-                    <option value="fixed">Giảm tiền mặt</option>
-                    <option value="free_ship">Miễn phí ship</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[9px] font-bold text-gray-500 mb-1 uppercase">Giá trị giảm</label>
-                  <input 
-                    type="number" 
-                    required
-                    placeholder="VD: 20 (% hoặc VND)" 
-                    value={newC.value}
-                    onChange={(e) => setNewC({ ...newC, value: e.target.value })}
-                    className="w-full bg-white border border-[#E8E8E8] rounded-lg px-3 py-2 text-xs text-[#1A1A1A] focus:outline-none"
-                  />
-                </div>
-
-                <button 
-                  type="submit" 
-                  className="w-full bg-primary hover:opacity-90 text-white font-semibold py-2.5 rounded-lg text-xs tracking-wider uppercase transition hover:-translate-y-[1px]"
-                >
-                  TẠO MÃ NGAY
-                </button>
-              </form>
-
-              {/* Coupons list */}
-              <div className="flex-1 overflow-x-auto">
-                <h3 className="font-bold text-base text-[#1A1A1A] uppercase tracking-[0.3px] mb-4">DANH SÁCH MÃ GIẢM GIÁ HOẠT ĐỘNG</h3>
-                <table className="w-full text-left text-xs divide-y divide-[#E8E8E8]">
-                  <thead>
-                    <tr className="text-gray-400 font-bold uppercase tracking-wide">
-                      <th className="pb-3">Mã giảm giá</th>
-                      <th className="pb-3">Loại giảm</th>
-                      <th className="pb-3">Giá trị</th>
-                      <th className="pb-3">Đơn tối thiểu</th>
-                      <th className="pb-3">Lượt dùng</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#E8E8E8] text-[#666666]">
-                    {coupons.map((c) => (
-                      <tr key={c.id} className="hover:bg-[#F8F8F8] transition">
-                        <td className="py-3 font-bold text-[#1A1A1A] flex items-center gap-1.5"><Tag className="w-4 h-4 text-primary" /> {c.code}</td>
-                        <td className="py-3 uppercase font-semibold text-xs">{c.type}</td>
-                        <td className="py-3 text-primary font-semibold text-sm">{c.type === 'percent' ? `${c.value}%` : formatVND(c.value)}</td>
-                        <td className="py-3">{formatVND(c.min_order)}</td>
-                        <td className="py-3">{c.used_count} / {c.usage_limit ?? 'Vô hạn'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
+    <div className="fixed inset-x-0 top-0 z-[100] bg-primary text-white text-center text-sm font-semibold px-4 py-2">
+      {maintenance}
     </div>
   )
 }
 
-// --- MAIN ROUTER APP ---
+function AppShell({ selectedProduct, setSelectedProduct }) {
+  const location = useLocation()
+  const isAdminRoute = location.pathname.startsWith('/admin')
+
+  return (
+    <div className={`min-h-screen text-[#1A1A1A] flex flex-col antialiased selection:bg-primary selection:text-white ${isAdminRoute ? 'bg-[#F4F6F8]' : 'bg-[#FFFAF5] pb-16 md:pb-0'}`}>
+        <AosRefresh />
+        <PublicSettingsLoader />
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            duration: 3000,
+            style: { fontSize: '14px' },
+          }}
+        />
+        
+        {/* Global Toast Alerts */}
+        {!isAdminRoute && <Toast />}
+
+        {/* Global Navbar */}
+        {!isAdminRoute && <Header />}
+
+        {/* Floating Cart Drawer */}
+        {!isAdminRoute && <CartDrawer />}
+        {!isAdminRoute && <ScrollToTopButton />}
+
+        {/* Router Pages Switch */}
+        <div className="flex-1">
+          <Routes>
+            <Route path="/admin/*" element={<AdminPanel />} />
+            <Route path="/" element={<Home onSelectProduct={setSelectedProduct} />} />
+            <Route path="/menu" element={<Menu onSelectProduct={setSelectedProduct} />} />
+            <Route path="/combos" element={<Combos />} />
+            <Route path="/branches" element={<Branches />} />
+            <Route path="/blog" element={<BlogPage />} />
+            <Route path="/blog/:slug" element={<BlogDetailPage />} />
+            
+            {/* Authentications */}
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            
+            {/* Checkout & tracking */}
+            <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
+            <Route path="/orders/tracking/:code" element={<OrderDetailTracking />} />
+            
+            {/* Customer & Admin panels */}
+            <Route path="/profile" element={<Profile />} />
+          </Routes>
+        </div>
+
+        {/* Bottom Nav on Mobile devices */}
+        {!isAdminRoute && <MobileNav />}
+
+        {/* Global Footer */}
+        {!isAdminRoute && <Footer />}
+
+        {/* Product details customizer dialog overlay */}
+        {!isAdminRoute && selectedProduct && (
+          <ProductDetailModal 
+            key={selectedProduct.id}
+            product={selectedProduct} 
+            onClose={() => setSelectedProduct(null)} 
+          />
+        )}
+      </div>
+  )
+}
 
 function App() {
   const [selectedProduct, setSelectedProduct] = useState(null)
 
   useEffect(() => {
+    initDarkMode()
     AOS.init({
       duration: 500,
       easing: 'ease-out-cubic',
@@ -3092,55 +2819,7 @@ function App() {
 
   return (
     <Router>
-      <div className="min-h-screen bg-[#FFFAF5] text-[#1A1A1A] flex flex-col antialiased selection:bg-primary selection:text-white pb-16 md:pb-0">
-        <AosRefresh />
-        
-        {/* Global Toast Alerts */}
-        <Toast />
-
-        {/* Global Navbar */}
-        <Header />
-
-        {/* Floating Cart Drawer */}
-        <CartDrawer />
-
-        {/* Router Pages Switch */}
-        <div className="flex-1">
-          <Routes>
-            <Route path="/" element={<Home onSelectProduct={setSelectedProduct} />} />
-            <Route path="/menu" element={<Menu onSelectProduct={setSelectedProduct} />} />
-            <Route path="/combos" element={<Combos />} />
-            <Route path="/branches" element={<Branches />} />
-            
-            {/* Authentications */}
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            
-            {/* Checkout & tracking */}
-            <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
-            <Route path="/checkout/payment-mock" element={<PaymentMock />} />
-            <Route path="/orders/tracking/:code" element={<OrderDetailTracking />} />
-            
-            {/* Customer & Admin panels */}
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/admin" element={<Admin />} />
-          </Routes>
-        </div>
-
-        {/* Bottom Nav on Mobile devices */}
-        <MobileNav />
-
-        {/* Global Footer */}
-        <Footer />
-
-        {/* Product details customizer dialog overlay */}
-        {selectedProduct && (
-          <ProductDetailModal 
-            product={selectedProduct} 
-            onClose={() => setSelectedProduct(null)} 
-          />
-        )}
-      </div>
+      <AppShell selectedProduct={selectedProduct} setSelectedProduct={setSelectedProduct} />
     </Router>
   )
 }

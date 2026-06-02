@@ -1,0 +1,27 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration {
+    public function up(): void
+    {
+        Schema::create('payment_plugins', function (Blueprint $table) {
+            $table->id();
+            $table->string('key')->unique();
+            $table->string('name');
+            $table->string('description')->default('');
+            $table->string('icon')->nullable();
+            $table->boolean('is_active')->default(false);
+            $table->json('config')->nullable();
+            $table->integer('sort_order')->default(0);
+            $table->timestamps();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('payment_plugins');
+    }
+};

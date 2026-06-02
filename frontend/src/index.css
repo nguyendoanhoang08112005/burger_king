@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --bg-main: #FFFAF5;
   --bg-card: #FFFFFF;
@@ -16,6 +18,30 @@
   --shadow-card: 0 2px 12px rgba(0,0,0,0.08);
   --font-display: 'DM Sans', sans-serif;
   --font-body: 'DM Sans', sans-serif;
+}
+
+.admin-layout {
+  --sidebar-bg: #FFFFFF;
+  --sidebar-border: #F0F0F0;
+  --sidebar-text: #4B5563;
+  --sidebar-text-active: #D62300;
+  --sidebar-icon: #9CA3AF;
+  --sidebar-icon-active: #D62300;
+  --sidebar-active-bg: #FFF5F5;
+  --sidebar-hover-bg: #F9FAFB;
+  --sidebar-group-label: #9CA3AF;
+  --admin-sidebar-bg: #FFFFFF;
+  --admin-sidebar-width: 260px;
+  --admin-sidebar-collapsed: 70px;
+  --admin-topbar-bg: #FFFFFF;
+  --admin-topbar-h: 60px;
+  --admin-content-bg: #F4F6F8;
+  --admin-card-bg: #FFFFFF;
+  --admin-primary: #D62300;
+  --admin-border: #E8E8E8;
+  --admin-text: #1A1F2E;
+  --admin-text-muted: #6B7280;
+  --admin-shadow: 0 1px 3px rgba(0,0,0,0.08);
 }
 
 @theme {
@@ -96,4 +122,49 @@ h1, h2, h3, h4, h5, h6, .font-heading {
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border-color);
   box-shadow: var(--shadow-card);
+}
+
+.blog-content h2 {
+  font-size: 24px;
+  line-height: 1.25;
+  margin-top: 32px;
+  margin-bottom: 12px;
+}
+
+.blog-content p {
+  margin-bottom: 16px;
+}
+
+.blog-content img {
+  width: 100%;
+  border-radius: 12px;
+  box-shadow: var(--shadow-card);
+  margin: 28px 0;
+}
+
+.blog-content blockquote {
+  border-left: 4px solid var(--color-primary);
+  background: rgba(255, 199, 44, 0.14);
+  border-radius: 0 12px 12px 0;
+  font-style: italic;
+  padding: 18px 22px;
+  margin: 28px 0;
+}
+
+.blog-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 24px 0;
+  font-size: 14px;
+}
+
+.blog-content th,
+.blog-content td {
+  border: 1px solid var(--border-color);
+  padding: 12px;
+  text-align: left;
+}
+
+.blog-content th {
+  background: #FFFAF5;
 }
