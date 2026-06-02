@@ -124,6 +124,9 @@ class DatabaseSeeder extends Seeder
             ComboSetSeeder::class,         // 6. Combo Sets (4)
             CouponSeeder::class,           // 7. Coupons (5)
             BannerSeeder::class,           // 8. Banners (3)
+            BlogSeeder::class,             // 9. Blog posts (5)
+            PaymentPluginSeeder::class,    // 10. Payment plugins
+            SettingsSeeder::class,         // 11. Site settings
         ]);
 
         // ═══════════════════════════════════════════

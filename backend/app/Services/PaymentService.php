@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use App\Models\Order;
+use App\Models\PaymentPlugin;
+use Exception;
 use Illuminate\Support\Facades\Log;
 
 class PaymentService
@@ -10,19 +12,54 @@ class PaymentService
     public function createPaymentUrl(Order $order, string $gateway): string
     {
         $frontendUrl = env('FRONTEND_URL', 'http://localhost:5173');
-        
-        // Under local dev, we redirect to a unified visual Mock Payment gateway on the React app
-        // This is robust, immediately interactive, and doesn't require actual sandbox keys to test.
-        if (in_array($gateway, ['vnpay', 'momo'])) {
-            return $frontendUrl . "/checkout/payment-mock?" . http_build_query([
-                'order_code' => $order->order_code,
-                'amount' => (float) $order->total,
-                'gateway' => $gateway,
-            ]);
+
+        if (in_array($gateway, ['cod', 'loyalty', 'loyalty_points'], true)) {
+            return $frontendUrl . "/orders/tracking/" . $order->order_code;
         }
 
-        // COD doesn't need external redirection
-        return $frontendUrl . "/orders/tracking/" . $order->order_code;
+        $plugin = PaymentPlugin::where('key', $gateway)->where('is_active', true)->first();
+        if (!$plugin) {
+            throw new Exception('Phương thức thanh toán chưa được kích hoạt.');
+        }
+
+        $config = $plugin->config ?? [];
+        
+        if ($gateway === 'vnpay') {
+            $terminalCode = $config['vnp_TmnCode'] ?? env('VNPAY_TMN_CODE');
+            $hashSecret = $config['vnp_HashSecret'] ?? env('VNPAY_HASH_SECRET');
+            $paymentUrl = $config['vnp_Url'] ?? env('VNPAY_PAYMENT_URL', 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html');
+            $returnUrl = !empty($config['vnp_ReturnUrl']) ? $config['vnp_ReturnUrl'] : env('VNPAY_RETURN_URL', $frontendUrl . '/orders/tracking/' . $order->order_code);
+
+            if (!$terminalCode || !$hashSecret) {
+                throw new Exception('VNPAY chưa được cấu hình. Vui lòng kiểm tra VNPAY_TMN_CODE và VNPAY_HASH_SECRET.');
+            }
+
+            $params = [
+                'vnp_Version' => '2.1.0',
+                'vnp_TmnCode' => $terminalCode,
+                'vnp_Amount' => (int) round($order->total * 100),
+                'vnp_Command' => 'pay',
+                'vnp_CreateDate' => now()->format('YmdHis'),
+                'vnp_CurrCode' => 'VND',
+                'vnp_IpAddr' => request()->ip(),
+                'vnp_Locale' => 'vn',
+                'vnp_OrderInfo' => 'Thanh toan don hang ' . $order->order_code,
+                'vnp_OrderType' => 'billpayment',
+                'vnp_ReturnUrl' => $returnUrl,
+                'vnp_TxnRef' => $order->order_code,
+            ];
+            ksort($params);
+            $hashData = urldecode(http_build_query($params));
+            $params['vnp_SecureHash'] = hash_hmac('sha512', $hashData, $hashSecret);
+
+            return $paymentUrl . '?' . http_build_query($params);
+        }
+
+        if ($gateway === 'momo') {
+            throw new Exception('MoMo chưa được tích hợp tạo giao dịch tự động. Vui lòng tắt plugin hoặc hoàn thiện bộ xử lý MoMo.');
+        }
+
+        throw new Exception("Plugin {$plugin->name} chưa có bộ xử lý thanh toán.");
     }
 
     public function processCallback(string $orderCode, string $gateway, string $status): bool

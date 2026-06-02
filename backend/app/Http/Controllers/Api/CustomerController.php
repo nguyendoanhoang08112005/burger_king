@@ -11,6 +11,7 @@ use App\Models\Branch;
 use App\Models\Address;
 use App\Models\Order;
 use App\Models\Coupon;
+use App\Models\ProductTopping;
 use App\Models\Wishlist;
 use App\Models\Review;
 use App\Services\OrderService;
@@ -42,6 +43,14 @@ class CustomerController extends Controller
             $query->where('name', 'like', '%' . $request->search . '%');
         }
 
+        if ($request->boolean('featured') || $request->boolean('is_featured')) {
+            $query->where('is_featured', true);
+        }
+
+        if ($request->filled('exclude')) {
+            $query->where('id', '!=', $request->exclude);
+        }
+
         // Sort Orders
         $sortBy = $request->get('sort_by', 'sort_order');
         if ($sortBy === 'price_asc') {
@@ -52,6 +61,10 @@ class CustomerController extends Controller
             $query->orderBy('created_at', 'DESC');
         } else {
             $query->orderBy('sort_order', 'ASC');
+        }
+
+        if ($request->filled('limit')) {
+            return response()->json($query->limit((int) $request->limit)->get());
         }
 
         return response()->json($query->paginate($request->get('per_page', 9)));
@@ -69,6 +82,22 @@ class CustomerController extends Controller
     public function categories()
     {
         return response()->json(Category::where('is_active', true)->orderBy('sort_order')->get());
+    }
+
+    public function toppings(Request $request)
+    {
+        $query = ProductTopping::where('is_available', true);
+
+        if ($request->filled('category_id')) {
+            $categoryId = (int) $request->category_id;
+            $query->where(function ($q) use ($categoryId) {
+                $q->whereNull('category_ids')
+                    ->orWhereJsonLength('category_ids', 0)
+                    ->orWhereJsonContains('category_ids', $categoryId);
+            });
+        }
+
+        return response()->json($query->orderBy('category')->orderBy('name')->get());
     }
 
     public function combos()
@@ -194,7 +223,7 @@ class CustomerController extends Controller
     {
         $request->validate([
             'delivery_type' => 'required|in:delivery,pickup',
-            'payment_method' => 'required|in:vnpay,momo,cod,loyalty',
+            'payment_method' => 'required|in:vnpay,momo,cod,loyalty,loyalty_points,stripe,paypal,sepay,zalopay',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|integer|min:1',
