@@ -48,7 +48,7 @@ class ProductSizeSeeder extends Seeder
                 ] as $size) {
                     ProductSize::updateOrCreate(
                         ['product_id' => $product->id, 'size' => $size['size']],
-                        ['extra_price' => $size['extra_price'], 'is_available' => true]
+                        ['sku' => "{$product->sku}-{$size['size']}", 'extra_price' => $size['extra_price'], 'is_available' => true]
                     );
                 }
             }
@@ -67,7 +67,7 @@ class ProductSizeSeeder extends Seeder
                 ] as $size) {
                     ProductSize::updateOrCreate(
                         ['product_id' => $product->id, 'size' => $size['size']],
-                        ['extra_price' => $size['extra_price'], 'is_available' => true]
+                        ['sku' => "{$product->sku}-{$size['size']}", 'extra_price' => $size['extra_price'], 'is_available' => true]
                     );
                 }
             }

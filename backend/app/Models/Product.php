@@ -6,14 +6,23 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+use App\Traits\HasTranslations;
+
 class Product extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, HasTranslations;
+
+    public array $translatable = [
+        'name',
+        'description',
+        'short_description',
+    ];
 
     protected $fillable = [
         'category_id',
         'name',
         'slug',
+        'sku',
         'description',
         'short_description',
         'base_price',

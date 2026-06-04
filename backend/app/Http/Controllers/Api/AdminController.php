@@ -16,6 +16,7 @@ use App\Models\Post;
 use App\Models\ProductTopping;
 use App\Models\User;
 use App\Models\Review;
+use App\Models\Translation;
 use App\Services\NotificationService;
 use App\Services\LoyaltyService;
 use Illuminate\Http\Request;
@@ -66,14 +67,14 @@ class AdminController extends Controller
             $salesTrend[] = [
                 'name' => $date->format('d/m'),
                 'Doanh thu' => (float) $dailyTotal,
-                'Đơn hàng' => Order::whereDate('created_at', $date)->count(),
+                __('api.messages.orders_metric') => Order::whereDate('created_at', $date)->count(),
             ];
         }
 
         // 3. Top Selling Products
         $topProducts = DB::table('order_items')
-            ->select('product_name as name', DB::raw('SUM(quantity) as quantity'), DB::raw('SUM(subtotal) as value'))
-            ->groupBy('product_name')
+            ->select('product_name as name', 'product_sku as sku', DB::raw('SUM(quantity) as quantity'), DB::raw('SUM(subtotal) as value'))
+            ->groupBy('product_sku', 'product_name')
             ->orderBy('quantity', 'desc')
             ->limit(5)
             ->get();
@@ -137,9 +138,9 @@ class AdminController extends Controller
     public function activityLog()
     {
         $activities = Order::with('user')->latest()->limit(10)->get()->map(fn ($order) => [
-            'name' => $order->user?->name ?? 'Khách lẻ',
+            'name' => $order->user?->name ?? __('api.messages.walk_in_customer'),
             'role' => $order->user?->role ?? 'customer',
-            'action' => "tạo đơn {$order->order_code}",
+            'action' => __('api.messages.activity_created_order', ['code' => $order->order_code]),
             'time' => $order->created_at,
             'ip' => request()->ip(),
         ]);
@@ -198,6 +199,20 @@ class AdminController extends Controller
 
         $order = Order::findOrFail($id);
         $oldStatus = $order->status;
+        $allowedTransitions = [
+            'pending' => ['confirmed', 'cancelled'],
+            'confirmed' => ['preparing', 'cancelled'],
+            'preparing' => ['delivering', 'cancelled'],
+            'delivering' => ['delivered'],
+            'delivered' => [],
+            'cancelled' => [],
+        ];
+
+        if ($request->status !== $oldStatus && !in_array($request->status, $allowedTransitions[$oldStatus] ?? [], true)) {
+            return response()->json([
+                'message' => __('api.messages.order_status_invalid_transition'),
+            ], 422);
+        }
 
         $updateData = ['status' => $request->status];
         if ($request->has('payment_status')) {
@@ -226,14 +241,14 @@ class AdminController extends Controller
             $notificationService->sendOrderStatusNotification($order);
         }
 
-        return $this->ok($order->load(['user', 'items', 'address']), 'Cập nhật trạng thái đơn hàng thành công!');
+        return $this->ok($order->load(['user', 'items', 'address']), __('api.messages.order_status_updated'));
     }
 
     // --- PRODUCTS CRUD ---
 
     public function listProducts(Request $request)
     {
-        $query = Product::with('category')->orderBy('sort_order');
+        $query = Product::with(['translations', 'category.translations'])->orderBy('sort_order');
 
         if ($request->filled('search')) {
             $query->where('name', 'like', "%{$request->search}%");
@@ -252,33 +267,46 @@ class AdminController extends Controller
 
     public function showProduct($id)
     {
-        return $this->ok(Product::with(['category', 'sizes', 'images'])->findOrFail($id));
+        return $this->ok(Product::with(['category', 'sizes', 'images', 'translations'])->findOrFail($id));
     }
 
     public function createProduct(Request $request)
     {
+        if ($request->has('translations')) {
+            $request->merge([
+                'name' => $request->input('translations.name'),
+                'description' => $request->input('translations.description'),
+                'short_description' => $request->input('translations.short_description'),
+            ]);
+        }
+
         $request->validate([
             'category_id' => 'required|exists:categories,id',
-            'name' => 'required|string|max:255',
+            'name' => 'required',
             'slug' => 'nullable|string|max:255|unique:products,slug',
+            'sku' => 'nullable|string|max:100|unique:products,sku',
             'base_price' => 'required|numeric|min:0',
             'sale_price' => 'nullable|numeric|min:0',
             'thumbnail' => 'required|string',
-            'description' => 'nullable|string',
-            'short_description' => 'nullable|string',
+            'description' => 'nullable',
+            'short_description' => 'nullable',
             'is_featured' => 'nullable|boolean',
             'is_available' => 'nullable|boolean',
             'sort_order' => 'nullable|integer',
             'sizes' => 'nullable|array',
             'sizes.*.size' => 'required_with:sizes|in:S,M,L,XL',
+            'sizes.*.sku' => 'nullable|string|max:100|distinct',
             'sizes.*.extra_price' => 'nullable|numeric|min:0',
             'sizes.*.is_available' => 'nullable|boolean',
         ]);
 
+        $slugName = is_array($request->name) ? ($request->name['vi'] ?? '') : $request->name;
+
         $product = Product::create([
             'category_id' => $request->category_id,
             'name' => $request->name,
-            'slug' => $request->slug ?: \Illuminate\Support\Str::slug($request->name),
+            'slug' => $request->slug ?: \Illuminate\Support\Str::slug($slugName),
+            'sku' => $this->normalizeSku($request->sku),
             'base_price' => $request->base_price,
             'sale_price' => $request->sale_price,
             'thumbnail' => $request->thumbnail,
@@ -289,6 +317,10 @@ class AdminController extends Controller
             'sort_order' => $request->sort_order ?? 0,
         ]);
 
+        if (!$product->sku) {
+            $product->update(['sku' => $this->generatedSku('PRD', $product->slug, $product->id)]);
+        }
+
         $sizes = $request->sizes ?: [
             ['size' => 'S', 'extra_price' => 0.00, 'is_available' => true],
             ['size' => 'M', 'extra_price' => 15000.00, 'is_available' => true],
@@ -298,40 +330,54 @@ class AdminController extends Controller
             ProductSize::create([
                 'product_id' => $product->id,
                 'size' => $size['size'],
+                'sku' => $this->normalizeSku($size['sku'] ?? null) ?: "{$product->sku}-{$size['size']}",
                 'extra_price' => $size['extra_price'] ?? 0,
                 'is_available' => $size['is_available'] ?? true,
             ]);
         }
 
-        return $this->ok($product->load('category'), 'Thêm sản phẩm mới thành công!')->setStatusCode(201);
+        return $this->ok($product->load('category'), __('api.messages.product_created'))->setStatusCode(201);
     }
 
     public function updateProduct(Request $request, $id)
     {
         $product = Product::findOrFail($id);
 
+        if ($request->has('translations')) {
+            $request->merge([
+                'name' => $request->input('translations.name'),
+                'description' => $request->input('translations.description'),
+                'short_description' => $request->input('translations.short_description'),
+            ]);
+        }
+
         $request->validate([
             'category_id' => 'required|exists:categories,id',
-            'name' => 'required|string|max:255',
+            'name' => 'required',
             'slug' => 'nullable|string|max:255|unique:products,slug,' . $product->id,
+            'sku' => 'nullable|string|max:100|unique:products,sku,' . $product->id,
             'base_price' => 'required|numeric|min:0',
             'sale_price' => 'nullable|numeric|min:0',
             'thumbnail' => 'required|string',
-            'description' => 'nullable|string',
-            'short_description' => 'nullable|string',
+            'description' => 'nullable',
+            'short_description' => 'nullable',
             'is_featured' => 'nullable|boolean',
             'is_available' => 'nullable|boolean',
             'sort_order' => 'nullable|integer',
             'sizes' => 'nullable|array',
             'sizes.*.size' => 'required_with:sizes|in:S,M,L,XL',
+            'sizes.*.sku' => 'nullable|string|max:100|distinct',
             'sizes.*.extra_price' => 'nullable|numeric|min:0',
             'sizes.*.is_available' => 'nullable|boolean',
         ]);
 
+        $slugName = is_array($request->name) ? ($request->name['vi'] ?? '') : $request->name;
+
         $product->update([
             'category_id' => $request->category_id,
             'name' => $request->name,
-            'slug' => $request->slug ?: \Illuminate\Support\Str::slug($request->name),
+            'slug' => $request->slug ?: \Illuminate\Support\Str::slug($slugName),
+            'sku' => $this->normalizeSku($request->sku) ?: $this->generatedSku('PRD', $request->slug ?: $slugName, $product->id),
             'base_price' => $request->base_price,
             'sale_price' => $request->sale_price,
             'thumbnail' => $request->thumbnail,
@@ -348,13 +394,14 @@ class AdminController extends Controller
                 ProductSize::create([
                     'product_id' => $product->id,
                     'size' => $size['size'],
+                    'sku' => $this->normalizeSku($size['sku'] ?? null) ?: "{$product->sku}-{$size['size']}",
                     'extra_price' => $size['extra_price'] ?? 0,
                     'is_available' => $size['is_available'] ?? true,
                 ]);
             }
         }
 
-        return $this->ok($product->load(['category', 'sizes']), 'Cập nhật thông tin sản phẩm thành công!');
+        return $this->ok($product->load(['category', 'sizes']), __('api.messages.product_updated_details'));
     }
 
     public function patchProduct(Request $request, $id)
@@ -364,6 +411,7 @@ class AdminController extends Controller
         $data = $request->validate([
             'category_id' => 'sometimes|exists:categories,id',
             'name' => 'sometimes|string|max:255',
+            'sku' => 'sometimes|nullable|string|max:100|unique:products,sku,' . $product->id,
             'base_price' => 'sometimes|numeric|min:0',
             'sale_price' => 'nullable|numeric|min:0',
             'thumbnail' => 'sometimes|string',
@@ -376,10 +424,13 @@ class AdminController extends Controller
         if (array_key_exists('name', $data)) {
             $data['slug'] = \Illuminate\Support\Str::slug($data['name']);
         }
+        if (array_key_exists('sku', $data)) {
+            $data['sku'] = $this->normalizeSku($data['sku']);
+        }
 
         $product->update($data);
 
-        return $this->ok($product->load('category'), 'Cập nhật sản phẩm thành công!');
+        return $this->ok($product->load('category'), __('api.messages.product_updated'));
     }
 
     public function deleteProduct($id)
@@ -387,7 +438,7 @@ class AdminController extends Controller
         $product = Product::findOrFail($id);
         $product->delete();
 
-        return $this->ok(null, 'Xóa sản phẩm thành công (Soft Delete).');
+        return $this->ok(null, __('api.messages.product_deleted'));
     }
 
     public function upload(Request $request)
@@ -400,14 +451,14 @@ class AdminController extends Controller
 
         return $this->ok([
             'url' => url(Storage::url($path)),
-        ], 'Upload ảnh thành công!');
+        ], __('api.messages.image_uploaded'));
     }
 
     // --- CATEGORIES CRUD ---
 
     public function listCategories()
     {
-        $query = Category::withCount('products')->orderBy('sort_order');
+        $query = Category::with('translations')->withCount('products')->orderBy('sort_order');
 
         if (request()->filled('search')) {
             $query->where('name', 'like', '%' . request('search') . '%');
@@ -418,54 +469,74 @@ class AdminController extends Controller
 
     public function createCategory(Request $request)
     {
+        if ($request->has('translations')) {
+            $request->merge([
+                'name' => $request->input('translations.name'),
+                'description' => $request->input('translations.description'),
+            ]);
+        }
+
         $request->validate([
-            'name' => 'required|string|max:255',
+            'name' => 'required',
             'slug' => 'nullable|string|max:255|unique:categories,slug',
-            'description' => 'nullable|string',
+            'description' => 'nullable',
             'image' => 'nullable|string',
             'sort_order' => 'nullable|integer',
             'is_active' => 'nullable|boolean',
         ]);
 
+        $slugName = is_array($request->name) ? ($request->name['vi'] ?? '') : $request->name;
+
         $category = Category::create([
             'name' => $request->name,
-            'slug' => $request->slug ?: \Illuminate\Support\Str::slug($request->name),
+            'slug' => $request->slug ?: \Illuminate\Support\Str::slug($slugName),
             'description' => $request->description,
             'image' => $request->image,
             'sort_order' => $request->sort_order ?? 0,
             'is_active' => $request->boolean('is_active', true),
         ]);
 
-        return $this->ok($category, 'Thêm danh mục mới thành công!')->setStatusCode(201);
+        return $this->ok($category, __('api.messages.category_created'))->setStatusCode(201);
     }
 
     public function showCategory($id)
     {
-        return $this->ok(Category::withCount('products')->findOrFail($id));
+        return $this->ok(Category::with('translations')->withCount('products')->findOrFail($id));
     }
 
     public function updateCategory(Request $request, $id)
     {
         $category = Category::findOrFail($id);
+
+        if ($request->has('translations')) {
+            $request->merge([
+                'name' => $request->input('translations.name'),
+                'description' => $request->input('translations.description'),
+            ]);
+        }
+
         $data = $request->validate([
-            'name' => 'required|string|max:255',
+            'name' => 'required',
             'slug' => 'nullable|string|max:255|unique:categories,slug,' . $category->id,
-            'description' => 'nullable|string',
+            'description' => 'nullable',
             'image' => 'nullable|string',
             'sort_order' => 'nullable|integer',
             'is_active' => 'nullable|boolean',
         ]);
-        $data['slug'] = $data['slug'] ?: \Illuminate\Support\Str::slug($data['name']);
+
+        $slugName = is_array($request->name) ? ($request->name['vi'] ?? '') : $request->name;
+        $data['slug'] = $data['slug'] ?: \Illuminate\Support\Str::slug($slugName);
+
         $category->update($data);
 
-        return $this->ok($category->loadCount('products'), 'Cập nhật danh mục thành công!');
+        return $this->ok($category->loadCount('products'), __('api.messages.category_updated'));
     }
 
     public function deleteCategory($id)
     {
         Category::findOrFail($id)->delete();
 
-        return $this->ok(null, 'Xóa danh mục thành công!');
+        return $this->ok(null, __('api.messages.category_deleted'));
     }
 
     // --- COUPONS CRUD ---
@@ -501,7 +572,7 @@ class AdminController extends Controller
             'expires_at' => $request->expires_at ?? now()->addMonths(6)
         ]);
 
-        return $this->ok($coupon, 'Tạo mã giảm giá thành công!')->setStatusCode(201);
+        return $this->ok($coupon, __('api.messages.coupon_created'))->setStatusCode(201);
     }
 
     public function showCoupon($id)
@@ -527,14 +598,14 @@ class AdminController extends Controller
         $data['code'] = strtoupper($data['code']);
         $coupon->update($data);
 
-        return $this->ok($coupon, 'Cập nhật mã giảm giá thành công!');
+        return $this->ok($coupon, __('api.messages.coupon_updated'));
     }
 
     public function deleteCoupon($id)
     {
         Coupon::findOrFail($id)->delete();
 
-        return $this->ok(null, 'Xóa mã giảm giá thành công!');
+        return $this->ok(null, __('api.messages.coupon_deleted'));
     }
 
     public function listUsers(Request $request)
@@ -563,7 +634,7 @@ class AdminController extends Controller
         $user = User::withTrashed()->findOrFail($id);
         $user->update(['role' => $request->role]);
 
-        return $this->ok($user, 'Cập nhật role thành công!');
+        return $this->ok($user, __('api.messages.role_updated'));
     }
 
     public function toggleUserStatus($id)
@@ -571,7 +642,7 @@ class AdminController extends Controller
         $user = User::withTrashed()->findOrFail($id);
         $user->trashed() ? $user->restore() : $user->delete();
 
-        return $this->ok(User::withTrashed()->find($id), 'Cập nhật trạng thái tài khoản thành công!');
+        return $this->ok(User::withTrashed()->find($id), __('api.messages.account_status_updated'));
     }
 
     public function listReviews(Request $request)
@@ -594,7 +665,7 @@ class AdminController extends Controller
         $review = Review::findOrFail($id);
         $review->update(['is_approved' => true]);
 
-        return $this->ok($review->load(['product', 'user']), 'Đã duyệt đánh giá!');
+        return $this->ok($review->load(['product', 'user']), __('api.messages.review_approved'));
     }
 
     public function hideReview($id)
@@ -602,14 +673,14 @@ class AdminController extends Controller
         $review = Review::findOrFail($id);
         $review->update(['is_approved' => false]);
 
-        return $this->ok($review->load(['product', 'user']), 'Đã ẩn đánh giá!');
+        return $this->ok($review->load(['product', 'user']), __('api.messages.review_hidden'));
     }
 
     public function deleteReview($id)
     {
         Review::findOrFail($id)->delete();
 
-        return $this->ok(null, 'Xóa đánh giá thành công!');
+        return $this->ok(null, __('api.messages.review_deleted'));
     }
 
     public function reportSummary()
@@ -628,8 +699,8 @@ class AdminController extends Controller
     public function topProducts()
     {
         $products = DB::table('order_items')
-            ->select('product_name as name', DB::raw('SUM(quantity) as quantity'), DB::raw('SUM(subtotal) as value'))
-            ->groupBy('product_name')
+            ->select('product_name as name', 'product_sku as sku', DB::raw('SUM(quantity) as quantity'), DB::raw('SUM(subtotal) as value'))
+            ->groupBy('product_sku', 'product_name')
             ->orderByDesc('quantity')
             ->limit(10)
             ->get();
@@ -658,22 +729,30 @@ class AdminController extends Controller
 
     public function listCombos(Request $request)
     {
-        $query = ComboSet::with('items.product')->withCount('items')->latest();
+        $query = ComboSet::with(['translations', 'items.product'])->withCount('items')->latest();
         if ($request->filled('search')) $query->where('name', 'like', "%{$request->search}%");
         return $this->page($query->paginate($request->get('per_page', 10)));
     }
 
     public function showCombo($id)
     {
-        return $this->ok(ComboSet::with('items.product')->findOrFail($id));
+        return $this->ok(ComboSet::with(['items.product', 'translations'])->findOrFail($id));
     }
 
     public function createCombo(Request $request)
     {
+        if ($request->has('translations')) {
+            $request->merge([
+                'name' => $request->input('translations.name'),
+                'description' => $request->input('translations.description'),
+            ]);
+        }
+
         $data = $request->validate([
-            'name' => 'required|string|max:255',
+            'name' => 'required',
             'slug' => 'nullable|string|max:255|unique:combo_sets,slug',
-            'description' => 'nullable|string',
+            'sku' => 'nullable|string|max:100|unique:combo_sets,sku',
+            'description' => 'nullable',
             'image' => 'nullable|string',
             'price' => 'required|numeric|min:0',
             'is_active' => 'nullable|boolean',
@@ -682,22 +761,41 @@ class AdminController extends Controller
             'items.*.quantity' => 'nullable|integer|min:1',
             'items.*.size' => 'nullable|in:S,M,L,XL',
         ]);
+
+        $slugName = is_array($request->name) ? ($request->name['vi'] ?? '') : $request->name;
+
         $combo = ComboSet::create([
-            ...$data,
-            'slug' => $data['slug'] ?? \Illuminate\Support\Str::slug($data['name']),
+            'name' => $request->name,
+            'slug' => $request->slug ?: \Illuminate\Support\Str::slug($slugName),
+            'sku' => $this->normalizeSku($request->sku),
+            'description' => $request->description,
+            'image' => $request->image,
+            'price' => $request->price,
             'is_active' => $request->boolean('is_active', true),
         ]);
+        if (!$combo->sku) {
+            $combo->update(['sku' => $this->generatedSku('CMB', $combo->slug, $combo->id)]);
+        }
         $this->syncComboItems($combo, $request->items ?? []);
-        return $this->ok($combo->load('items.product'), 'Tạo combo thành công!')->setStatusCode(201);
+        return $this->ok($combo->load('items.product'), __('api.messages.combo_created'))->setStatusCode(201);
     }
 
     public function updateCombo(Request $request, $id)
     {
         $combo = ComboSet::findOrFail($id);
+
+        if ($request->has('translations')) {
+            $request->merge([
+                'name' => $request->input('translations.name'),
+                'description' => $request->input('translations.description'),
+            ]);
+        }
+
         $data = $request->validate([
-            'name' => 'required|string|max:255',
+            'name' => 'required',
             'slug' => 'nullable|string|max:255|unique:combo_sets,slug,' . $combo->id,
-            'description' => 'nullable|string',
+            'sku' => 'nullable|string|max:100|unique:combo_sets,sku,' . $combo->id,
+            'description' => 'nullable',
             'image' => 'nullable|string',
             'price' => 'required|numeric|min:0',
             'is_active' => 'nullable|boolean',
@@ -707,16 +805,18 @@ class AdminController extends Controller
             'items.*.size' => 'nullable|in:S,M,L,XL',
         ]);
         unset($data['items']);
-        $data['slug'] = $data['slug'] ?: \Illuminate\Support\Str::slug($data['name']);
+        $slugName = is_array($request->name) ? ($request->name['vi'] ?? '') : $request->name;
+        $data['slug'] = $data['slug'] ?: \Illuminate\Support\Str::slug($slugName);
+        $data['sku'] = $this->normalizeSku($data['sku'] ?? null) ?: $this->generatedSku('CMB', $data['slug'] ?: $slugName, $combo->id);
         $combo->update($data);
         $this->syncComboItems($combo, $request->items ?? []);
-        return $this->ok($combo->load('items.product'), 'Cập nhật combo thành công!');
+        return $this->ok($combo->load('items.product'), __('api.messages.combo_updated'));
     }
 
     public function deleteCombo($id)
     {
         ComboSet::findOrFail($id)->delete();
-        return $this->ok(null, 'Xóa combo thành công!');
+        return $this->ok(null, __('api.messages.combo_deleted'));
     }
 
     private function syncComboItems(ComboSet $combo, array $items): void
@@ -734,7 +834,7 @@ class AdminController extends Controller
 
     public function listToppings(Request $request)
     {
-        $query = ProductTopping::query()->latest();
+        $query = ProductTopping::with('translations')->latest();
         if ($request->filled('search')) $query->where('name', 'like', "%{$request->search}%");
         if ($request->filled('category')) $query->where('category', $request->category);
         if ($request->filled('category_id')) {
@@ -750,8 +850,15 @@ class AdminController extends Controller
 
     public function createTopping(Request $request)
     {
+        if ($request->has('translations')) {
+            $request->merge([
+                'name' => $request->input('translations.name'),
+            ]);
+        }
+
         $data = $request->validate([
-            'name' => 'required|string|max:255',
+            'name' => 'required',
+            'sku' => 'nullable|string|max:100|unique:product_toppings,sku',
             'category' => 'required|in:sauce,cheese,veggie,meat',
             'price' => 'required|numeric|min:0',
             'image' => 'nullable|string',
@@ -759,16 +866,34 @@ class AdminController extends Controller
             'category_ids' => 'nullable|array',
             'category_ids.*' => 'integer|exists:categories,id',
         ]);
+        $data['sku'] = $this->normalizeSku($data['sku'] ?? null);
         $data['is_available'] = $request->boolean('is_available', true);
         $data['category_ids'] = array_values(array_map('intval', $data['category_ids'] ?? []));
-        return $this->ok(ProductTopping::create($data), 'Tạo topping thành công!')->setStatusCode(201);
+        $topping = ProductTopping::create($data);
+        if (!$topping->sku) {
+            $topping->update(['sku' => $this->generatedSku('TOP', $topping->name, $topping->id)]);
+        }
+        return $this->ok($topping, __('api.messages.topping_created'))->setStatusCode(201);
+    }
+
+    public function showTopping($id)
+    {
+        return $this->ok(ProductTopping::with('translations')->findOrFail($id));
     }
 
     public function updateTopping(Request $request, $id)
     {
         $topping = ProductTopping::findOrFail($id);
+
+        if ($request->has('translations')) {
+            $request->merge([
+                'name' => $request->input('translations.name'),
+            ]);
+        }
+
         $data = $request->validate([
-            'name' => 'required|string|max:255',
+            'name' => 'required',
+            'sku' => 'nullable|string|max:100|unique:product_toppings,sku,' . $topping->id,
             'category' => 'required|in:sauce,cheese,veggie,meat',
             'price' => 'required|numeric|min:0',
             'image' => 'nullable|string',
@@ -776,20 +901,36 @@ class AdminController extends Controller
             'category_ids' => 'nullable|array',
             'category_ids.*' => 'integer|exists:categories,id',
         ]);
+        $data['sku'] = $this->normalizeSku($data['sku'] ?? null) ?: $this->generatedSku('TOP', $data['name'], $topping->id);
         $data['category_ids'] = array_values(array_map('intval', $data['category_ids'] ?? []));
         $topping->update($data);
-        return $this->ok($topping, 'Cập nhật topping thành công!');
+        return $this->ok($topping, __('api.messages.topping_updated'));
     }
 
     public function deleteTopping($id)
     {
         ProductTopping::findOrFail($id)->delete();
-        return $this->ok(null, 'Xóa topping thành công!');
+        return $this->ok(null, __('api.messages.topping_deleted'));
+    }
+
+    private function normalizeSku(?string $sku): ?string
+    {
+        if (!$sku) {
+            return null;
+        }
+
+        return \Illuminate\Support\Str::upper(\Illuminate\Support\Str::slug($sku, '-'));
+    }
+
+    private function generatedSku(string $prefix, ?string $source, int $id): string
+    {
+        $base = \Illuminate\Support\Str::upper(\Illuminate\Support\Str::slug($source ?: (string) $id, '-'));
+        return "{$prefix}-{$base}-{$id}";
     }
 
     public function listBanners(Request $request)
     {
-        $query = Banner::orderBy('sort_order');
+        $query = Banner::with('translations')->orderBy('sort_order');
         if ($request->filled('search')) $query->where('title', 'like', "%{$request->search}%");
         if ($request->filled('position')) $query->where('position', $request->position);
         return $this->page($query->paginate($request->get('per_page', 10)));
@@ -797,9 +938,16 @@ class AdminController extends Controller
 
     public function createBanner(Request $request)
     {
+        if ($request->has('translations')) {
+            $request->merge([
+                'title' => $request->input('translations.title'),
+                'subtitle' => $request->input('translations.subtitle'),
+            ]);
+        }
+
         $data = $request->validate([
-            'title' => 'required|string|max:255',
-            'subtitle' => 'nullable|string|max:255',
+            'title' => 'required',
+            'subtitle' => 'nullable',
             'image' => 'required|string',
             'link' => 'nullable|string|max:255',
             'position' => 'required|in:hero,popup,sidebar',
@@ -809,15 +957,28 @@ class AdminController extends Controller
             'is_active' => 'nullable|boolean',
         ]);
         $data['is_active'] = $request->boolean('is_active', true);
-        return $this->ok(Banner::create($data), 'Tạo banner thành công!')->setStatusCode(201);
+        return $this->ok(Banner::create($data), __('api.messages.banner_created'))->setStatusCode(201);
+    }
+
+    public function showBanner($id)
+    {
+        return $this->ok(Banner::with('translations')->findOrFail($id));
     }
 
     public function updateBanner(Request $request, $id)
     {
         $banner = Banner::findOrFail($id);
+
+        if ($request->has('translations')) {
+            $request->merge([
+                'title' => $request->input('translations.title'),
+                'subtitle' => $request->input('translations.subtitle'),
+            ]);
+        }
+
         $data = $request->validate([
-            'title' => 'required|string|max:255',
-            'subtitle' => 'nullable|string|max:255',
+            'title' => 'required',
+            'subtitle' => 'nullable',
             'image' => 'required|string',
             'link' => 'nullable|string|max:255',
             'position' => 'required|in:hero,popup,sidebar',
@@ -827,27 +988,34 @@ class AdminController extends Controller
             'is_active' => 'nullable|boolean',
         ]);
         $banner->update($data);
-        return $this->ok($banner, 'Cập nhật banner thành công!');
+        return $this->ok($banner, __('api.messages.banner_updated'));
     }
 
     public function deleteBanner($id)
     {
         Banner::findOrFail($id)->delete();
-        return $this->ok(null, 'Xóa banner thành công!');
+        return $this->ok(null, __('api.messages.banner_deleted'));
     }
 
     public function listBranches(Request $request)
     {
-        $query = Branch::latest();
+        $query = Branch::with('translations')->latest();
         if ($request->filled('search')) $query->where('name', 'like', "%{$request->search}%")->orWhere('address', 'like', "%{$request->search}%");
         return $this->page($query->paginate($request->get('per_page', 10)));
     }
 
     public function createBranch(Request $request)
     {
+        if ($request->has('translations')) {
+            $request->merge([
+                'name' => $request->input('translations.name'),
+                'address' => $request->input('translations.address'),
+            ]);
+        }
+
         $data = $request->validate([
-            'name' => 'required|string|max:255',
-            'address' => 'required|string|max:255',
+            'name' => 'required',
+            'address' => 'required',
             'phone' => 'required|string|max:30',
             'open_time' => 'required',
             'close_time' => 'required',
@@ -856,15 +1024,28 @@ class AdminController extends Controller
             'is_active' => 'nullable|boolean',
         ]);
         $data['is_active'] = $request->boolean('is_active', true);
-        return $this->ok(Branch::create($data), 'Tạo chi nhánh thành công!')->setStatusCode(201);
+        return $this->ok(Branch::create($data), __('api.messages.branch_created'))->setStatusCode(201);
+    }
+
+    public function showBranch($id)
+    {
+        return $this->ok(Branch::with('translations')->findOrFail($id));
     }
 
     public function updateBranch(Request $request, $id)
     {
         $branch = Branch::findOrFail($id);
+
+        if ($request->has('translations')) {
+            $request->merge([
+                'name' => $request->input('translations.name'),
+                'address' => $request->input('translations.address'),
+            ]);
+        }
+
         $data = $request->validate([
-            'name' => 'required|string|max:255',
-            'address' => 'required|string|max:255',
+            'name' => 'required',
+            'address' => 'required',
             'phone' => 'required|string|max:30',
             'open_time' => 'required',
             'close_time' => 'required',
@@ -873,18 +1054,18 @@ class AdminController extends Controller
             'is_active' => 'nullable|boolean',
         ]);
         $branch->update($data);
-        return $this->ok($branch, 'Cập nhật chi nhánh thành công!');
+        return $this->ok($branch, __('api.messages.branch_updated'));
     }
 
     public function deleteBranch($id)
     {
         Branch::findOrFail($id)->delete();
-        return $this->ok(null, 'Xóa chi nhánh thành công!');
+        return $this->ok(null, __('api.messages.branch_deleted'));
     }
 
     public function listPosts(Request $request)
     {
-        $query = Post::latest('published_at');
+        $query = Post::with('translations')->latest('published_at');
         if ($request->filled('search')) $query->where('title', 'like', "%{$request->search}%");
         if ($request->filled('status')) $query->where('is_published', $request->status === 'published');
         if ($request->filled('category')) $query->where('category', $request->category);
@@ -907,12 +1088,12 @@ class AdminController extends Controller
     public function createPost(Request $request)
     {
         $data = $this->validatePost($request);
-        return $this->ok(Post::create($data), 'Tạo bài viết thành công!')->setStatusCode(201);
+        return $this->ok(Post::create($data), __('api.messages.post_created'))->setStatusCode(201);
     }
 
     public function showPost($id)
     {
-        return $this->ok(Post::findOrFail($id));
+        return $this->ok(Post::with('translations')->findOrFail($id));
     }
 
     public function updatePost(Request $request, $id)
@@ -920,22 +1101,30 @@ class AdminController extends Controller
         $post = Post::findOrFail($id);
         $data = $this->validatePost($request, $post->id);
         $post->update($data);
-        return $this->ok($post, 'Cập nhật bài viết thành công!');
+        return $this->ok($post, __('api.messages.post_updated'));
     }
 
     public function deletePost($id)
     {
         Post::findOrFail($id)->delete();
-        return $this->ok(null, 'Xóa bài viết thành công!');
+        return $this->ok(null, __('api.messages.post_deleted'));
     }
 
     private function validatePost(Request $request, $ignoreId = null): array
     {
+        if ($request->has('translations')) {
+            $request->merge([
+                'title' => $request->input('translations.title'),
+                'excerpt' => $request->input('translations.excerpt'),
+                'content' => $request->input('translations.content'),
+            ]);
+        }
+
         $data = $request->validate([
-            'title' => 'required|string|max:255',
+            'title' => 'required',
             'slug' => 'nullable|string|max:255|unique:posts,slug' . ($ignoreId ? ',' . $ignoreId : ''),
-            'excerpt' => 'required|string|max:200',
-            'content' => 'required|string',
+            'excerpt' => 'required',
+            'content' => 'required',
             'thumbnail' => 'required|string',
             'category' => 'required|string|max:255',
             'author' => 'nullable|string|max:255',
@@ -944,11 +1133,48 @@ class AdminController extends Controller
             'is_published' => 'nullable|boolean',
             'published_at' => 'nullable|date',
         ]);
-        $data['slug'] = $data['slug'] ?: \Illuminate\Support\Str::slug($data['title']);
+
+        $slugTitle = is_array($data['title']) ? ($data['title']['vi'] ?? '') : $data['title'];
+
+        $data['slug'] = $data['slug'] ?: \Illuminate\Support\Str::slug($slugTitle);
         $data['author'] = $data['author'] ?? 'Hamburger King Editorial';
         $data['read_time'] = $data['read_time'] ?? 5;
         $data['is_published'] = $request->boolean('is_published', true);
         $data['published_at'] = $data['published_at'] ?? now();
         return $data;
+    }
+
+    public function translationsStatus()
+    {
+        $models = [
+            'products'   => [Product::class,   ['name']],
+            'categories' => [Category::class,  ['name']],
+            'posts'      => [Post::class,      ['title']],
+            'branches'   => [Branch::class,    ['name']],
+            'combos'     => [ComboSet::class,  ['name']],
+        ];
+
+        $result = [];
+        foreach ($models as $key => [$model, $fields]) {
+            $total = $model::count();
+            $translated = Translation::where('translatable_type', $model)
+                ->where('locale', 'en')
+                ->whereIn('field', $fields)
+                ->whereNotNull('value')
+                ->where('value', '!=', '')
+                ->distinct('translatable_id')
+                ->count();
+
+            $result[$key] = [
+                'total'      => $total,
+                'translated' => $translated,
+                'missing'    => $total - $translated,
+                'percent'    => $total > 0
+                    ? round($translated / $total * 100)
+                    : 100,
+            ];
+        }
+
+        return response()->json(['data' => $result]);
     }
 }

@@ -13,6 +13,22 @@ use Illuminate\Support\Facades\Storage;
 
 class SettingController extends Controller
 {
+    private const LANGUAGE_CATALOG = [
+        ['code' => 'af', 'name' => 'Afrikaans'],
+        ['code' => 'am', 'name' => 'አማርኛ'],
+        ['code' => 'ar', 'name' => 'العربية المغربية'],
+        ['code' => 'az', 'name' => 'گؤنی آذربایجان'],
+        ['code' => 'be', 'name' => 'Беларуская мова'],
+        ['code' => 'bg', 'name' => 'български'],
+        ['code' => 'en', 'name' => 'English'],
+        ['code' => 'fr', 'name' => 'Français'],
+        ['code' => 'ja', 'name' => '日本語'],
+        ['code' => 'ko', 'name' => '한국어'],
+        ['code' => 'th', 'name' => 'ไทย'],
+        ['code' => 'vi', 'name' => 'Tiếng Việt'],
+        ['code' => 'zh', 'name' => '中文'],
+    ];
+
     public function index()
     {
         $settings = Cache::remember('settings_admin_index', 3600, function () {
@@ -53,6 +69,115 @@ class SettingController extends Controller
             'success' => true,
             'message' => 'Da luu cai dat thanh cong!',
         ]);
+    }
+
+    public function locales()
+    {
+        $codes = Setting::get('localization.languages', ['vi', 'en']);
+        $default = Setting::get('localization.default_language', 'vi');
+
+        if (!is_array($codes)) {
+            $codes = ['vi', 'en'];
+        }
+
+        $locales = collect($codes)
+            ->filter()
+            ->unique()
+            ->map(fn ($code) => $this->languageRow($code, $default))
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'locales' => $locales,
+                'default' => $default,
+                'available' => self::LANGUAGE_CATALOG,
+            ],
+        ]);
+    }
+
+    public function addLocale(Request $request)
+    {
+        $data = $request->validate([
+            'locale' => 'required|string|max:10',
+        ]);
+
+        $code = strtolower($data['locale']);
+        $codes = Setting::get('localization.languages', ['vi', 'en']);
+        $codes = is_array($codes) ? $codes : ['vi', 'en'];
+
+        if (!in_array($code, $codes, true)) {
+            $codes[] = $code;
+        }
+
+        Setting::set('localization.languages', array_values(array_unique($codes)), [
+            'group' => 'localization',
+            'type' => 'json',
+            'is_public' => true,
+        ]);
+
+        if (!Setting::get('localization.default_language')) {
+            Setting::set('localization.default_language', $code, [
+                'group' => 'localization',
+                'type' => 'select',
+                'is_public' => true,
+            ]);
+        }
+
+        return $this->locales();
+    }
+
+    public function setDefaultLocale(Request $request, string $locale)
+    {
+        $codes = Setting::get('localization.languages', ['vi', 'en']);
+        $codes = is_array($codes) ? $codes : ['vi', 'en'];
+
+        if (!in_array($locale, $codes, true)) {
+            return response()->json(['success' => false, 'message' => 'Locale is not enabled.'], 422);
+        }
+
+        Setting::set('localization.default_language', $locale, [
+            'group' => 'localization',
+            'type' => 'select',
+            'is_public' => true,
+        ]);
+
+        return $this->locales();
+    }
+
+    public function deleteLocale(string $locale)
+    {
+        $default = Setting::get('localization.default_language', 'vi');
+        if ($locale === $default) {
+            return response()->json(['success' => false, 'message' => 'Cannot delete the default locale.'], 422);
+        }
+
+        $codes = Setting::get('localization.languages', ['vi', 'en']);
+        $codes = is_array($codes) ? $codes : ['vi', 'en'];
+        $codes = array_values(array_filter($codes, fn ($code) => $code !== $locale));
+
+        if (!$codes) {
+            $codes = [$default];
+        }
+
+        Setting::set('localization.languages', $codes, [
+            'group' => 'localization',
+            'type' => 'json',
+            'is_public' => true,
+        ]);
+
+        return $this->locales();
+    }
+
+    private function languageRow(string $code, string $default): array
+    {
+        $match = collect(self::LANGUAGE_CATALOG)->firstWhere('code', $code);
+
+        return [
+            'code' => $code,
+            'name' => $match['name'] ?? strtoupper($code),
+            'is_default' => $code === $default,
+        ];
     }
 
     public function publicSettings()

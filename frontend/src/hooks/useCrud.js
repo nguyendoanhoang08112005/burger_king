@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import toast from 'react-hot-toast'
+import { useTranslation } from 'react-i18next'
 import api from '../api/axios'
 
 export const useCrud = (endpoint) => {
+  const { t } = useTranslation()
   const [data, setData] = useState([])
   const [meta, setMeta] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -24,7 +26,7 @@ export const useCrud = (endpoint) => {
       return body
     } catch (e) {
       setError(e.message)
-      toast.error('Lỗi tải dữ liệu')
+      toast.error(t('crud.load_error'))
       throw e
     } finally {
       setLoading(false)
@@ -33,19 +35,19 @@ export const useCrud = (endpoint) => {
 
   const create = async (payload) => {
     const res = await api.post(endpoint, payload)
-    toast.success('Thêm thành công!')
+    toast.success(t('crud.created'))
     return normalize(res.data).data
   }
 
   const update = async (id, payload) => {
     const res = await api.put(`${endpoint}/${id}`, payload)
-    toast.success('Cập nhật thành công!')
+    toast.success(t('crud.updated'))
     return normalize(res.data).data
   }
 
   const remove = async (id) => {
     await api.delete(`${endpoint}/${id}`)
-    toast.success('Đã xoá!')
+    toast.success(t('crud.deleted'))
   }
 
   const patch = async (id, payload) => {

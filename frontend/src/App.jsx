@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { 
   BrowserRouter as Router, 
   Routes, 
@@ -37,6 +37,8 @@ import {
 
 // Utilities
 import { formatVND, formatDate } from './utils/format'
+import { useTranslation } from 'react-i18next'
+import LanguageSwitcher from './components/LanguageSwitcher'
 
 // Stores
 import { useAuthStore } from './store/authStore'
@@ -107,6 +109,7 @@ function Toast() {
 
 // 2. Global Header
 function Header() {
+  const { t } = useTranslation()
   const { user, isAuthenticated, setLogout } = useAuthStore()
   const { cartItems } = useCartStore()
   const { setCartDrawerOpen } = useUiStore()
@@ -136,14 +139,17 @@ function Header() {
       </a>
 
       <nav className="hidden md:flex items-center gap-8 font-semibold text-sm tracking-wide">
-        <a href="/" onClick={handleHomeClick} className={navClass('/')}>TRANG CHỦ</a>
-        <Link to="/menu" className={navClass('/menu')}>THỰC ĐƠN</Link>
-        <Link to="/combos" className={navClass('/combos')}>VALUE COMBOS</Link>
-        <Link to="/branches" className={navClass('/branches')}>CHI NHÁNH</Link>
-        <Link to="/blog" className={location.pathname.startsWith('/blog') ? 'text-primary font-bold transition' : 'text-[#1A1A1A] hover:text-primary transition'}>BLOG</Link>
+        <a href="/" onClick={handleHomeClick} className={navClass('/')}>{t('nav.home')}</a>
+        <Link to="/menu" className={navClass('/menu')}>{t('nav.menu')}</Link>
+        <Link to="/combos" className={navClass('/combos')}>{t('nav.combos')}</Link>
+        <Link to="/branches" className={navClass('/branches')}>{t('nav.branches')}</Link>
+        <Link to="/blog" className={location.pathname.startsWith('/blog') ? 'text-primary font-bold transition' : 'text-[#1A1A1A] hover:text-primary transition'}>{t('nav.blog')}</Link>
       </nav>
 
       <div className="flex items-center gap-4">
+        {/* Language Switcher */}
+        <LanguageSwitcher variant="default" />
+
         {/* Cart Trigger */}
         <button 
           onClick={() => setCartDrawerOpen(true)}
@@ -176,12 +182,12 @@ function Header() {
               }} 
               className="text-[#666666] hover:text-primary transition text-xs font-semibold"
             >
-              Đăng xuất
+              {t('nav.logout')}
             </button>
           </div>
         ) : (
           <Link to="/login" className="bg-primary hover:opacity-90 text-white font-semibold px-6 py-2 rounded-[8px] tracking-wide text-sm transition hover:-translate-y-[1px] active:translate-y-0">
-            ĐĂNG NHẬP
+            {t('nav.login').toUpperCase()}
           </Link>
         )}
       </div>
@@ -191,6 +197,7 @@ function Header() {
 
 // 3. Global Footer
 function Footer() {
+  const { t } = useTranslation()
   return (
     <footer className="w-full bg-white border-t border-[#E8E8E8] py-12 px-6 md:px-12 mt-auto">
       <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
@@ -198,42 +205,42 @@ function Footer() {
           <span className="font-extrabold text-3xl tracking-wider text-primary">HAMBURGER</span>
           <span className="font-extrabold text-3xl tracking-wider text-white bg-primary px-2 py-0.5 rounded-[8px] ml-1">KING</span>
           <p className="text-[#666666] text-sm mt-4 leading-relaxed">
-            Chuỗi hamburger cao cấp hàng đầu Việt Nam. Chúng tôi cam kết sử dụng 100% bò Mỹ nhập khẩu nướng lửa hồng thủ công cùng nguyên liệu tươi ngon nhất hàng ngày.
+            {t('footer.brand_desc')}
           </p>
         </div>
         <div>
-          <h3 className="font-bold text-[20px] text-[#1A1A1A] tracking-wider mb-4">THỰC ĐƠN</h3>
+          <h3 className="font-bold text-[20px] text-[#1A1A1A] tracking-wider mb-4">{t('nav.menu').toUpperCase()}</h3>
           <ul className="space-y-2 text-sm text-[#666666]">
-            <li><Link to="/menu?category=burgers-bo" className="hover:text-primary transition">Burgers Bò Mỹ</Link></li>
-            <li><Link to="/menu?category=burgers-ga" className="hover:text-primary transition">Burgers Gà Giòn</Link></li>
-            <li><Link to="/menu?category=mon-an-kem" className="hover:text-primary transition">Khoai Tây & Ăn Kèm</Link></li>
-            <li><Link to="/combos" className="hover:text-primary transition">Value Combo Deals</Link></li>
+            <li><Link to="/menu?category=burgers-bo" className="hover:text-primary transition">{t('footer.menu_beef_burgers')}</Link></li>
+            <li><Link to="/menu?category=burgers-ga" className="hover:text-primary transition">{t('footer.menu_chicken_burgers')}</Link></li>
+            <li><Link to="/menu?category=mon-an-kem" className="hover:text-primary transition">{t('footer.menu_sides')}</Link></li>
+            <li><Link to="/combos" className="hover:text-primary transition">{t('footer.menu_combo_deals')}</Link></li>
           </ul>
         </div>
         <div>
-          <h3 className="font-bold text-[20px] text-[#1A1A1A] tracking-wider mb-4">LIÊN HỆ</h3>
+          <h3 className="font-bold text-[20px] text-[#1A1A1A] tracking-wider mb-4">{t('footer.contact').toUpperCase()}</h3>
           <ul className="space-y-3 text-sm text-[#666666]">
-            <li className="flex items-center gap-2"><Phone className="w-4 h-4 text-primary" /> Hotline: 1900 8888</li>
-            <li className="flex items-center gap-2"><MapPin className="w-4 h-4 text-primary" /> 120-122 Lê Lợi, Bến Nghé, Quận 1, TP. HCM</li>
-            <li className="flex items-center gap-2"><Clock className="w-4 h-4 text-primary" /> Giờ mở cửa: 08:00 - 23:00</li>
+            <li className="flex items-center gap-2"><Phone className="w-4 h-4 text-primary" /> {t('footer.hotline', { phone: '1900 8888' })}</li>
+            <li className="flex items-center gap-2"><MapPin className="w-4 h-4 text-primary" /> {t('footer.address')}</li>
+            <li className="flex items-center gap-2"><Clock className="w-4 h-4 text-primary" /> {t('footer.opening_hours', { time: '08:00 - 23:00' })}</li>
           </ul>
         </div>
         <div>
           <h3 className="font-bold text-[20px] text-[#1A1A1A] tracking-wider mb-4">NEWSLETTER</h3>
-          <p className="text-[#666666] text-sm mb-4">Đăng ký email nhận ưu đãi đặc quyền 20% hôm nay.</p>
+          <p className="text-[#666666] text-sm mb-4">{t('footer.newsletter_desc')}</p>
           <div className="flex gap-2">
             <input 
               type="email" 
-              placeholder="Nhập email của bạn..." 
+              placeholder={t('footer.newsletter_placeholder')}
               className="w-full bg-[#F8F8F8] border border-[#E8E8E8] rounded-[10px] py-[14px] px-[16px] text-sm text-[#1A1A1A] focus:outline-none focus:border-primary focus:ring-3 focus:ring-primary/10 transition-all duration-200"
             />
-            <button className="bg-primary hover:opacity-90 text-white font-semibold px-4 rounded-[8px] text-sm transition hover:-translate-y-[1px]">ĐĂNG KÝ</button>
+            <button className="bg-primary hover:opacity-90 text-white font-semibold px-4 rounded-[8px] text-sm transition hover:-translate-y-[1px]">{t('footer.newsletter_button').toUpperCase()}</button>
           </div>
         </div>
       </div>
       <div className="max-w-7xl mx-auto border-t border-[#E8E8E8] pt-8 flex flex-col md:flex-row justify-between items-center text-xs text-gray-400">
-        <p>© 2026 Hamburger King E-Commerce Platform. All rights reserved.</p>
-        <p>Thiết kế bởi Đội ngũ Senior Full-stack Antigravity.</p>
+        <p>{t('footer.copyright', { year: 2026 })}</p>
+        <p>{t('footer.credit')}</p>
       </div>
     </footer>
   )
@@ -241,6 +248,7 @@ function Footer() {
 
 // 4. Cart Drawer Overlay
 function CartDrawer() {
+  const { t } = useTranslation()
   const { cartDrawerOpen, setCartDrawerOpen, showToast } = useUiStore()
   const { cartItems, updateQuantity, removeItem, getCartTotals } = useCartStore()
   const isAuthenticated = useAuthStore(state => state.isAuthenticated)
@@ -253,7 +261,7 @@ function CartDrawer() {
   const handleCheckout = () => {
     if (!isAuthenticated) {
       setCartDrawerOpen(false)
-      showToast('Vui lòng đăng nhập để đặt hàng!', 'error')
+      showToast(t('cart.login_required'), 'error')
       navigate('/login', { state: { from: '/checkout' } })
       return
     }
@@ -275,7 +283,7 @@ function CartDrawer() {
         <div className="p-6 border-b border-[#E8E8E8] flex items-center justify-between">
           <div className="flex items-center gap-2">
             <ShoppingBag className="w-5 h-5 text-primary" />
-            <h2 className="font-bold text-2xl text-[#1A1A1A] uppercase tracking-wide">GIỎ HÀNG CỦA BẠN</h2>
+            <h2 className="font-bold text-2xl text-[#1A1A1A] uppercase tracking-wide">{t('cart.title').toUpperCase()}</h2>
           </div>
           <button 
             onClick={() => setCartDrawerOpen(false)}
@@ -290,9 +298,9 @@ function CartDrawer() {
           {cartItems.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center">
               <ShoppingBag className="w-16 h-16 text-gray-300 mb-4 stroke-1" />
-              <h3 className="font-bold text-xl text-gray-400 uppercase tracking-wide">GIỎ HÀNG TRỐNG</h3>
+              <h3 className="font-bold text-xl text-gray-400 uppercase tracking-wide">{t('cart.empty').toUpperCase()}</h3>
               <p className="text-gray-400 text-sm mt-2 max-w-xs leading-relaxed">
-                Đừng để bụng đói! Khám phá ngay thực đơn burger nướng lửa hồng thơm lừng thôi nào.
+                {t('cart.empty_desc')}
               </p>
               <button 
                 onClick={() => {
@@ -301,7 +309,7 @@ function CartDrawer() {
                 }}
                 className="mt-6 bg-primary hover:opacity-90 text-white font-semibold px-6 py-2.5 rounded-[8px] tracking-wide text-sm transition hover:-translate-y-[1px]"
               >
-                XEM THỰC ĐƠN
+                {t('nav.menu').toUpperCase()}
               </button>
             </div>
           ) : (
@@ -376,31 +384,31 @@ function CartDrawer() {
           <div className="p-6 border-t border-[#E8E8E8] bg-[#FDFDFD] space-y-4">
             <div className="space-y-2 text-sm text-[#666666]">
               <div className="flex justify-between">
-                <span>Tạm tính</span>
+                <span>{t('cart.subtotal')}</span>
                 <span className="text-[#1A1A1A] font-semibold">{formatVND(totals.subtotal)}</span>
               </div>
               {totals.productSavings > 0 && (
                 <div className="flex justify-between text-primary">
-                  <span>Tiết kiệm deal hot</span>
+                  <span>{t('cart.product_savings')}</span>
                   <span>-{formatVND(totals.productSavings)}</span>
                 </div>
               )}
               {totals.couponDiscount > 0 && (
                 <div className="flex justify-between text-primary">
-                  <span>Mã giảm giá</span>
+                  <span>{t('cart.coupon')}</span>
                   <span>-{formatVND(totals.couponDiscount)}</span>
                 </div>
               )}
               <div className="flex justify-between">
-                <span>Phí giao hàng</span>
+                <span>{t('cart.shipping')}</span>
                 <span className="text-[#1A1A1A] font-semibold">
-                  {totals.shippingFee === 0 ? 'Miễn phí' : formatVND(totals.shippingFee)}
+                  {totals.shippingFee === 0 ? t('cart.free_shipping') : formatVND(totals.shippingFee)}
                 </span>
               </div>
             </div>
 
             <div className="border-t border-[#E8E8E8] pt-3 flex justify-between items-center">
-              <span className="font-bold text-[18px] tracking-normal uppercase text-[#1A1A1A]">TỔNG CỘNG</span>
+              <span className="font-bold text-[18px] tracking-normal uppercase text-[#1A1A1A]">{t('cart.total')}</span>
               <span className="font-bold text-2xl text-primary">{formatVND(totals.total)}</span>
             </div>
 
@@ -409,7 +417,7 @@ function CartDrawer() {
               onClick={handleCheckout}
               className="w-full bg-primary hover:opacity-90 text-white font-semibold py-3.5 rounded-[8px] tracking-wider text-sm transition hover:-translate-y-[1px] active:translate-y-0 flex items-center justify-center gap-2 shadow-glass"
             >
-              TIẾN HÀNH THANH TOÁN
+              {t('cart.checkout').toUpperCase()}
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
@@ -421,6 +429,7 @@ function CartDrawer() {
 
 // 5. Mobile Navigation Footer
 function MobileNav() {
+  const { t } = useTranslation()
   const { cartItems } = useCartStore()
   const { setCartDrawerOpen } = useUiStore()
   const totalQuantity = cartItems.reduce((sum, item) => sum + item.quantity, 0)
@@ -428,10 +437,10 @@ function MobileNav() {
   return (
     <div className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-[#E8E8E8] py-3 px-6 flex justify-around items-center text-[#666666] shadow-premium">
       <Link to="/" className="flex flex-col items-center gap-1 hover:text-primary transition">
-        <span className="text-[10px] font-semibold tracking-wide">TRANG CHỦ</span>
+        <span className="text-[10px] font-semibold tracking-wide">{t('nav.home').toUpperCase()}</span>
       </Link>
       <Link to="/menu" className="flex flex-col items-center gap-1 hover:text-primary transition">
-        <span className="text-[10px] font-semibold tracking-wide">THỰC ĐƠN</span>
+        <span className="text-[10px] font-semibold tracking-wide">{t('nav.menu').toUpperCase()}</span>
       </Link>
       <button 
         onClick={() => setCartDrawerOpen(true)}
@@ -443,10 +452,10 @@ function MobileNav() {
             {totalQuantity}
           </span>
         )}
-        <span className="text-[10px] font-semibold tracking-wide">GIỎ HÀNG</span>
+        <span className="text-[10px] font-semibold tracking-wide">{t('nav.cart').toUpperCase()}</span>
       </button>
       <Link to="/profile" className="flex flex-col items-center gap-1 hover:text-primary transition">
-        <span className="text-[10px] font-semibold tracking-wide">CÁ NHÂN</span>
+        <span className="text-[10px] font-semibold tracking-wide">{t('nav.profile').toUpperCase()}</span>
       </Link>
     </div>
   )
@@ -456,6 +465,7 @@ function MobileNav() {
 
 // Product Card
 function ProductCard({ product, onSelect, index = 0 }) {
+  const { t } = useTranslation()
   const addItem = useCartStore(state => state.addItem)
   const showToast = useUiStore(state => state.showToast)
 
@@ -464,7 +474,7 @@ function ProductCard({ product, onSelect, index = 0 }) {
   const handleQuickAdd = (e) => {
     e.stopPropagation()
     addItem(product, 'S', [], 1)
-    showToast(`Đã thêm ${product.name} (Size S) vào giỏ hàng!`)
+    showToast(t('cart.added_product', { name: product.name, size: 'S' }))
   }
 
   return (
@@ -489,7 +499,7 @@ function ProductCard({ product, onSelect, index = 0 }) {
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition duration-200 flex items-end p-4">
-          <span className="text-xs text-white font-semibold">Bấm để tuỳ chỉnh size & toppings</span>
+          <span className="text-xs text-white font-semibold">{t('product.customize_hint')}</span>
         </div>
       </div>
 
@@ -532,6 +542,7 @@ function ProductCard({ product, onSelect, index = 0 }) {
 
 // Product Customizer Dialog / Detail modal
 function ProductDetailModal({ product, onClose }) {
+  const { t } = useTranslation()
   const addItem = useCartStore(state => state.addItem)
   const showToast = useUiStore(state => state.showToast)
   
@@ -585,7 +596,7 @@ function ProductDetailModal({ product, onClose }) {
 
   const handleAdd = () => {
     addItem(product, size, selectedToppings, quantity)
-    showToast(`Đã thêm ${quantity} ${product.name} (Size ${size}) vào giỏ hàng!`)
+    showToast(t('cart.added_product_quantity', { quantity, name: product.name, size }))
     onClose()
   }
 
@@ -633,7 +644,7 @@ function ProductDetailModal({ product, onClose }) {
 
           {/* Size radio pickers */}
           <div className="mt-6">
-            <h4 className="font-bold text-[20px] text-[#1A1A1A] tracking-wide uppercase mb-3">CHỌN KÍCH CỠ</h4>
+            <h4 className="font-bold text-[20px] text-[#1A1A1A] tracking-wide uppercase mb-3">{t('product.size').toUpperCase()}</h4>
             <div className={`grid gap-2 ${availableSizes.length >= 4 ? 'grid-cols-4' : availableSizes.length === 3 ? 'grid-cols-3' : availableSizes.length === 2 ? 'grid-cols-2' : 'grid-cols-1'}`}>
               {availableSizes.map((sModel) => {
                 const s = sModel.size
@@ -658,7 +669,7 @@ function ProductDetailModal({ product, onClose }) {
 
           {/* Premium topping selections */}
           <div className="mt-6">
-            <h4 className="font-bold text-[20px] text-[#1A1A1A] tracking-wide uppercase mb-3">THÊM TOPPING CAO CẤP</h4>
+            <h4 className="font-bold text-[20px] text-[#1A1A1A] tracking-wide uppercase mb-3">{t('product.topping').toUpperCase()}</h4>
             <div className="space-y-2">
               {allToppings.map((topping) => {
                 const isSelected = selectedToppings.some(t => t.id === topping.id)
@@ -706,7 +717,7 @@ function ProductDetailModal({ product, onClose }) {
             </div>
 
             <div className="flex flex-col text-right">
-              <span className="text-[10px] text-gray-400 uppercase font-bold">TỔNG TIỀN</span>
+              <span className="text-[10px] text-gray-400 uppercase font-bold">{t('cart.total')}</span>
               <span className="text-xl font-semibold text-primary">{formatVND(totalCost)}</span>
             </div>
           </div>
@@ -715,7 +726,7 @@ function ProductDetailModal({ product, onClose }) {
             onClick={handleAdd}
             className="mt-5 w-full bg-primary hover:opacity-90 text-white font-semibold py-3.5 rounded-[8px] tracking-wider text-sm transition hover:-translate-y-[1px] active:translate-y-0 flex items-center justify-center gap-2 shadow-glass"
           >
-            THÊM VÀO GIỎ HÀNG
+            {t('product.add_to_cart').toUpperCase()}
             <ShoppingBag className="w-4 h-4" />
           </button>
         </div>
@@ -728,6 +739,7 @@ function ProductDetailModal({ product, onClose }) {
 
 // 1. Home Page
 function Home({ onSelectProduct }) {
+  const { t, i18n } = useTranslation()
   const [banners, setBanners] = useState([])
   const [categories, setCategories] = useState([])
   const [featuredProducts, setFeatured] = useState([])
@@ -757,7 +769,7 @@ function Home({ onSelectProduct }) {
       console.error(err)
       setLoading(false)
     })
-  }, [])
+  }, [i18n.language])
 
   if (loading) {
     return (
@@ -786,25 +798,25 @@ function Home({ onSelectProduct }) {
         </div>
 
         <div className="relative z-10 max-w-7xl mx-auto px-6 md:px-12 w-full">
-          <span className="text-[#FFC72C] font-semibold text-lg tracking-widest uppercase mb-3 block animate-float">BẾP THỦ CÔNG HOẠT ĐỘNG ONLINE</span>
+          <span className="text-[#FFC72C] font-semibold text-lg tracking-widest uppercase mb-3 block animate-float">{t('home.hero_badge').toUpperCase()}</span>
           <h1 className="font-extrabold text-[clamp(36px,5vw,64px)] leading-none text-white tracking-[-0.5px] uppercase max-w-2xl drop-shadow-lg">
-            {activeHero?.title || 'Hamburger King'}
+            {activeHero?.title || t('home.hero_title')}
           </h1>
           <p className="text-sm md:text-base text-white max-w-md mt-6 leading-relaxed">
-            {activeHero?.subtitle || 'Dữ liệu banner đang được cập nhật.'}
+            {activeHero?.subtitle || t('home.hero_desc')}
           </p>
           <div className="flex gap-4 mt-8">
             <Link 
               to="/menu" 
               className="bg-primary hover:opacity-90 text-white font-semibold px-8 py-3.5 rounded-[8px] text-sm tracking-widest transition hover:-translate-y-[1px]"
             >
-              ĐẶT HÀNG NGAY
+              {t('home.order_now').toUpperCase()}
             </Link>
             <Link 
               to="/combos" 
               className="bg-white/20 hover:bg-white/30 border border-white/30 text-white font-semibold px-8 py-3.5 rounded-[8px] text-sm tracking-widest transition"
             >
-              VALUE COMBOS
+              {t('nav.combos').toUpperCase()}
             </Link>
           </div>
         </div>
@@ -813,8 +825,8 @@ function Home({ onSelectProduct }) {
       {/* Category grid navigations */}
       <section className="max-w-7xl mx-auto py-16 px-6 md:px-12">
         <div className="text-center mb-12">
-          <h2 data-aos="fade-up" className="font-bold text-[clamp(24px,3vw,36px)] text-[#1A1A1A] uppercase">THỰC ĐƠN ĐA DẠNG</h2>
-          <p className="text-xs text-[#666666] max-w-xs mx-auto mt-2">Tuyển chọn các hương vị đỉnh cao tinh chế thủ công.</p>
+          <h2 data-aos="fade-up" className="font-bold text-[clamp(24px,3vw,36px)] text-[#1A1A1A] uppercase">{t('home.menu_title').toUpperCase()}</h2>
+          <p className="text-xs text-[#666666] max-w-xs mx-auto mt-2">{t('home.menu_subtitle')}</p>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
           {categories.map((cat, index) => (
@@ -847,11 +859,11 @@ function Home({ onSelectProduct }) {
         <div className="max-w-7xl mx-auto px-6 md:px-12">
           <div className="flex justify-between items-end mb-10">
             <div>
-              <h2 data-aos="fade-up" className="font-bold text-[clamp(24px,3vw,36px)] text-[#1A1A1A] uppercase">SẢN PHẨM NỔI BẬT</h2>
-              <p className="text-xs text-[#666666] mt-1">Được đề xuất nhiều nhất từ các đầu bếp danh tiếng.</p>
+              <h2 data-aos="fade-up" className="font-bold text-[clamp(24px,3vw,36px)] text-[#1A1A1A] uppercase">{t('home.featured_title')}</h2>
+              <p className="text-xs text-[#666666] mt-1">{t('home.featured_subtitle')}</p>
             </div>
             <Link to="/menu" className="flex items-center gap-1 text-primary hover:opacity-85 font-bold text-xs tracking-wider uppercase transition">
-              Xem tất cả <ChevronRight className="w-4 h-4" />
+              {t('common.see_all')} <ChevronRight className="w-4 h-4" />
             </Link>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -865,8 +877,8 @@ function Home({ onSelectProduct }) {
       {/* Value Combo Sets */}
       <section className="max-w-7xl mx-auto py-16 px-6 md:px-12">
         <div className="text-center mb-12">
-          <h2 data-aos="fade-up" className="font-bold text-[clamp(24px,3vw,36px)] text-[#1A1A1A] uppercase">SAVING VALUE COMBOS</h2>
-          <p className="text-xs text-[#666666] max-w-xs mx-auto mt-2">Bữa ăn thịnh soạn tiết kiệm tới 35% cho gia đình & bạn bè.</p>
+          <h2 data-aos="fade-up" className="font-bold text-[clamp(24px,3vw,36px)] text-[#1A1A1A] uppercase">{t('combo.saving_title')}</h2>
+          <p className="text-xs text-[#666666] max-w-xs mx-auto mt-2">{t('combo.home_subtitle')}</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {combos.map((combo, index) => (
@@ -887,7 +899,7 @@ function Home({ onSelectProduct }) {
                     to="/menu"
                     className="bg-[#FFC72C] text-[#1A1A1A] font-semibold px-5 py-2.5 rounded-[8px] text-xs tracking-wide hover:opacity-90 hover:-translate-y-[1px] transition"
                   >
-                    MUA COMBO
+                    {t('combo.buy').toUpperCase()}
                   </Link>
                 </div>
               </div>
@@ -901,8 +913,8 @@ function Home({ onSelectProduct }) {
       {/* Branches maps */}
       <section className="max-w-7xl mx-auto py-16 px-6 md:px-12">
         <div className="text-center mb-12">
-          <h2 data-aos="fade-up" className="font-bold text-[clamp(24px,3vw,36px)] text-[#1A1A1A] uppercase">ĐỊA CHỈ CHI NHÁNH</h2>
-          <p className="text-xs text-[#666666] max-w-xs mx-auto mt-2">Dễ dàng tìm thấy các cửa hàng Hamburger King gần bạn nhất.</p>
+          <h2 data-aos="fade-up" className="font-bold text-[clamp(24px,3vw,36px)] text-[#1A1A1A] uppercase">{t('branch.location_title')}</h2>
+          <p className="text-xs text-[#666666] max-w-xs mx-auto mt-2">{t('branch.location_subtitle')}</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {branches.map((b, index) => (
@@ -913,14 +925,14 @@ function Home({ onSelectProduct }) {
                 <p className="text-xs text-gray-500 mt-2 flex items-center gap-1.5"><Phone className="w-3.5 h-3.5" /> {b.phone}</p>
               </div>
               <div className="mt-6 pt-4 border-t border-[#E8E8E8] flex justify-between items-center text-xs">
-                <span className="text-gray-400">Giờ mở cửa: {b.open_time.slice(0, 5)} - {b.close_time.slice(0, 5)}</span>
+                <span className="text-gray-400">{t('branch.opening_hours_with_time', { time: `${b.open_time.slice(0, 5)} - ${b.close_time.slice(0, 5)}` })}</span>
                 <a 
                   href={`https://www.google.com/maps?q=${b.lat},${b.lng}`} 
                   target="_blank" 
                   rel="noreferrer" 
                   className="text-primary font-bold hover:opacity-80 uppercase tracking-wide transition"
                 >
-                  Bản đồ
+                  {t('branch.map')}
                 </a>
               </div>
             </div>
@@ -933,6 +945,7 @@ function Home({ onSelectProduct }) {
 
 // 2. Menu Page
 function Menu({ onSelectProduct }) {
+  const { t, i18n } = useTranslation()
   const ITEMS_PER_PAGE = 9
   const [products, setProducts] = useState([])
   const [categories, setCategories] = useState([])
@@ -968,7 +981,7 @@ function Menu({ onSelectProduct }) {
       console.error(err)
       setLoading(false)
     })
-  }, [activeCategory, search, sortBy, currentPage])
+  }, [activeCategory, search, sortBy, currentPage, i18n.language])
 
   const handleCategorySelect = (slug) => {
     const nextParams = new URLSearchParams(searchParams)
@@ -1018,7 +1031,7 @@ function Menu({ onSelectProduct }) {
       {/* Sidebar Filters */}
       <aside className="w-full md:w-64 shrink-0 flex flex-col gap-6">
         <div className="p-6 rounded-2xl bg-white border border-[#E8E8E8] shadow-glass">
-          <h3 className="font-bold text-xl text-primary tracking-wide uppercase mb-4">DANH MỤC</h3>
+          <h3 className="font-bold text-xl text-primary tracking-wide uppercase mb-4">{t('menu.category_title')}</h3>
           <div className="flex flex-row md:flex-col overflow-x-auto md:overflow-x-visible gap-2 pb-2 md:pb-0">
             <button
               data-aos="fade-right"
@@ -1029,7 +1042,7 @@ function Menu({ onSelectProduct }) {
                   : 'bg-[#F8F8F8] border-[#E8E8E8] text-gray-500 hover:border-gray-400'
               }`}
             >
-              TẤT CẢ
+              {t('common.all').toUpperCase()}
             </button>
             {categories.map((cat, index) => (
               <button 
@@ -1051,16 +1064,16 @@ function Menu({ onSelectProduct }) {
 
         {/* Pricing Sort */}
         <div className="p-6 rounded-2xl bg-white border border-[#E8E8E8] shadow-glass">
-          <h3 className="font-bold text-xl text-primary tracking-wide uppercase mb-4">SẮP XẾP</h3>
+          <h3 className="font-bold text-xl text-primary tracking-wide uppercase mb-4">{t('menu.sort_title')}</h3>
           <select 
             value={sortBy} 
             onChange={(e) => handleSortChange(e.target.value)}
             className="w-full bg-[#F8F8F8] border border-[#E8E8E8] text-xs text-[#1A1A1A] rounded-[10px] px-4 py-3 focus:outline-none focus:border-primary focus:ring-3 focus:ring-primary/10"
           >
-            <option value="sort_order">Mặc định</option>
-            <option value="price_asc">Giá: Thấp tới Cao</option>
-            <option value="price_desc">Giá: Cao xuống Thấp</option>
-            <option value="newest">Mới nhất</option>
+            <option value="sort_order">{t('menu.sort_default')}</option>
+            <option value="price_asc">{t('menu.sort_price_asc')}</option>
+            <option value="price_desc">{t('menu.sort_price_desc')}</option>
+            <option value="newest">{t('menu.sort_newest')}</option>
           </select>
         </div>
       </aside>
@@ -1071,14 +1084,14 @@ function Menu({ onSelectProduct }) {
         <div className="flex gap-4">
           <input 
             type="text" 
-            placeholder="Tìm kiếm chiếc Hamburger nướng lửa hồng của bạn..." 
+            placeholder={t('menu.search_placeholder')}
             value={search}
             onChange={(e) => handleSearchChange(e.target.value)}
             className="w-full bg-[#F8F8F8] border border-[#E8E8E8] rounded-[10px] px-5 py-3 text-sm text-[#1A1A1A] focus:outline-none focus:border-primary focus:ring-3 focus:ring-primary/10 transition-all duration-200"
           />
         </div>
 
-        <h2 data-aos="fade-up" className="sr-only">THỰC ĐƠN ĐA DẠNG</h2>
+        <h2 data-aos="fade-up" className="sr-only">{t('home.menu_title')}</h2>
 
         {/* Grids */}
         {loading ? (
@@ -1088,8 +1101,8 @@ function Menu({ onSelectProduct }) {
         ) : products.length === 0 ? (
           <div className="h-64 flex flex-col items-center justify-center text-center">
             <AlertCircle className="w-12 h-12 text-gray-300 mb-4 stroke-1" />
-            <h4 className="font-bold text-xl text-gray-500 uppercase tracking-wide">KHÔNG TÌM THẤY SẢN PHẨM</h4>
-            <p className="text-gray-400 text-sm mt-1">Vui lòng thử tìm kiếm với cụm từ khác.</p>
+            <h4 className="font-bold text-xl text-gray-500 uppercase tracking-wide">{t('menu.no_products_title')}</h4>
+            <p className="text-gray-400 text-sm mt-1">{t('menu.no_products_desc')}</p>
           </div>
         ) : (
           <>
@@ -1106,7 +1119,7 @@ function Menu({ onSelectProduct }) {
                   disabled={currentPage === 1}
                   className="px-4 py-2 rounded-[8px] bg-white border border-[#E8E8E8] text-xs font-semibold text-[#1A1A1A] disabled:opacity-40 disabled:cursor-not-allowed hover:border-primary transition"
                 >
-                  ← Trước
+                  {t('common.previous_arrow')}
                 </button>
                 {getPageNumbers().map((page, index) => page === '...' ? (
                   <span key={`ellipsis-${index}`} className="px-2 text-xs text-gray-400">...</span>
@@ -1141,6 +1154,7 @@ function Menu({ onSelectProduct }) {
 
 // 3. Combos Page (renders seeded combos lists)
 function Combos() {
+  const { t, i18n } = useTranslation()
   const [combos, setCombos] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -1155,7 +1169,7 @@ function Combos() {
         console.error(err)
         setLoading(false)
       })
-  }, [])
+  }, [i18n.language])
 
   if (loading) {
     return (
@@ -1168,9 +1182,9 @@ function Combos() {
   return (
     <div className="max-w-7xl mx-auto py-12 px-6 md:px-12 bg-[#FFFAF5] text-[#1A1A1A]">
       <div className="text-center mb-12">
-        <h1 data-aos="fade-up" className="font-bold text-[clamp(24px,3vw,36px)] text-primary uppercase">SAVING VALUE COMBOS</h1>
+        <h1 data-aos="fade-up" className="font-bold text-[clamp(24px,3vw,36px)] text-primary uppercase">{t('combo.saving_title')}</h1>
         <p className="text-xs text-[#666666] max-w-sm mx-auto mt-2">
-          Các thực đơn hoàn hảo dành cho tiệc nhóm, ghép đôi, hoặc chiêu đãi bản thân với mức giá tiết kiệm lên tới 35% hàng ngày!
+          {t('combo.page_subtitle')}
         </p>
       </div>
 
@@ -1184,14 +1198,14 @@ function Combos() {
             />
             <div className="flex-1 flex flex-col justify-between">
               <div>
-                <span className="text-[10px] text-primary font-bold tracking-widest uppercase">COMBO TIẾT KIỆM</span>
+                <span className="text-[10px] text-primary font-bold tracking-widest uppercase">{t('combo.badge')}</span>
                 <h3 className="font-semibold text-xl text-[#1A1A1A] uppercase tracking-wide mt-1">{combo.name}</h3>
                 <p className="text-xs text-[#666666] leading-relaxed mt-2">{combo.description}</p>
 
                 {/* Combos sub-items */}
                 {combo.items && (
                   <div className="mt-4 space-y-1">
-                    <span className="text-[10px] text-gray-400 uppercase font-bold block mb-1">MÓN BAO GỒM:</span>
+                    <span className="text-[10px] text-gray-400 uppercase font-bold block mb-1">{t('combo.includes')}</span>
                     {combo.items.map((ci) => (
                       <div key={ci.id} className="text-xs text-[#666666] flex items-center gap-1.5">
                         <CheckCircle className="w-3.5 h-3.5 text-primary shrink-0" />
@@ -1221,6 +1235,7 @@ function Combos() {
 
 // 4. Store Branches Page
 function Branches() {
+  const { t, i18n } = useTranslation()
   const [branches, setBranches] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -1235,7 +1250,7 @@ function Branches() {
         console.error(err)
         setLoading(false)
       })
-  }, [])
+  }, [i18n.language])
 
   if (loading) {
     return (
@@ -1248,9 +1263,9 @@ function Branches() {
   return (
     <div className="max-w-7xl mx-auto py-12 px-6 md:px-12 bg-[#FFFAF5] text-[#1A1A1A]">
       <div className="text-center mb-12">
-        <h1 data-aos="fade-up" className="font-bold text-[clamp(24px,3vw,36px)] text-primary uppercase">HỆ THỐNG CỬA HÀNG</h1>
+        <h1 data-aos="fade-up" className="font-bold text-[clamp(24px,3vw,36px)] text-primary uppercase">{t('branch.system_title')}</h1>
         <p className="text-xs text-[#666666] max-w-sm mx-auto mt-2">
-          Hamburger King hoạt động 3 chi nhánh trung tâm sẵn sàng giao nóng hổi trong vòng 20 phút.
+          {t('branch.system_subtitle')}
         </p>
       </div>
 
@@ -1266,7 +1281,7 @@ function Branches() {
               
               <div className="mt-4 space-y-2 text-xs text-[#666666]">
                 <p className="flex items-center gap-2"><Phone className="w-4 h-4 text-primary" /> {b.phone}</p>
-                <p className="flex items-center gap-2"><Clock className="w-4 h-4 text-primary" /> Giờ phục vụ: {b.open_time.slice(0, 5)} - {b.close_time.slice(0, 5)}</p>
+                <p className="flex items-center gap-2"><Clock className="w-4 h-4 text-primary" /> {t('branch.service_hours_with_time', { time: `${b.open_time.slice(0, 5)} - ${b.close_time.slice(0, 5)}` })}</p>
               </div>
             </div>
 
@@ -1277,7 +1292,7 @@ function Branches() {
                 rel="noreferrer" 
                 className="w-full text-center bg-[#F8F8F8] hover:bg-[#F5F5F5] border border-[#E8E8E8] text-[#1A1A1A] font-semibold py-2.5 rounded-[8px] text-xs tracking-wider transition hover:-translate-y-[1px]"
               >
-                TÌM ĐƯỜNG ĐI
+                {t('branch.direction').toUpperCase()}
               </a>
             </div>
           </div>
@@ -1289,6 +1304,7 @@ function Branches() {
 
 // 5. Auth Pages (Login & Register card view)
 function Login() {
+  const { t } = useTranslation()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -1305,13 +1321,13 @@ function Login() {
     apiClient.post('/auth/login', { email, password })
       .then(res => {
         setLogin(res.data.user, res.data.access_token)
-        showToast('Đăng nhập thành công! Chào mừng quay trở lại.')
+        showToast(t('auth.login_success_welcome'))
         setLoading(false)
         navigate(from, { replace: true })
       })
       .catch(err => {
         console.error(err)
-        showToast(err.response?.data?.message || 'Email hoặc mật khẩu không chính xác.', 'error')
+        showToast(err.response?.data?.message || t('auth.login_error'), 'error')
         setLoading(false)
       })
   }
@@ -1322,12 +1338,12 @@ function Login() {
         <div className="text-center mb-8">
           <span className="font-extrabold text-3xl tracking-wider text-primary">HAMBURGER</span>
           <span className="font-extrabold text-3xl tracking-wider text-white bg-primary px-2 py-0.5 rounded-[8px] ml-1">KING</span>
-          <h2 className="font-bold text-2xl text-[#1A1A1A] uppercase tracking-wide mt-6">ĐĂNG NHẬP THÀNH VIÊN</h2>
+          <h2 className="font-bold text-2xl text-[#1A1A1A] uppercase tracking-wide mt-6">{t('auth.member_login_title')}</h2>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">ĐỊA CHỈ EMAIL</label>
+            <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">{t('auth.email_address')}</label>
             <input 
               type="email" 
               required
@@ -1338,7 +1354,7 @@ function Login() {
             />
           </div>
           <div>
-            <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">MẬT KHẨU</label>
+            <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">{t('auth.password')}</label>
             <input 
               type="password" 
               required
@@ -1354,15 +1370,15 @@ function Login() {
             disabled={loading}
             className="w-full bg-primary hover:opacity-90 text-white font-semibold py-3.5 rounded-[8px] tracking-wider text-sm transition hover:-translate-y-[1px] active:translate-y-0 mt-6 flex justify-center items-center gap-2"
           >
-            {loading ? 'ĐANG ĐĂNG NHẬP...' : 'ĐĂNG NHẬP NGAY'}
+            {loading ? t('auth.logging_in') : t('auth.login_now')}
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>
 
         <div className="mt-8 text-center text-xs text-gray-500">
-          Chưa có tài khoản?{' '}
+          {t('auth.no_account')}{' '}
           <Link to="/register" className="text-primary hover:underline font-bold tracking-wide transition">
-            ĐĂNG KÝ THÀNH VIÊN MỚI
+            {t('auth.new_member_register')}
           </Link>
         </div>
       </div>
@@ -1371,6 +1387,7 @@ function Login() {
 }
 
 function Register() {
+  const { t } = useTranslation()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -1385,7 +1402,7 @@ function Register() {
     e.preventDefault()
 
     if (password !== passwordConfirm) {
-      showToast('Mật khẩu xác nhận không khớp.', 'error')
+      showToast(t('auth.password_confirmation_mismatch'), 'error')
       return
     }
 
@@ -1398,12 +1415,12 @@ function Register() {
       phone 
     }).then(res => {
       setLogin(res.data.user, res.data.access_token)
-      showToast('Đăng ký thành viên mới thành công! Chào mừng bạn gia nhập vương quốc Burger.')
+      showToast(t('auth.register_success_welcome'))
       setLoading(false)
       navigate('/')
     }).catch(err => {
       console.error(err)
-      showToast(err.response?.data?.message || 'Lỗi đăng ký tài khoản. Vui lòng kiểm tra lại thông tin.', 'error')
+      showToast(err.response?.data?.message || t('auth.register_error'), 'error')
       setLoading(false)
     })
   }
@@ -1414,23 +1431,23 @@ function Register() {
         <div className="text-center mb-8">
           <span className="font-extrabold text-3xl tracking-wider text-primary">HAMBURGER</span>
           <span className="font-extrabold text-3xl tracking-wider text-white bg-primary px-2 py-0.5 rounded-[8px] ml-1">KING</span>
-          <h2 className="font-bold text-2xl text-[#1A1A1A] uppercase tracking-wide mt-6">ĐĂNG KÝ THÀNH VIÊN</h2>
+          <h2 className="font-bold text-2xl text-[#1A1A1A] uppercase tracking-wide mt-6">{t('auth.member_register_title')}</h2>
         </div>
 
         <form onSubmit={handleRegister} className="space-y-4">
           <div>
-            <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">HỌ VÀ TÊN</label>
+            <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">{t('auth.name')}</label>
             <input 
               type="text" 
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Nguyễn Văn A"
+              placeholder={t('auth.name_placeholder')}
               className="w-full bg-[#F8F8F8] border border-[#E8E8E8] rounded-[10px] py-[14px] px-[16px] text-sm text-[#1A1A1A] focus:outline-none focus:border-primary focus:ring-3 focus:ring-primary/10 transition-all duration-200"
             />
           </div>
           <div>
-            <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">ĐỊA CHỈ EMAIL</label>
+            <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">{t('auth.email_address')}</label>
             <input 
               type="email" 
               required
@@ -1441,7 +1458,7 @@ function Register() {
             />
           </div>
           <div>
-            <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">SỐ ĐIỆN THOẠI</label>
+            <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">{t('auth.phone')}</label>
             <input 
               type="tel" 
               required
@@ -1452,24 +1469,24 @@ function Register() {
             />
           </div>
           <div>
-            <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">MẬT KHẨU</label>
+            <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">{t('auth.password')}</label>
             <input 
               type="password" 
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Tối thiểu 8 ký tự"
+              placeholder={t('auth.password_min_placeholder')}
               className="w-full bg-[#F8F8F8] border border-[#E8E8E8] rounded-[10px] py-[14px] px-[16px] text-sm text-[#1A1A1A] focus:outline-none focus:border-primary focus:ring-3 focus:ring-primary/10 transition-all duration-200"
             />
           </div>
           <div>
-            <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">XÁC NHẬN MẬT KHẨU</label>
+            <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">{t('auth.confirm_password')}</label>
             <input 
               type="password" 
               required
               value={passwordConfirm}
               onChange={(e) => setPasswordConfirm(e.target.value)}
-              placeholder="Nhập lại mật khẩu"
+              placeholder={t('auth.confirm_password_placeholder')}
               className="w-full bg-[#F8F8F8] border border-[#E8E8E8] rounded-[10px] py-[14px] px-[16px] text-sm text-[#1A1A1A] focus:outline-none focus:border-primary focus:ring-3 focus:ring-primary/10 transition-all duration-200"
             />
           </div>
@@ -1479,15 +1496,15 @@ function Register() {
             disabled={loading}
             className="w-full bg-primary hover:opacity-90 text-white font-semibold py-3.5 rounded-[8px] tracking-wider text-sm transition hover:-translate-y-[1px] active:translate-y-0 mt-6 flex justify-center items-center gap-2"
           >
-            {loading ? 'ĐANG ĐĂNG KÝ...' : 'ĐĂNG KÝ TÀI KHOẢN MỚI'}
+            {loading ? t('auth.registering') : t('auth.register_new_account')}
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>
 
         <div className="mt-8 text-center text-xs text-gray-500">
-          Đã có tài khoản?{' '}
+          {t('auth.has_account')}{' '}
           <Link to="/login" className="text-primary hover:underline font-bold tracking-wide transition">
-            ĐĂNG NHẬP NGAY
+            {t('auth.login_now')}
           </Link>
         </div>
       </div>
@@ -1498,6 +1515,7 @@ function Register() {
 // 6. Checkout Screen (includes multi-address selections, Mock Payment redirections)
 // Refactored to light theme with custom borders, rounded inputs, and premium typography
 function usePaymentMethods() {
+  const { t } = useTranslation()
   const [methods, setMethods] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -1509,7 +1527,7 @@ function usePaymentMethods() {
       })
       .catch(() => {
         if (!ignore) {
-          setMethods([{ key: 'cod', name: 'Tiền mặt khi nhận hàng (COD)', icon: 'cod', is_default: true }])
+          setMethods([{ key: 'cod', name: t('checkout.cod_method'), icon: 'cod', is_default: true }])
         }
       })
       .finally(() => {
@@ -1519,7 +1537,7 @@ function usePaymentMethods() {
     return () => {
       ignore = true
     }
-  }, [])
+  }, [t])
 
   return { methods, loading }
 }
@@ -1571,6 +1589,7 @@ function PaymentMethodSelector({ selected, onChange }) {
 }
 
 function Checkout() {
+  const { t } = useTranslation()
   const { cartItems, getCartTotals, coupon, applyCoupon, removeCoupon, clearCart } = useCartStore()
   const { showToast } = useUiStore()
   const navigate = useNavigate()
@@ -1586,7 +1605,7 @@ function Checkout() {
   const [manualAddress, setManualAddress] = useState({
     recipient_name: '',
     phone: '',
-    province: 'Thành phố Hồ Chí Minh',
+    province: t('address.default_province'),
     district: '',
     ward: '',
     street: '',
@@ -1621,10 +1640,10 @@ function Checkout() {
     apiClient.post('/cart/apply-coupon', { code: couponInput, subtotal: totals.subtotal })
       .then(res => {
         applyCoupon(res.data)
-        showToast('Áp dụng mã giảm giá thành công!')
+        showToast(t('checkout.coupon_applied'))
       }).catch(err => {
         console.error(err)
-        showToast(err.response?.data?.message || 'Mã giảm giá không hợp lệ.', 'error')
+        showToast(err.response?.data?.message || t('checkout.coupon_invalid'), 'error')
       })
   }
 
@@ -1659,7 +1678,7 @@ function Checkout() {
       } else {
         // Validate manual input
         if (!manualAddress.recipient_name || !manualAddress.phone || !manualAddress.district || !manualAddress.ward || !manualAddress.street) {
-          showToast('Vui lòng điền đầy đủ thông tin địa chỉ giao hàng.', 'error')
+          showToast(t('checkout.address_required'), 'error')
           setLoading(false)
           return
         }
@@ -1670,7 +1689,7 @@ function Checkout() {
     apiClient.post('/orders', payload)
       .then(res => {
         clearCart()
-        showToast('Đơn hàng đã được đặt thành công!')
+        showToast(t('checkout.order_created'))
         setLoading(false)
         
         // Redirect to the payment gateway URL returned by the backend.
@@ -1682,7 +1701,7 @@ function Checkout() {
         }
       }).catch(err => {
         console.error(err)
-        showToast(err.response?.data?.message || 'Lỗi thanh toán. Vui lòng kiểm tra lại giỏ hàng.', 'error')
+        showToast(err.response?.data?.message || t('checkout.payment_error'), 'error')
         setLoading(false)
       })
   }
@@ -1696,14 +1715,14 @@ function Checkout() {
           <span className={`w-8 h-8 rounded-full border-2 flex items-center justify-center font-semibold text-sm transition-smooth ${
             step >= 1 ? 'border-primary bg-primary text-white' : 'border-[#E8E8E8] bg-[#E8E8E8] text-[#999999]'
           }`}>1</span>
-          <span className={`font-semibold text-xs uppercase tracking-wide ${step >= 1 ? 'text-primary' : 'text-[#999999]'}`}>THÔNG TIN</span>
+          <span className={`font-semibold text-xs uppercase tracking-wide ${step >= 1 ? 'text-primary' : 'text-[#999999]'}`}>{t('checkout.step_info')}</span>
         </div>
         <div className={`h-0.5 flex-1 transition-smooth ${step >= 2 ? 'bg-primary' : 'bg-[#E8E8E8]'}`} />
         <div className="flex items-center gap-2">
           <span className={`w-8 h-8 rounded-full border-2 flex items-center justify-center font-semibold text-sm transition-smooth ${
             step >= 2 ? 'border-primary bg-primary text-white' : 'border-[#E8E8E8] bg-[#E8E8E8] text-[#999999]'
           }`}>2</span>
-          <span className={`font-semibold text-xs uppercase tracking-wide ${step >= 2 ? 'text-primary' : 'text-[#999999]'}`}>THANH TOÁN</span>
+          <span className={`font-semibold text-xs uppercase tracking-wide ${step >= 2 ? 'text-primary' : 'text-[#999999]'}`}>{t('checkout.step_payment')}</span>
         </div>
       </div>
 
@@ -1713,7 +1732,7 @@ function Checkout() {
         <main className="lg:col-span-2 space-y-6">
           {step === 1 && (
             <div className="p-[28px_32px] rounded-2xl bg-white border border-[#E8E8E8] shadow-premium space-y-6">
-              <h2 className="font-bold text-[22px] text-[#1A1A1A] uppercase tracking-wide">HÌNH THỨC NHẬN HÀNG</h2>
+              <h2 className="font-bold text-[22px] text-[#1A1A1A] uppercase tracking-wide">{t('checkout.delivery_method')}</h2>
               
               {/* Delivery Type toggles */}
               <div className="grid grid-cols-2 gap-4">
@@ -1723,7 +1742,7 @@ function Checkout() {
                     deliveryType === 'delivery' ? 'bg-primary text-white' : 'bg-[#F5F5F5] text-[#666666] border border-[#E8E8E8]'
                   }`}
                 >
-                  GIAO HÀNG TẬN NƠI
+                  {t('checkout.delivery').toUpperCase()}
                 </button>
                 <button 
                   onClick={() => setDelivery('pickup')}
@@ -1731,14 +1750,14 @@ function Checkout() {
                     deliveryType === 'pickup' ? 'bg-primary text-white' : 'bg-[#F5F5F5] text-[#666666] border border-[#E8E8E8]'
                   }`}
                 >
-                  TỰ ĐẾN LẤY BÁNH
+                  {t('checkout.pickup').toUpperCase()}
                 </button>
               </div>
 
               {/* Address Book Selections */}
               {deliveryType === 'delivery' && (
                 <div className="space-y-4">
-                  <h3 className="font-bold text-[20px] text-[#1A1A1A] uppercase tracking-wide">ĐỊA CHỈ GIAO HÀNG</h3>
+                  <h3 className="font-bold text-[20px] text-[#1A1A1A] uppercase tracking-wide">{t('checkout.delivery_address')}</h3>
                   {addresses.length > 0 ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {addresses.map((addr) => (
@@ -1753,7 +1772,7 @@ function Checkout() {
                         >
                           <div className="flex justify-between items-center">
                             <span className="font-bold text-xs uppercase tracking-wider text-primary">{addr.label}</span>
-                            {addr.is_default && <span className="text-[10px] bg-primary text-white px-2 py-0.5 rounded-[8px] font-bold uppercase">Mặc định</span>}
+                            {addr.is_default && <span className="text-[10px] bg-primary text-white px-2 py-0.5 rounded-[8px] font-bold uppercase">{t('common.default')}</span>}
                           </div>
                           <p className="text-xs font-semibold text-[#1A1A1A] mt-2">{addr.recipient_name} - {addr.phone}</p>
                           <p className="text-[10px] text-gray-500 mt-1">{addr.street}, {addr.ward}, {addr.district}, {addr.province}</p>
@@ -1766,7 +1785,7 @@ function Checkout() {
                         }`}
                       >
                         <Plus className="w-5 h-5 mb-1 text-primary" />
-                        <span>Sử dụng địa chỉ khác</span>
+                        <span>{t('checkout.use_other_address')}</span>
                       </div>
                     </div>
                   ) : null}
@@ -1775,17 +1794,17 @@ function Checkout() {
                   {!selectedAddress && (
                     <div className="p-5 rounded-2xl border border-[#E8E8E8] bg-[#F8F8F8] grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">Tên người nhận</label>
+                        <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">{t('checkout.recipient_name')}</label>
                         <input 
                           type="text" 
-                          placeholder="Nguyễn Văn A" 
+                          placeholder={t('auth.name_placeholder')}
                           value={manualAddress.recipient_name}
                           onChange={(e) => setManualAddress({ ...manualAddress, recipient_name: e.target.value })}
                           className="w-full bg-[#F8F8F8] border border-[#E8E8E8] rounded-[10px] py-[14px] px-[16px] text-sm text-[#1A1A1A] focus:outline-none focus:border-primary focus:ring-3 focus:ring-primary/10 transition-all duration-200"
                         />
                       </div>
                       <div>
-                        <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">Số điện thoại</label>
+                        <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">{t('checkout.phone')}</label>
                         <input 
                           type="tel" 
                           placeholder="09xxxxxx" 
@@ -1795,30 +1814,30 @@ function Checkout() {
                         />
                       </div>
                       <div>
-                        <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">Quận / Huyện</label>
+                        <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">{t('checkout.district')}</label>
                         <input 
                           type="text" 
-                          placeholder="Quận 1" 
+                          placeholder={t('address.district_placeholder')}
                           value={manualAddress.district}
                           onChange={(e) => setManualAddress({ ...manualAddress, district: e.target.value })}
                           className="w-full bg-[#F8F8F8] border border-[#E8E8E8] rounded-[10px] py-[14px] px-[16px] text-sm text-[#1A1A1A] focus:outline-none focus:border-primary focus:ring-3 focus:ring-primary/10 transition-all duration-200"
                         />
                       </div>
                       <div>
-                        <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">Phường / Xã</label>
+                        <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">{t('checkout.ward')}</label>
                         <input 
                           type="text" 
-                          placeholder="Phường Bến Nghé" 
+                          placeholder={t('address.ward_placeholder')}
                           value={manualAddress.ward}
                           onChange={(e) => setManualAddress({ ...manualAddress, ward: e.target.value })}
                           className="w-full bg-[#F8F8F8] border border-[#E8E8E8] rounded-[10px] py-[14px] px-[16px] text-sm text-[#1A1A1A] focus:outline-none focus:border-primary focus:ring-3 focus:ring-primary/10 transition-all duration-200"
                         />
                       </div>
                       <div className="sm:col-span-2">
-                        <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">Số nhà, Tên đường</label>
+                        <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">{t('checkout.street')}</label>
                         <input 
                           type="text" 
-                          placeholder="120 Lê Lợi" 
+                          placeholder={t('address.street_placeholder')}
                           value={manualAddress.street}
                           onChange={(e) => setManualAddress({ ...manualAddress, street: e.target.value })}
                           className="w-full bg-[#F8F8F8] border border-[#E8E8E8] rounded-[10px] py-[14px] px-[16px] text-sm text-[#1A1A1A] focus:outline-none focus:border-primary focus:ring-3 focus:ring-primary/10 transition-all duration-200"
@@ -1831,7 +1850,7 @@ function Checkout() {
 
               {/* Order Scheduler option */}
               <div className="space-y-4 pt-4 border-t border-[#E8E8E8]">
-                <h3 className="font-bold text-[20px] text-[#1A1A1A] uppercase tracking-wide">THỜI GIAN NHẬN</h3>
+                <h3 className="font-bold text-[20px] text-[#1A1A1A] uppercase tracking-wide">{t('checkout.delivery_time')}</h3>
                 <div className="flex gap-4">
                   <button 
                     onClick={() => setIsScheduled(false)}
@@ -1839,7 +1858,7 @@ function Checkout() {
                       !isScheduled ? 'bg-primary/10 border-primary text-primary' : 'bg-[#F8F8F8] border-[#E8E8E8] text-gray-500'
                     }`}
                   >
-                    GIAO NGAY BÂY GIỜ
+                    {t('checkout.deliver_now').toUpperCase()}
                   </button>
                   <button 
                     onClick={() => setIsScheduled(true)}
@@ -1847,7 +1866,7 @@ function Checkout() {
                       isScheduled ? 'bg-primary/10 border-primary text-primary' : 'bg-[#F8F8F8] border-[#E8E8E8] text-gray-500'
                     }`}
                   >
-                    HẸN GIỜ ĐẶT TRƯỚC
+                    {t('checkout.schedule_order').toUpperCase()}
                   </button>
                 </div>
 
@@ -1865,9 +1884,9 @@ function Checkout() {
 
               {/* Order Note */}
               <div className="space-y-2 pt-4 border-t border-[#E8E8E8]">
-                <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">Ghi chú đơn hàng</label>
+                <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">{t('checkout.order_note')}</label>
                 <textarea 
-                  placeholder="Ghi chú thêm cho đầu bếp (VD: không lấy rau, nhiều sốt BBQ...)" 
+                  placeholder={t('checkout.order_note_placeholder')}
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                   rows="3"
@@ -1879,7 +1898,7 @@ function Checkout() {
                 onClick={() => setStep(2)}
                 className="w-full bg-primary hover:opacity-90 text-white font-semibold py-3.5 rounded-[8px] tracking-wider text-sm transition hover:-translate-y-[1px] active:translate-y-0 mt-6 flex justify-center items-center gap-2"
               >
-                TIẾP TỤC: PHƯƠNG THỨC THANH TOÁN
+                {t('checkout.continue_to_payment')}
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>
@@ -1887,13 +1906,13 @@ function Checkout() {
 
           {step === 2 && (
             <div className="p-[28px_32px] rounded-2xl bg-white border border-[#E8E8E8] shadow-premium space-y-6">
-              <h2 className="font-bold text-[22px] text-[#1A1A1A] uppercase tracking-wide">PHƯƠNG THỨC THANH TOÁN</h2>
+              <h2 className="font-bold text-[22px] text-[#1A1A1A] uppercase tracking-wide">{t('checkout.payment_method')}</h2>
               
               <PaymentMethodSelector selected={paymentMethod} onChange={setPayment} />
 
               {paymentMethod === 'loyalty_points' && (
                 <p className="text-[10px] text-gray-400 italic">
-                  Quy đổi: 1 điểm = 100 ₫ giảm giá trực tiếp. Đơn hàng sẽ được khấu trừ điểm nạp sẵn.
+                  {t('checkout.loyalty_exchange_note')}
                 </p>
               )}
 
@@ -1902,14 +1921,14 @@ function Checkout() {
                   onClick={() => setStep(1)}
                   className="w-1/2 bg-[#F8F8F8] hover:bg-[#F5F5F5] border border-[#E8E8E8] text-[#1A1A1A] font-semibold py-3.5 rounded-[8px] text-xs tracking-wider transition hover:-translate-y-[1px]"
                 >
-                  QUAY LẠI
+                  {t('checkout.back').toUpperCase()}
                 </button>
                 <button 
                   onClick={handleCheckoutSubmit}
                   disabled={loading}
                   className="w-1/2 bg-primary hover:opacity-90 text-white font-semibold py-3.5 rounded-[8px] tracking-wider text-xs transition shadow-glass flex justify-center items-center gap-2 hover:-translate-y-[1px] active:translate-y-0"
                 >
-                  {loading ? 'ĐANG XỬ LÝ...' : 'XÁC NHẬN ĐẶT HÀNG'}
+                  {loading ? t('checkout.processing') : t('checkout.confirm').toUpperCase()}
                   <CheckCircle className="w-4 h-4" />
                 </button>
               </div>
@@ -1917,10 +1936,10 @@ function Checkout() {
           )}
         </main>
 
-        {/* Refactored Light Card "Tóm tắt đơn hàng" */}
+        {/* Refactored light order summary card */}
         <aside className="space-y-6" data-aos="fade-left">
           <div className="p-[28px_32px] rounded-2xl bg-white border border-[#E8E8E8] shadow-premium">
-            <h3 className="font-bold text-[22px] text-[#1A1A1A] uppercase tracking-wide mb-4">TÓM TẮT ĐƠN HÀNG</h3>
+            <h3 className="font-bold text-[22px] text-[#1A1A1A] uppercase tracking-wide mb-4">{t('checkout.order_summary')}</h3>
             
             <div className="divide-y divide-[#E8E8E8] max-h-60 overflow-y-auto mb-4 pr-1">
               {cartItems.map((item) => {
@@ -1952,7 +1971,7 @@ function Checkout() {
             <div className="pt-4 border-t border-[#E8E8E8] flex gap-2">
               <input 
                 type="text" 
-                placeholder="Nhập mã giảm giá..." 
+                placeholder={t('checkout.coupon_placeholder')}
                 value={couponInput}
                 onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
                 className="w-full bg-[#F8F8F8] border border-[#E8E8E8] rounded-[10px] py-[14px] px-[16px] text-xs text-[#1A1A1A] focus:outline-none focus:border-primary focus:ring-3 focus:ring-primary/10 transition-all duration-200"
@@ -1961,40 +1980,40 @@ function Checkout() {
                 onClick={handleApplyCoupon}
                 className="bg-secondary text-[#1A1A1A] font-bold px-4 rounded-[8px] text-xs tracking-wider hover:opacity-90 transition hover:-translate-y-[1px]"
               >
-                ÁP DỤNG
+                {t('cart.apply').toUpperCase()}
               </button>
             </div>
 
             {coupon && (
               <div className="mt-2 flex items-center justify-between bg-primary/10 border border-primary/20 text-xs px-3 py-2 rounded-[10px]">
                 <span className="text-primary font-semibold flex items-center gap-1.5"><Tag className="w-3.5 h-3.5 text-primary" /> {coupon.code}</span>
-                <button onClick={removeCoupon} className="text-gray-500 hover:text-black transition font-semibold">XÓA</button>
+                <button onClick={removeCoupon} className="text-gray-500 hover:text-black transition font-semibold">{t('common.delete').toUpperCase()}</button>
               </div>
             )}
 
             {/* Price lines */}
             <div className="border-t border-[#E8E8E8] pt-4 mt-4 space-y-2 text-xs text-[#666666]">
               <div className="flex justify-between">
-                <span>Tạm tính</span>
+                <span>{t('cart.subtotal')}</span>
                 <span className="text-[#1A1A1A] font-semibold">{formatVND(totals.subtotal)}</span>
               </div>
               {totals.productSavings > 0 && (
                 <div className="flex justify-between text-primary font-semibold">
-                  <span>Tiết kiệm deal hot</span>
+                  <span>{t('cart.product_savings')}</span>
                   <span>-{formatVND(totals.productSavings)}</span>
                 </div>
               )}
               {totals.couponDiscount > 0 && (
                 <div className="flex justify-between text-primary font-semibold">
-                  <span>Mã giảm giá</span>
+                  <span>{t('cart.coupon')}</span>
                   <span>-{formatVND(totals.couponDiscount)}</span>
                 </div>
               )}
               <div className="flex justify-between">
-                <span>Phí giao hàng</span>
+                <span>{t('cart.shipping')}</span>
                 <span className="text-[#1A1A1A] font-semibold">
                   {totals.shippingFee === 0
-                    ? 'Miễn phí' 
+                    ? t('cart.free_shipping')
                     : formatVND(totals.shippingFee)
                   }
                 </span>
@@ -2002,7 +2021,7 @@ function Checkout() {
             </div>
 
             <div className="border-t border-[#E8E8E8] pt-3 mt-4 flex justify-between items-center">
-              <span className="font-bold text-[20px] uppercase tracking-wide text-[#666666]">TỔNG CỘNG</span>
+              <span className="font-bold text-[20px] uppercase tracking-wide text-[#666666]">{t('cart.total')}</span>
               
               {/* Product Total: DM Sans 24px primary red */}
               <span className="font-bold text-2xl text-primary">
@@ -2018,6 +2037,7 @@ function Checkout() {
 
 // 8. Order List & Tracking Screen (Timeline)
 function OrderDetailTracking() {
+  const { t } = useTranslation()
   const { code } = useParams()
   const [order, setOrder] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -2041,22 +2061,22 @@ function OrderDetailTracking() {
     loadOrder()
     const paymentStatus = params.get('payment')
     if (paymentStatus === 'success') {
-      showToast('Thanh toán đơn hàng thành công!')
+      showToast(t('order.payment_success'))
     } else if (paymentStatus === 'failed') {
-      showToast('Giao dịch thanh toán thất bại hoặc bị hủy.', 'error')
+      showToast(t('order.payment_failed'), 'error')
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [code])
 
   const handleCancel = () => {
-    if (window.confirm('Bạn chắc chắn muốn hủy đơn hàng này chứ?')) {
+    if (window.confirm(t('order.cancel_confirm'))) {
       apiClient.post(`/orders/${code}/cancel`)
         .then(() => {
-          showToast('Đơn hàng đã được hủy thành công!')
+          showToast(t('order.cancel_success'))
           loadOrder()
         }).catch(err => {
           console.error(err)
-          showToast(err.response?.data?.message || 'Không thể hủy đơn hàng này.', 'error')
+          showToast(err.response?.data?.message || t('order.cancel_error'), 'error')
         })
     }
   }
@@ -2072,11 +2092,11 @@ function OrderDetailTracking() {
   if (!order) return <Navigate to="/profile" />
 
   const steps = [
-    { id: 'pending', name: 'Chờ Xử Lý' },
-    { id: 'confirmed', name: 'Đã Xác Nhận' },
-    { id: 'preparing', name: 'Đang Chuẩn Bị' },
-    { id: 'delivering', name: 'Đang Giao Bánh' },
-    { id: 'delivered', name: 'Đã Nhận Bánh' },
+    { id: 'pending', name: t('order.pending') },
+    { id: 'confirmed', name: t('order.confirmed') },
+    { id: 'preparing', name: t('order.preparing') },
+    { id: 'delivering', name: t('order.delivering') },
+    { id: 'delivered', name: t('order.delivered') },
   ]
 
   const currentStepIndex = steps.findIndex(s => s.id === order.status)
@@ -2086,9 +2106,9 @@ function OrderDetailTracking() {
     <div className="max-w-4xl mx-auto py-10 px-6 bg-[#FFFAF5] text-[#1A1A1A]">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-[#E8E8E8] pb-6 mb-8 gap-4">
         <div>
-          <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">ĐƠN HÀNG CỦA BẠN</span>
-          <h1 className="font-bold text-3xl text-[#1A1A1A] uppercase tracking-wide mt-1">MÃ ĐƠN: {order.order_code}</h1>
-          <p className="text-xs text-gray-500 mt-1">Đặt lúc: {formatDate(order.created_at)}</p>
+          <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">{t('order.your_order')}</span>
+          <h1 className="font-bold text-3xl text-[#1A1A1A] uppercase tracking-wide mt-1">{t('order.code_label', { code: order.order_code })}</h1>
+          <p className="text-xs text-gray-500 mt-1">{t('order.placed_at', { date: formatDate(order.created_at) })}</p>
         </div>
 
         <div className="flex gap-2">
@@ -2097,14 +2117,14 @@ function OrderDetailTracking() {
               onClick={handleCancel}
               className="bg-primary/10 border border-primary/20 text-primary hover:bg-primary/25 font-semibold px-5 py-2 rounded-[8px] text-xs tracking-wider transition"
             >
-              HỦY ĐƠN HÀNG
+              {t('order.cancel').toUpperCase()}
             </button>
           )}
           <Link 
             to="/profile?tab=orders"
             className="bg-[#F8F8F8] hover:bg-[#F5F5F5] border border-[#E8E8E8] text-[#1A1A1A] font-semibold px-5 py-2 rounded-[8px] text-xs tracking-wider transition"
           >
-            LỊCH SỬ ĐƠN
+            {t('order.history').toUpperCase()}
           </Link>
         </div>
       </div>
@@ -2112,7 +2132,7 @@ function OrderDetailTracking() {
       {/* Timeline tracker */}
       {!isCancelled ? (
         <div className="p-6 rounded-2xl bg-white border border-[#E8E8E8] mb-8 shadow-glass">
-          <h3 className="font-bold text-[20px] text-primary tracking-wide uppercase mb-6 text-center">TRẠNG THÁI GIAO HÀNG</h3>
+          <h3 className="font-bold text-[20px] text-primary tracking-wide uppercase mb-6 text-center">{t('order.delivery_status')}</h3>
           <div className="relative flex flex-col md:flex-row justify-between gap-6 md:gap-0">
             {/* Timeline connectors */}
             <div className="absolute top-4 left-4 md:left-0 md:right-0 h-full md:h-0.5 bg-gray-200 z-0" />
@@ -2137,9 +2157,9 @@ function OrderDetailTracking() {
       ) : (
         <div className="p-6 rounded-2xl bg-primary/5 border border-primary/10 text-center mb-8 flex flex-col items-center justify-center">
           <AlertCircle className="w-12 h-12 text-primary mb-3 stroke-1 animate-float" />
-          <h3 className="font-bold text-xl text-primary uppercase tracking-wide">ĐƠN HÀNG ĐÃ BỊ HỦY</h3>
+          <h3 className="font-bold text-xl text-primary uppercase tracking-wide">{t('order.cancelled_title')}</h3>
           <p className="text-xs text-gray-500 mt-2 max-w-sm">
-            Đơn hàng đã được hủy thành công. Bất kỳ điểm tích lũy hoặc giá trị khấu trừ nào đã được hoàn lại đầy đủ vào tài khoản của bạn.
+            {t('order.cancelled_desc')}
           </p>
         </div>
       )}
@@ -2148,7 +2168,7 @@ function OrderDetailTracking() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Items lists */}
         <div className="p-6 rounded-2xl bg-white border border-[#E8E8E8] space-y-4 shadow-glass">
-          <h3 className="font-bold text-[20px] text-primary tracking-wide uppercase">CHI TIẾT MÓN ĂN</h3>
+          <h3 className="font-bold text-[20px] text-primary tracking-wide uppercase">{t('order.item_details')}</h3>
           <div className="divide-y divide-[#E8E8E8]">
             {order.items?.map((item) => (
               <div key={item.id} className="py-3 flex justify-between text-xs">
@@ -2167,21 +2187,21 @@ function OrderDetailTracking() {
 
           <div className="border-t border-[#E8E8E8] pt-4 text-xs space-y-2 text-[#666666]">
             <div className="flex justify-between">
-              <span>Tạm tính</span>
+              <span>{t('cart.subtotal')}</span>
               <span>{formatVND(order.subtotal)}</span>
             </div>
             {parseFloat(order.discount) > 0 && (
               <div className="flex justify-between text-primary font-semibold">
-                <span>Giảm giá</span>
+                <span>{t('cart.discount')}</span>
                 <span>-{formatVND(order.discount)}</span>
               </div>
             )}
             <div className="flex justify-between">
-              <span>Phí vận chuyển</span>
-              <span>{parseFloat(order.shipping_fee) === 0 ? 'Miễn phí' : formatVND(order.shipping_fee)}</span>
+              <span>{t('cart.shipping')}</span>
+              <span>{parseFloat(order.shipping_fee) === 0 ? t('cart.free_shipping') : formatVND(order.shipping_fee)}</span>
             </div>
             <div className="flex justify-between border-t border-[#E8E8E8] pt-3 text-sm font-bold text-[#1A1A1A] mt-2">
-              <span className="font-semibold text-sm">TỔNG CỘNG</span>
+              <span className="font-semibold text-sm">{t('cart.total')}</span>
               <span className="text-primary font-semibold text-base">{formatVND(order.total)}</span>
             </div>
           </div>
@@ -2190,7 +2210,7 @@ function OrderDetailTracking() {
         {/* Delivery / Pickup address card */}
         <div className="p-6 rounded-2xl bg-white border border-[#E8E8E8] flex flex-col justify-between shadow-glass">
           <div>
-            <h3 className="font-bold text-lg text-primary uppercase tracking-[0.3px]">THÔNG TIN GIAO HÀNG</h3>
+            <h3 className="font-bold text-lg text-primary uppercase tracking-[0.3px]">{t('order.delivery_info')}</h3>
             {order.delivery_type === 'delivery' && order.address ? (
               <div className="mt-4 text-xs space-y-2">
                 <p className="text-[#1A1A1A] font-bold">{order.address.recipient_name} - {order.address.phone}</p>
@@ -2199,27 +2219,27 @@ function OrderDetailTracking() {
                 </p>
                 <p className="text-gray-400 text-[10px] pt-2 flex items-center gap-1.5">
                   <MapPin className="w-3.5 h-3.5 text-primary" />
-                  Giao từ chi nhánh Quận 1
+                  {t('order.delivery_from_branch')}
                 </p>
               </div>
             ) : (
               <div className="mt-4 text-xs text-[#666666]">
-                <p className="text-[#1A1A1A] font-bold">Khách tự đến lấy bánh</p>
-                <p className="mt-2">Chi nhánh: Hamburger King Lê Lợi</p>
-                <p className="text-[10px] text-gray-500 mt-1">120 Lê Lợi, Bến Nghé, Quận 1, TP. HCM</p>
+                <p className="text-[#1A1A1A] font-bold">{t('order.pickup_customer')}</p>
+                <p className="mt-2">{t('order.pickup_branch')}</p>
+                <p className="text-[10px] text-gray-500 mt-1">{t('order.pickup_address')}</p>
               </div>
             )}
           </div>
 
           <div className="pt-6 border-t border-[#E8E8E8] mt-6 space-y-2 text-xs">
             <div className="flex justify-between">
-              <span className="text-gray-400 font-semibold">Thanh toán</span>
+              <span className="text-gray-400 font-semibold">{t('order.payment')}</span>
               <span className="text-[#1A1A1A] font-bold uppercase">{order.payment_method}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-400 font-semibold">Trạng thái</span>
+              <span className="text-gray-400 font-semibold">{t('order.status')}</span>
               <span className={`font-bold uppercase ${order.payment_status === 'paid' ? 'text-primary' : 'text-primary/70'}`}>
-                {order.payment_status === 'paid' ? 'Đã thanh toán' : 'Chưa thanh toán'}
+                {order.payment_status === 'paid' ? t('order.paid') : t('order.unpaid')}
               </span>
             </div>
           </div>
@@ -2231,6 +2251,7 @@ function OrderDetailTracking() {
 
 // 9. Profile Management Dashboard (wishlist, loyalty balance, addresses)
 function Profile() {
+  const { t } = useTranslation()
   const { user, updateUser, setLogout } = useAuthStore()
   const { showToast } = useUiStore()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -2249,17 +2270,17 @@ function Profile() {
   // Addresses Form fields
   const [showAddressForm, setShowAddressForm] = useState(false)
   const [newAddress, setNewAddress] = useState({
-    label: 'Nhà riêng',
+    label: t('address.home_label'),
     recipient_name: '',
     phone: '',
-    province: 'Thành phố Hồ Chí Minh',
+    province: t('address.default_province'),
     district: '',
     ward: '',
     street: '',
     is_default: false
   })
 
-  const loadData = () => {
+  const loadData = useCallback(() => {
     if (activeTab === 'addresses') {
       apiClient.get('/addresses').then(res => setAddresses(res.data))
     } else if (activeTab === 'loyalty') {
@@ -2271,17 +2292,17 @@ function Profile() {
     } else if (activeTab === 'orders') {
       apiClient.get('/orders').then(res => setOrders(res.data.data || []))
     }
-  }
+  }, [activeTab])
 
   useEffect(() => {
     loadData()
-  }, [activeTab])
+  }, [loadData])
 
   const handleUpdateProfile = (e) => {
     e.preventDefault()
     // Simulate updating user
     updateUser({ name, phone })
-    showToast('Cập nhật thông tin cá nhân thành công!')
+    showToast(t('profile.update_success'))
   }
 
   const handleCreateAddress = (e) => {
@@ -2290,19 +2311,19 @@ function Profile() {
       .then(res => {
         setAddresses([res.data, ...addresses])
         setShowAddressForm(false)
-        showToast('Thêm địa chỉ mới thành công!')
+        showToast(t('profile.address_created'))
       }).catch(err => {
         console.error(err)
-        showToast('Lỗi lưu địa chỉ.', 'error')
+        showToast(t('profile.address_save_error'), 'error')
       })
   }
 
   const handleDeleteAddress = (id) => {
-    if (window.confirm('Bạn muốn xóa địa chỉ này?')) {
+    if (window.confirm(t('profile.address_delete_confirm'))) {
       apiClient.delete(`/addresses/${id}`)
         .then(() => {
           setAddresses(addresses.filter(a => a.id !== id))
-          showToast('Xóa địa chỉ thành công.')
+          showToast(t('profile.address_deleted'))
         })
     }
   }
@@ -2311,7 +2332,7 @@ function Profile() {
     apiClient.post(`/notifications/${id}/read`)
       .then(() => {
         setNotifications(notifications.map(n => n.id === id ? { ...n, read_at: new Date() } : n))
-        showToast('Đã đánh dấu đọc.')
+        showToast(t('profile.notification_marked_read'))
       })
   }
 
@@ -2321,12 +2342,12 @@ function Profile() {
       <aside className="w-full md:w-64 shrink-0 p-6 rounded-2xl bg-white border border-[#E8E8E8] flex flex-col justify-between shadow-glass">
         <div className="space-y-2">
           {[
-            { id: 'info', name: 'THÔNG TIN CÁ NHÂN', icon: <UserIcon className="w-4 h-4" /> },
-            { id: 'orders', name: 'LỊCH SỬ ĐƠN HÀNG', icon: <Package className="w-4 h-4" /> },
-            { id: 'addresses', name: 'SỔ ĐỊA CHỈ', icon: <MapPin className="w-4 h-4" /> },
-            { id: 'loyalty', name: 'LỊCH SỬ ĐIỂM LOYALTY', icon: <Gift className="w-4 h-4" /> },
-            { id: 'notifications', name: 'THÔNG BÁO', icon: <Bell className="w-4 h-4" /> },
-            { id: 'wishlist', name: 'DANH SÁCH YÊU THÍCH', icon: <Heart className="w-4 h-4" /> },
+            { id: 'info', name: t('profile.personal_info'), icon: <UserIcon className="w-4 h-4" /> },
+            { id: 'orders', name: t('profile.order_history'), icon: <Package className="w-4 h-4" /> },
+            { id: 'addresses', name: t('profile.address_book'), icon: <MapPin className="w-4 h-4" /> },
+            { id: 'loyalty', name: t('profile.loyalty_history'), icon: <Gift className="w-4 h-4" /> },
+            { id: 'notifications', name: t('profile.notifications').toUpperCase(), icon: <Bell className="w-4 h-4" /> },
+            { id: 'wishlist', name: t('profile.wishlist_title'), icon: <Heart className="w-4 h-4" /> },
           ].map((tab) => (
             <button 
               key={tab.id}
@@ -2350,7 +2371,7 @@ function Profile() {
           }}
           className="mt-8 w-full bg-primary/10 border border-primary/20 text-primary font-heading py-2.5 rounded-[8px] text-xs tracking-wider uppercase hover:bg-primary/20 transition"
         >
-          ĐĂNG XUẤT
+          {t('nav.logout').toUpperCase()}
         </button>
       </aside>
 
@@ -2358,23 +2379,23 @@ function Profile() {
       <main className="flex-1 p-6 rounded-2xl bg-white border border-[#E8E8E8] min-h-[50vh] shadow-glass">
         {activeTab === 'info' && (
           <div className="space-y-6">
-            <h2 className="font-bold text-xl text-[#1A1A1A] uppercase tracking-[0.3px] border-b border-[#E8E8E8] pb-3">THÔNG TIN CÁ NHÂN</h2>
+            <h2 className="font-bold text-xl text-[#1A1A1A] uppercase tracking-[0.3px] border-b border-[#E8E8E8] pb-3">{t('profile.personal_info')}</h2>
             
             {/* Loyalty Point Widget */}
             <div className="p-4 rounded-xl bg-primary/5 border border-primary/15 flex justify-between items-center animate-float">
               <div>
-                <h4 className="font-bold text-sm text-[#1A1A1A]">Điểm Loyalty của bạn</h4>
-                <p className="text-[10px] text-gray-400 mt-1">Tích lũy từ việc ăn Hamburger mỗi ngày.</p>
+                <h4 className="font-bold text-sm text-[#1A1A1A]">{t('profile.loyalty_points_title')}</h4>
+                <p className="text-[10px] text-gray-400 mt-1">{t('profile.loyalty_points_desc')}</p>
               </div>
               <div className="flex items-center gap-2">
                 <span className="font-heading text-3xl text-primary">{user.loyalty_balance || 0}</span>
-                <span className="text-xs text-primary font-semibold">Điểm</span>
+                <span className="text-xs text-primary font-semibold">{t('profile.points')}</span>
               </div>
             </div>
 
             <form onSubmit={handleUpdateProfile} className="space-y-4 max-w-md">
               <div>
-                <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">Họ và tên</label>
+                <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">{t('auth.name')}</label>
                 <input 
                   type="text" 
                   required
@@ -2384,7 +2405,7 @@ function Profile() {
                 />
               </div>
               <div>
-                <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">Số điện thoại</label>
+                <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">{t('auth.phone')}</label>
                 <input 
                   type="tel" 
                   value={phone}
@@ -2397,7 +2418,7 @@ function Profile() {
                 type="submit" 
                 className="bg-primary hover:opacity-90 text-white font-semibold px-8 py-3 rounded-[8px] text-xs tracking-wider transition hover:-translate-y-[1px]"
               >
-                CẬP NHẬT THÔNG TIN
+                {t('profile.update_info').toUpperCase()}
               </button>
             </form>
           </div>
@@ -2405,16 +2426,16 @@ function Profile() {
 
         {activeTab === 'orders' && (
           <div className="space-y-4">
-            <h2 className="font-bold text-xl text-[#1A1A1A] uppercase tracking-[0.3px] border-b border-[#E8E8E8] pb-3">LỊCH SỬ ĐƠN HÀNG</h2>
+            <h2 className="font-bold text-xl text-[#1A1A1A] uppercase tracking-[0.3px] border-b border-[#E8E8E8] pb-3">{t('profile.order_history')}</h2>
             {orders.length === 0 ? (
-              <p className="text-xs text-gray-400">Bạn chưa đặt đơn hàng nào.</p>
+              <p className="text-xs text-gray-400">{t('order.empty')}</p>
             ) : (
               orders.map((o) => (
                 <div key={o.id} className="p-4 rounded-xl border border-[#E8E8E8] bg-white flex flex-col sm:flex-row justify-between gap-4 shadow-glass">
                   <div>
-                    <h4 className="font-bold text-sm text-[#1A1A1A]">Mã đơn: {o.order_code}</h4>
-                    <p className="text-[10px] text-gray-500 mt-1">Ngày đặt: {formatDate(o.created_at)}</p>
-                    <p className="text-[10px] text-gray-400 mt-1 line-clamp-1">Món ăn: {o.items?.map(i => i.product_name).join(', ')}</p>
+                    <h4 className="font-bold text-sm text-[#1A1A1A]">{t('order.code_label', { code: o.order_code })}</h4>
+                    <p className="text-[10px] text-gray-500 mt-1">{t('order.date_label', { date: formatDate(o.created_at) })}</p>
+                    <p className="text-[10px] text-gray-400 mt-1 line-clamp-1">{t('order.items_label', { items: o.items?.map(i => i.product_name).join(', ') })}</p>
                   </div>
                   <div className="flex flex-col sm:items-end justify-between">
                     <span className="font-heading text-lg text-primary">{formatVND(o.total)}</span>
@@ -2426,7 +2447,7 @@ function Profile() {
                         to={`/orders/tracking/${o.order_code}`}
                         className="text-xs text-primary font-bold hover:underline"
                       >
-                        Theo dõi
+                        {t('order.track')}
                       </Link>
                     </div>
                   </div>
@@ -2439,12 +2460,12 @@ function Profile() {
         {activeTab === 'addresses' && (
           <div className="space-y-6">
             <div className="flex justify-between items-center border-b border-[#E8E8E8] pb-3">
-              <h2 className="font-bold text-xl text-[#1A1A1A] uppercase tracking-[0.3px]">SỔ ĐỊA CHỈ</h2>
+              <h2 className="font-bold text-xl text-[#1A1A1A] uppercase tracking-[0.3px]">{t('profile.address_book')}</h2>
               <button 
                 onClick={() => setShowAddressForm(!showAddressForm)}
                 className="bg-primary text-white font-semibold px-4 py-2 rounded-[8px] text-xs tracking-wider hover:opacity-90 transition hover:-translate-y-[1px]"
               >
-                THÊM ĐỊA CHỈ MỚI
+                {t('profile.add_address').toUpperCase()}
               </button>
             </div>
 
@@ -2452,7 +2473,7 @@ function Profile() {
             {showAddressForm && (
               <form onSubmit={handleCreateAddress} className="p-5 rounded-xl border border-[#E8E8E8] bg-[#F8F8F8] grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">Tên gợi nhớ (VD: Nhà riêng, Văn phòng)</label>
+                  <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">{t('address.label')}</label>
                   <input 
                     type="text" 
                     required
@@ -2462,7 +2483,7 @@ function Profile() {
                   />
                 </div>
                 <div>
-                  <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">Tên người nhận</label>
+                  <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">{t('checkout.recipient_name')}</label>
                   <input 
                     type="text" 
                     required
@@ -2472,7 +2493,7 @@ function Profile() {
                   />
                 </div>
                 <div>
-                  <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">Số điện thoại nhận hàng</label>
+                  <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">{t('address.delivery_phone')}</label>
                   <input 
                     type="tel" 
                     required
@@ -2482,7 +2503,7 @@ function Profile() {
                   />
                 </div>
                 <div>
-                  <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">Quận / Huyện</label>
+                  <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">{t('checkout.district')}</label>
                   <input 
                     type="text" 
                     required
@@ -2492,7 +2513,7 @@ function Profile() {
                   />
                 </div>
                 <div>
-                  <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">Phường / Xã</label>
+                  <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">{t('checkout.ward')}</label>
                   <input 
                     type="text" 
                     required
@@ -2502,7 +2523,7 @@ function Profile() {
                   />
                 </div>
                 <div className="sm:col-span-2">
-                  <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">Số nhà, Tên đường</label>
+                  <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">{t('checkout.street')}</label>
                   <input 
                     type="text" 
                     required
@@ -2519,7 +2540,7 @@ function Profile() {
                     onChange={(e) => setNewAddress({ ...newAddress, is_default: e.target.checked })}
                     className="w-4 h-4 rounded text-primary focus:ring-primary bg-white border-[#E8E8E8]"
                   />
-                  <span className="text-xs text-gray-500">Đặt làm địa chỉ giao hàng mặc định</span>
+                  <span className="text-xs text-gray-500">{t('address.set_default')}</span>
                 </div>
 
                 <div className="sm:col-span-2 flex gap-2">
@@ -2528,13 +2549,13 @@ function Profile() {
                     onClick={() => setShowAddressForm(false)}
                     className="bg-white hover:bg-[#F5F5F5] border border-[#E8E8E8] text-[#1A1A1A] font-semibold py-2.5 px-6 rounded-[8px] text-xs tracking-wider transition"
                   >
-                    HỦY
+                    {t('common.cancel').toUpperCase()}
                   </button>
                   <button 
                     type="submit" 
                     className="bg-primary hover:opacity-90 text-white font-semibold py-2.5 px-6 rounded-[8px] text-xs tracking-wider transition hover:-translate-y-[1px]"
                   >
-                    LƯU ĐỊA CHỈ
+                    {t('profile.save_address').toUpperCase()}
                   </button>
                 </div>
               </form>
@@ -2547,7 +2568,7 @@ function Profile() {
                   <div>
                     <div className="flex justify-between items-center">
                       <span className="font-bold text-xs uppercase tracking-wider text-primary">{addr.label}</span>
-                      {addr.is_default && <span className="text-[10px] bg-[#FFC72C] text-[#1A1A1A] px-2 py-0.5 rounded-[8px] font-bold uppercase">Mặc định</span>}
+                      {addr.is_default && <span className="text-[10px] bg-[#FFC72C] text-[#1A1A1A] px-2 py-0.5 rounded-[8px] font-bold uppercase">{t('common.default')}</span>}
                     </div>
                     <p className="text-xs font-semibold text-[#1A1A1A] mt-3">{addr.recipient_name} - {addr.phone}</p>
                     <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">
@@ -2560,7 +2581,7 @@ function Profile() {
                       onClick={() => handleDeleteAddress(addr.id)}
                       className="text-primary hover:opacity-80 p-1.5 transition text-xs font-bold"
                     >
-                      Xóa địa chỉ
+                      {t('profile.delete_address')}
                     </button>
                   </div>
                 </div>
@@ -2571,23 +2592,23 @@ function Profile() {
 
         {activeTab === 'loyalty' && (
           <div className="space-y-6">
-            <h2 className="font-bold text-xl text-[#1A1A1A] uppercase tracking-[0.3px] border-b border-[#E8E8E8] pb-3">LỊCH SỬ ĐIỂM LOYALTY</h2>
+            <h2 className="font-bold text-xl text-[#1A1A1A] uppercase tracking-[0.3px] border-b border-[#E8E8E8] pb-3">{t('profile.loyalty_history')}</h2>
             
             <div className="p-6 rounded-2xl bg-primary/5 border border-primary/10 flex flex-col sm:flex-row justify-between items-center gap-4 animate-float">
               <div>
-                <span className="text-[10px] text-primary font-bold uppercase tracking-wider">THÀNH VIÊN KHÁCH HÀNG THÂN THIẾT</span>
-                <h3 className="font-bold text-2xl text-[#1A1A1A] uppercase tracking-[0.3px] mt-1">ĐIỂM THƯỞNG LOYALTY</h3>
+                <span className="text-[10px] text-primary font-bold uppercase tracking-wider">{t('profile.loyalty_member_badge')}</span>
+                <h3 className="font-bold text-2xl text-[#1A1A1A] uppercase tracking-[0.3px] mt-1">{t('profile.loyalty_reward_title')}</h3>
               </div>
               <div className="flex items-center gap-2">
                 <span className="font-heading text-4xl text-primary">{loyalty.balance}</span>
-                <span className="text-xs text-primary font-semibold">Điểm khả dụng</span>
+                <span className="text-xs text-primary font-semibold">{t('profile.available_points')}</span>
               </div>
             </div>
 
             <div className="space-y-2 mt-6">
-              <span className="text-[10px] text-gray-400 font-bold block mb-2 uppercase">LỊCH SỬ GIAO DỊCH CHI TIỆT:</span>
+              <span className="text-[10px] text-gray-400 font-bold block mb-2 uppercase">{t('profile.transaction_history')}</span>
               {loyalty.transactions.length === 0 ? (
-                <p className="text-xs text-gray-400">Chưa có giao dịch tích điểm nào.</p>
+                <p className="text-xs text-gray-400">{t('profile.no_loyalty_transactions')}</p>
               ) : (
                 loyalty.transactions.map((tr) => (
                   <div key={tr.id} className="p-4 rounded-xl border border-[#E8E8E8] bg-[#F8F8F8] flex justify-between items-center text-xs">
@@ -2596,7 +2617,7 @@ function Profile() {
                       <p className="text-[10px] text-gray-500 mt-1">{formatDate(tr.created_at)}</p>
                     </div>
                     <span className="font-bold text-sm text-primary">
-                      {tr.type === 'earn' ? '+' : '-'}{tr.points} Điểm
+                      {tr.type === 'earn' ? '+' : '-'}{tr.points} {t('profile.points')}
                     </span>
                   </div>
                 ))
@@ -2607,11 +2628,11 @@ function Profile() {
 
         {activeTab === 'notifications' && (
           <div className="space-y-4">
-            <h2 className="font-bold text-xl text-[#1A1A1A] uppercase tracking-[0.3px] border-b border-[#E8E8E8] pb-3">THÔNG BÁO CỦA BẠN</h2>
+            <h2 className="font-bold text-xl text-[#1A1A1A] uppercase tracking-[0.3px] border-b border-[#E8E8E8] pb-3">{t('profile.notifications_title')}</h2>
             
             <div className="space-y-2">
               {notifications.length === 0 ? (
-                <p className="text-xs text-gray-400">Không có thông báo mới.</p>
+                <p className="text-xs text-gray-400">{t('profile.no_notifications')}</p>
               ) : (
                 notifications.map((n) => {
                   const unread = !n.read_at
@@ -2636,7 +2657,7 @@ function Profile() {
                           onClick={() => handleMarkNotificationRead(n.id)}
                           className="text-[10px] text-primary hover:opacity-80 transition font-bold"
                         >
-                          Đánh dấu đã đọc
+                          {t('profile.mark_read')}
                         </button>
                       )}
                     </div>
@@ -2649,9 +2670,9 @@ function Profile() {
 
         {activeTab === 'wishlist' && (
           <div className="space-y-4">
-            <h2 className="font-bold text-xl text-[#1A1A1A] uppercase tracking-[0.3px] border-b border-[#E8E8E8] pb-3">DANH SÁCH YÊU THÍCH</h2>
+            <h2 className="font-bold text-xl text-[#1A1A1A] uppercase tracking-[0.3px] border-b border-[#E8E8E8] pb-3">{t('profile.wishlist_title')}</h2>
             {wishlist.length === 0 ? (
-              <p className="text-xs text-gray-400">Danh sách yêu thích của bạn đang trống.</p>
+              <p className="text-xs text-gray-400">{t('profile.wishlist_empty')}</p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {wishlist.map((w) => (
@@ -2670,7 +2691,7 @@ function Profile() {
                         to="/menu" 
                         className="text-[10px] text-primary hover:underline font-bold"
                       >
-                        ĐẶT MUA NGAY
+                        {t('product.order_now').toUpperCase()}
                       </Link>
                     </div>
                   </div>

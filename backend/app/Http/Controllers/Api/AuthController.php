@@ -32,7 +32,7 @@ class AuthController extends Controller
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
-            'message' => 'Đăng ký tài khoản thành công!',
+            'message' => __('api.messages.auth_registered'),
             'access_token' => $token,
             'token_type' => 'Bearer',
             'user' => array_merge($user->toArray(), [
@@ -52,7 +52,7 @@ class AuthController extends Controller
 
         if (!$user || !Hash::check($request->password, $user->password)) {
             throw ValidationException::withMessages([
-                'email' => ['Thông tin đăng nhập không hợp lệ.'],
+                'email' => [__('api.messages.auth_invalid')],
             ]);
         }
 
@@ -62,7 +62,7 @@ class AuthController extends Controller
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
-            'message' => 'Đăng nhập thành công!',
+            'message' => __('api.messages.auth_login'),
             'access_token' => $token,
             'token_type' => 'Bearer',
             'user' => array_merge($user->toArray(), [
@@ -76,7 +76,7 @@ class AuthController extends Controller
         $request->user()->currentAccessToken()->delete();
 
         return response()->json([
-            'message' => 'Đăng xuất thành công!',
+            'message' => __('api.messages.auth_logout'),
         ]);
     }
 

@@ -6,9 +6,18 @@ use App\Models\ProductTopping;
 use App\Models\Category;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class ProductToppingSeeder extends Seeder
 {
+    private function trans($vi, $en = null)
+    {
+        return [
+            'vi' => $vi,
+            'en' => $en ?? $vi,
+        ];
+    }
+
     public function run(): void
     {
         $categoryIds = Category::pluck('id', 'slug');
@@ -26,7 +35,7 @@ class ProductToppingSeeder extends Seeder
         $toppings = [
             // ═══ SAUCES ═══
             [
-                'name'         => 'Sốt BBQ Đặc Biệt',
+                'name'         => $this->trans('Sốt BBQ Đặc Biệt', 'Special BBQ Sauce'),
                 'price'        => 5000,
                 'category'     => 'sauce',
                 'category_ids'  => $sauceCategories,
@@ -34,7 +43,7 @@ class ProductToppingSeeder extends Seeder
                 'is_available' => true,
             ],
             [
-                'name'         => 'Sốt Mayonnaise',
+                'name'         => $this->trans('Sốt Mayonnaise', 'Mayonnaise Sauce'),
                 'price'        => 5000,
                 'category'     => 'sauce',
                 'category_ids'  => $sauceCategories,
@@ -42,7 +51,7 @@ class ProductToppingSeeder extends Seeder
                 'is_available' => true,
             ],
             [
-                'name'         => 'Sốt Cay Sriracha',
+                'name'         => $this->trans('Sốt Cay Sriracha', 'Spicy Sriracha Sauce'),
                 'price'        => 5000,
                 'category'     => 'sauce',
                 'category_ids'  => $sauceCategories,
@@ -50,7 +59,7 @@ class ProductToppingSeeder extends Seeder
                 'is_available' => true,
             ],
             [
-                'name'         => 'Sốt Mù Tạt Mật Ong',
+                'name'         => $this->trans('Sốt Mù Tạt Mật Ong', 'Honey Mustard Sauce'),
                 'price'        => 5000,
                 'category'     => 'sauce',
                 'category_ids'  => $sauceCategories,
@@ -60,7 +69,7 @@ class ProductToppingSeeder extends Seeder
 
             // ═══ CHEESE ═══
             [
-                'name'         => 'Phô Mai Cheddar',
+                'name'         => $this->trans('Phô Mai Cheddar', 'Cheddar Cheese'),
                 'price'        => 10000,
                 'category'     => 'cheese',
                 'category_ids'  => $cheeseCategories,
@@ -68,7 +77,7 @@ class ProductToppingSeeder extends Seeder
                 'is_available' => true,
             ],
             [
-                'name'         => 'Phô Mai Xanh',
+                'name'         => $this->trans('Phô Mai Xanh', 'Blue Cheese'),
                 'price'        => 12000,
                 'category'     => 'cheese',
                 'category_ids'  => $cheeseCategories,
@@ -76,7 +85,7 @@ class ProductToppingSeeder extends Seeder
                 'is_available' => true,
             ],
             [
-                'name'         => 'Phô Mai Mozzarella',
+                'name'         => $this->trans('Phô Mai Mozzarella', 'Mozzarella Cheese'),
                 'price'        => 10000,
                 'category'     => 'cheese',
                 'category_ids'  => $cheeseCategories,
@@ -86,7 +95,7 @@ class ProductToppingSeeder extends Seeder
 
             // ═══ VEGGIES ═══
             [
-                'name'         => 'Thêm Rau Xà Lách',
+                'name'         => $this->trans('Thêm Rau Xà Lách', 'Extra Lettuce'),
                 'price'        => 5000,
                 'category'     => 'veggie',
                 'category_ids'  => $veggieCategories,
@@ -94,7 +103,7 @@ class ProductToppingSeeder extends Seeder
                 'is_available' => true,
             ],
             [
-                'name'         => 'Thêm Cà Chua',
+                'name'         => $this->trans('Thêm Cà Chua', 'Extra Tomato'),
                 'price'        => 5000,
                 'category'     => 'veggie',
                 'category_ids'  => $veggieCategories,
@@ -102,7 +111,7 @@ class ProductToppingSeeder extends Seeder
                 'is_available' => true,
             ],
             [
-                'name'         => 'Thêm Dưa Chuột Muối',
+                'name'         => $this->trans('Thêm Dưa Chuột Muối', 'Extra Pickles'),
                 'price'        => 5000,
                 'category'     => 'veggie',
                 'category_ids'  => $veggieCategories,
@@ -110,7 +119,7 @@ class ProductToppingSeeder extends Seeder
                 'is_available' => true,
             ],
             [
-                'name'         => 'Thêm Hành Tây',
+                'name'         => $this->trans('Thêm Hành Tây', 'Extra Onion'),
                 'price'        => 5000,
                 'category'     => 'veggie',
                 'category_ids'  => $veggieCategories,
@@ -120,7 +129,7 @@ class ProductToppingSeeder extends Seeder
 
             // ═══ MEAT ═══
             [
-                'name'         => 'Thêm Thịt Bò Patty',
+                'name'         => $this->trans('Thêm Thịt Bò Patty', 'Extra Beef Patty'),
                 'price'        => 25000,
                 'category'     => 'meat',
                 'category_ids'  => $meatCategories,
@@ -128,7 +137,7 @@ class ProductToppingSeeder extends Seeder
                 'is_available' => true,
             ],
             [
-                'name'         => 'Thêm Bacon',
+                'name'         => $this->trans('Thêm Bacon', 'Extra Bacon'),
                 'price'        => 20000,
                 'category'     => 'meat',
                 'category_ids'  => $meatCategories,
@@ -136,7 +145,7 @@ class ProductToppingSeeder extends Seeder
                 'is_available' => true,
             ],
             [
-                'name'         => 'Thêm Trứng Ốp La',
+                'name'         => $this->trans('Thêm Trứng Ốp La', 'Extra Fried Egg'),
                 'price'        => 15000,
                 'category'     => 'meat',
                 'category_ids'  => $meatCategories,
@@ -147,14 +156,17 @@ class ProductToppingSeeder extends Seeder
 
         DB::transaction(function () use ($toppings) {
             foreach ($toppings as $topping) {
-                $existing = ProductTopping::where('name', $topping['name'])->first();
-                if ($existing && empty($topping['image'])) {
-                    unset($topping['image']);
+                $topping['sku'] = 'TOP-' . Str::upper(Str::slug($topping['name']['en'] ?? $topping['name']['vi']));
+                // Find existing using JSON path comparison or key check
+                $existing = ProductTopping::get()->first(function ($t) use ($topping) {
+                    return $t->getTranslation('name', 'vi') === $topping['name']['vi'];
+                });
+
+                if ($existing) {
+                    $existing->update($topping);
+                } else {
+                    ProductTopping::create($topping);
                 }
-                ProductTopping::updateOrCreate(
-                    ['name' => $topping['name']],
-                    $topping
-                );
             }
         });
     }
