@@ -19,11 +19,11 @@ class PaymentService
 
         $plugin = PaymentPlugin::where('key', $gateway)->where('is_active', true)->first();
         if (!$plugin) {
-            throw new Exception('Phương thức thanh toán chưa được kích hoạt.');
+            throw new Exception(__('api.errors.payment_inactive'));
         }
 
         $config = $plugin->config ?? [];
-        
+
         if ($gateway === 'vnpay') {
             $terminalCode = $config['vnp_TmnCode'] ?? env('VNPAY_TMN_CODE');
             $hashSecret = $config['vnp_HashSecret'] ?? env('VNPAY_HASH_SECRET');
@@ -31,7 +31,7 @@ class PaymentService
             $returnUrl = !empty($config['vnp_ReturnUrl']) ? $config['vnp_ReturnUrl'] : env('VNPAY_RETURN_URL', $frontendUrl . '/orders/tracking/' . $order->order_code);
 
             if (!$terminalCode || !$hashSecret) {
-                throw new Exception('VNPAY chưa được cấu hình. Vui lòng kiểm tra VNPAY_TMN_CODE và VNPAY_HASH_SECRET.');
+                throw new Exception(__('api.errors.vnpay_not_configured'));
             }
 
             $params = [
@@ -42,8 +42,8 @@ class PaymentService
                 'vnp_CreateDate' => now()->format('YmdHis'),
                 'vnp_CurrCode' => 'VND',
                 'vnp_IpAddr' => request()->ip(),
-                'vnp_Locale' => 'vn',
-                'vnp_OrderInfo' => 'Thanh toan don hang ' . $order->order_code,
+                'vnp_Locale' => app()->getLocale() === 'vi' ? 'vn' : 'en',
+                'vnp_OrderInfo' => 'Payment for order ' . $order->order_code,
                 'vnp_OrderType' => 'billpayment',
                 'vnp_ReturnUrl' => $returnUrl,
                 'vnp_TxnRef' => $order->order_code,
@@ -56,10 +56,10 @@ class PaymentService
         }
 
         if ($gateway === 'momo') {
-            throw new Exception('MoMo chưa được tích hợp tạo giao dịch tự động. Vui lòng tắt plugin hoặc hoàn thiện bộ xử lý MoMo.');
+            throw new Exception(__('api.errors.momo_not_implemented'));
         }
 
-        throw new Exception("Plugin {$plugin->name} chưa có bộ xử lý thanh toán.");
+        throw new Exception(__('api.errors.payment_handler_missing', ['name' => $plugin->name]));
     }
 
     public function processCallback(string $orderCode, string $gateway, string $status): bool
@@ -73,22 +73,21 @@ class PaymentService
         if ($status === 'success') {
             $order->update([
                 'payment_status' => 'paid',
-                'status' => 'confirmed' // advance status automatically upon paid
+                'status' => 'confirmed'
             ]);
 
-            // Award loyalty points
             $loyaltyService = new LoyaltyService();
             $loyaltyService->awardPointsForOrder($order);
 
             Log::info("Payment success for order: {$orderCode} via {$gateway}");
             return true;
-        } else {
-            $order->update([
-                'payment_status' => 'unpaid',
-                'status' => 'cancelled'
-            ]);
-            Log::info("Payment failed/cancelled for order: {$orderCode} via {$gateway}");
-            return false;
         }
+
+        $order->update([
+            'payment_status' => 'unpaid',
+            'status' => 'cancelled'
+        ]);
+        Log::info("Payment failed/cancelled for order: {$orderCode} via {$gateway}");
+        return false;
     }
 }

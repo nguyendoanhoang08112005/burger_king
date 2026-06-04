@@ -12,13 +12,15 @@ const apiClient = axios.create({
   }
 })
 
-// Automatically inject bearer auth token
+// Automatically inject bearer auth token and language header
 apiClient.interceptors.request.use(
   (config) => {
     const token = useAuthStore.getState().token
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
+    const lang = localStorage.getItem('hk_language') || 'vi'
+    config.headers['Accept-Language'] = lang
     return config
   },
   (error) => {

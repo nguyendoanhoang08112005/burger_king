@@ -82,6 +82,7 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(functi
     Route::get('/dashboard/revenue-chart', [AdminController::class, 'revenueChart']);
     Route::get('/dashboard/recent-orders', [AdminController::class, 'recentOrders']);
     Route::get('/dashboard/activity-log', [AdminController::class, 'activityLog']);
+    Route::get('/translations/status', [AdminController::class, 'translationsStatus']);
     
     // Orders Pipeline
     Route::get('/orders', [AdminController::class, 'listOrders']);
@@ -116,6 +117,7 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(functi
     // Toppings
     Route::get('/toppings', [AdminController::class, 'listToppings']);
     Route::post('/toppings', [AdminController::class, 'createTopping']);
+    Route::get('/toppings/{id}', [AdminController::class, 'showTopping']);
     Route::put('/toppings/{id}', [AdminController::class, 'updateTopping']);
     Route::delete('/toppings/{id}', [AdminController::class, 'deleteTopping']);
     
@@ -153,6 +155,10 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(functi
     Route::put('/settings', [SettingController::class, 'update']);
     Route::post('/settings/upload', [SettingController::class, 'upload']);
     Route::post('/settings/test-email', [SettingController::class, 'testEmail']);
+    Route::get('/translations/locales', [SettingController::class, 'locales']);
+    Route::post('/translations/locales', [SettingController::class, 'addLocale']);
+    Route::patch('/translations/locales/{locale}/default', [SettingController::class, 'setDefaultLocale']);
+    Route::delete('/translations/locales/{locale}', [SettingController::class, 'deleteLocale']);
 
     // Content
     Route::get('/posts', [AdminController::class, 'listPosts']);
@@ -163,10 +169,12 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(functi
     Route::delete('/posts/{id}', [AdminController::class, 'deletePost']);
     Route::get('/banners', [AdminController::class, 'listBanners']);
     Route::post('/banners', [AdminController::class, 'createBanner']);
+    Route::get('/banners/{id}', [AdminController::class, 'showBanner']);
     Route::put('/banners/{id}', [AdminController::class, 'updateBanner']);
     Route::delete('/banners/{id}', [AdminController::class, 'deleteBanner']);
     Route::get('/branches', [AdminController::class, 'listBranches']);
     Route::post('/branches', [AdminController::class, 'createBranch']);
+    Route::get('/branches/{id}', [AdminController::class, 'showBranch']);
     Route::put('/branches/{id}', [AdminController::class, 'updateBranch']);
     Route::delete('/branches/{id}', [AdminController::class, 'deleteBranch']);
 });

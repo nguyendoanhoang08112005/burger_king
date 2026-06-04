@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\Branch;
 use App\Models\LoyaltyPoint;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Str;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 
@@ -38,13 +39,32 @@ class DatabaseSeeder extends Seeder
         $staffRole    = Role::firstOrCreate(['name' => 'staff']);
         $customerRole = Role::firstOrCreate(['name' => 'customer']);
 
+        $adminSeed = [
+            'email' => env('SEED_ADMIN_EMAIL', 'admin@example.test'),
+            'name' => env('SEED_ADMIN_NAME', 'Admin User'),
+            'password' => env('SEED_ADMIN_PASSWORD') ?: Str::random(32),
+            'phone' => env('SEED_ADMIN_PHONE', '0900000000'),
+        ];
+        $staffSeed = [
+            'email' => env('SEED_STAFF_EMAIL', 'staff@example.test'),
+            'name' => env('SEED_STAFF_NAME', 'Store Manager'),
+            'password' => env('SEED_STAFF_PASSWORD') ?: Str::random(32),
+            'phone' => env('SEED_STAFF_PHONE', '0900000001'),
+        ];
+        $customerSeed = [
+            'email' => env('SEED_CUSTOMER_EMAIL', 'customer@example.test'),
+            'name' => env('SEED_CUSTOMER_NAME', 'Demo Customer'),
+            'password' => env('SEED_CUSTOMER_PASSWORD') ?: Str::random(32),
+            'phone' => env('SEED_CUSTOMER_PHONE', '0900000002'),
+        ];
+
         // Admin
         $admin = User::firstOrCreate(
-            ['email' => 'admin@hamburgerking.com'],
+            ['email' => $adminSeed['email']],
             [
-                'name'              => 'Burger King Admin',
-                'password'          => bcrypt('Admin@123'),
-                'phone'             => '0987654321',
+                'name'              => $adminSeed['name'],
+                'password'          => bcrypt($adminSeed['password']),
+                'phone'             => $adminSeed['phone'],
                 'role'              => 'admin',
                 'email_verified_at' => now(),
             ]
@@ -53,11 +73,11 @@ class DatabaseSeeder extends Seeder
 
         // Staff
         $staff = User::firstOrCreate(
-            ['email' => 'staff@hamburgerking.com'],
+            ['email' => $staffSeed['email']],
             [
-                'name'              => 'Store Manager',
-                'password'          => bcrypt('Staff@123'),
-                'phone'             => '0912345678',
+                'name'              => $staffSeed['name'],
+                'password'          => bcrypt($staffSeed['password']),
+                'phone'             => $staffSeed['phone'],
                 'role'              => 'staff',
                 'email_verified_at' => now(),
             ]
@@ -66,12 +86,12 @@ class DatabaseSeeder extends Seeder
 
         // Demo Customer
         $customer = User::firstOrCreate(
-            ['email' => 'customer@example.com'],
+            ['email' => $customerSeed['email']],
             [
-                'name'              => 'Nguyễn Minh Quân',
-                'password'          => bcrypt('Customer@123'),
-                'phone'             => '0909090909',
-                'avatar'            => 'https://ui-avatars.com/api/?name=Nguyen+Quan&background=D62300&color=fff',
+                'name'              => $customerSeed['name'],
+                'password'          => bcrypt($customerSeed['password']),
+                'phone'             => $customerSeed['phone'],
+                'avatar'            => 'https://ui-avatars.com/api/?name=' . urlencode($customerSeed['name']) . '&background=D62300&color=fff',
                 'role'              => 'customer',
                 'email_verified_at' => now(),
             ]
@@ -83,8 +103,8 @@ class DatabaseSeeder extends Seeder
             $customer->addresses()->createMany([
                 [
                     'label'          => 'Nhà riêng',
-                    'recipient_name' => 'Nguyễn Minh Quân',
-                    'phone'          => '0909090909',
+                    'recipient_name' => $customerSeed['name'],
+                    'phone'          => $customerSeed['phone'],
                     'province'       => 'Thành phố Hồ Chí Minh',
                     'district'       => 'Quận 1',
                     'ward'           => 'Phường Bến Nghé',
@@ -93,8 +113,8 @@ class DatabaseSeeder extends Seeder
                 ],
                 [
                     'label'          => 'Văn phòng',
-                    'recipient_name' => 'Nguyễn Minh Quân',
-                    'phone'          => '0909090909',
+                    'recipient_name' => $customerSeed['name'],
+                    'phone'          => $customerSeed['phone'],
                     'province'       => 'Thành phố Hồ Chí Minh',
                     'district'       => 'Quận 3',
                     'ward'           => 'Phường Võ Thị Sáu',
@@ -107,9 +127,9 @@ class DatabaseSeeder extends Seeder
         // Customer loyalty points
         if ($customer->loyaltyPoints()->count() === 0) {
             $customer->loyaltyPoints()->createMany([
-                ['points' => 100, 'type' => 'earn',   'description' => 'Điểm thưởng chào mừng thành viên mới'],
-                ['points' => 50,  'type' => 'earn',   'description' => 'Tích lũy từ đơn hàng thử nghiệm'],
-                ['points' => 20,  'type' => 'redeem', 'description' => 'Đổi điểm giảm giá đơn hàng trước'],
+                ['points' => 100, 'type' => 'earn',   'description' => __('api.loyalty.welcome_bonus')],
+                ['points' => 50,  'type' => 'earn',   'description' => __('api.loyalty.demo_order')],
+                ['points' => 20,  'type' => 'redeem', 'description' => __('api.loyalty.previous_order_redeem')],
             ]);
         }
 
@@ -134,8 +154,8 @@ class DatabaseSeeder extends Seeder
         // ═══════════════════════════════════════════
         $branches = [
             [
-                'name'       => 'Chi Nhánh Quận 1 — Hamburger King Lê Lợi',
-                'address'    => '120-122 Lê Lợi, Bến Nghé, Quận 1, TP. Hồ Chí Minh',
+                'name'       => ['vi' => 'Chi Nhánh Quận 1 — Hamburger King Lê Lợi', 'en' => 'District 1 Branch — Hamburger King Le Loi'],
+                'address'    => ['vi' => '120-122 Lê Lợi, Bến Nghé, Quận 1, TP. Hồ Chí Minh', 'en' => '120-122 Le Loi, Ben Nghe Ward, District 1, Ho Chi Minh City'],
                 'phone'      => '028 3822 9999',
                 'lat'        => 10.771971,
                 'lng'        => 106.698372,
@@ -144,8 +164,8 @@ class DatabaseSeeder extends Seeder
                 'is_active'  => true,
             ],
             [
-                'name'       => 'Chi Nhánh Quận 3 — Hamburger King Điện Biên Phủ',
-                'address'    => '345 Điện Biên Phủ, Phường Võ Thị Sáu, Quận 3, TP. Hồ Chí Minh',
+                'name'       => ['vi' => 'Chi Nhánh Quận 3 — Hamburger King Điện Biên Phủ', 'en' => 'District 3 Branch — Hamburger King Dien Bien Phu'],
+                'address'    => ['vi' => '345 Điện Biên Phủ, Phường Võ Thị Sáu, Quận 3, TP. Hồ Chí Minh', 'en' => '345 Dien Bien Phu, Vo Thi Sau Ward, District 3, Ho Chi Minh City'],
                 'phone'      => '028 3933 8888',
                 'lat'        => 10.781232,
                 'lng'        => 106.685324,
@@ -154,8 +174,8 @@ class DatabaseSeeder extends Seeder
                 'is_active'  => true,
             ],
             [
-                'name'       => 'Chi Nhánh Quận 2 — Hamburger King Thảo Điền',
-                'address'    => '45 Xuân Thủy, Thảo Điền, Quận 2, TP. Hồ Chí Minh',
+                'name'       => ['vi' => 'Chi Nhánh Quận 2 — Hamburger King Thảo Điền', 'en' => 'District 2 Branch — Hamburger King Thao Dien'],
+                'address'    => ['vi' => '45 Xuân Thủy, Thảo Điền, Quận 2, TP. Hồ Chí Minh', 'en' => '45 Xuan Thuy, Thao Dien, District 2, Ho Chi Minh City'],
                 'phone'      => '028 3519 7777',
                 'lat'        => 10.803120,
                 'lng'        => 106.729110,
@@ -166,7 +186,7 @@ class DatabaseSeeder extends Seeder
         ];
 
         foreach ($branches as $branch) {
-            Branch::firstOrCreate(
+            Branch::updateOrCreate(
                 ['phone' => $branch['phone']],
                 $branch
             );

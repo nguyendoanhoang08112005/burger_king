@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import apiClient from '../api/axios'
 import { formatDate } from '../utils/format'
 
 function BlogPage() {
+  const { t, i18n } = useTranslation()
   const [posts, setPosts] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -16,10 +18,10 @@ function BlogPage() {
       })
       .catch(err => {
         console.error(err)
-        setError('Không tải được bài viết.')
+        setError(t('blog.load_error'))
         setLoading(false)
       })
-  }, [])
+  }, [i18n.language, t])
 
   const featured = posts[0]
   const gridPosts = posts.slice(1)
@@ -53,10 +55,10 @@ function BlogPage() {
         <div className="relative z-10 max-w-7xl mx-auto px-6 md:px-12 w-full">
           <p className="text-[#FFC72C] text-sm font-bold uppercase tracking-widest mb-3">Blog</p>
           <h1 className="text-white font-extrabold text-[clamp(36px,6vw,72px)] uppercase leading-none max-w-3xl">
-            Câu Chuyện Hamburger King
+            {t('blog.hero_title')}
           </h1>
           <p className="text-white/90 max-w-xl mt-5 text-sm md:text-base leading-relaxed">
-            Những câu chuyện từ bếp lửa, nguyên liệu, con người và các combo được yêu thích nhất.
+            {t('blog.hero_desc')}
           </p>
         </div>
       </section>
@@ -69,9 +71,9 @@ function BlogPage() {
               <span className="text-xs font-bold text-primary uppercase tracking-widest mb-3">{featured.category}</span>
               <h2 className="text-3xl font-bold text-[#1A1A1A] leading-tight">{featured.title}</h2>
               <p className="text-sm text-[#666666] leading-relaxed mt-4">{featured.excerpt}</p>
-              <div className="text-xs text-gray-400 mt-5">{formatDate(featured.published_at)} · {featured.read_time} phút đọc</div>
+              <div className="text-xs text-gray-400 mt-5">{formatDate(featured.published_at)} · {t('blog.read_time_with_count', { count: featured.read_time })}</div>
               <Link to={`/blog/${featured.slug}`} className="mt-7 inline-flex w-fit items-center gap-2 bg-primary text-white px-5 py-3 rounded-[8px] text-xs font-bold uppercase tracking-wider hover:opacity-90 transition">
-                Đọc thêm →
+                {t('blog.read_more_arrow')}
               </Link>
             </div>
           </div>
@@ -87,9 +89,9 @@ function BlogPage() {
                 <span className="text-[10px] font-bold text-primary uppercase tracking-widest">{post.category}</span>
                 <h3 className="text-lg font-bold text-[#1A1A1A] mt-2 leading-tight">{post.title}</h3>
                 <p className="text-xs text-[#666666] leading-relaxed mt-3 line-clamp-3">{post.excerpt}</p>
-                <div className="text-[11px] text-gray-400 mt-4">{formatDate(post.published_at)} · {post.read_time} phút đọc</div>
+                <div className="text-[11px] text-gray-400 mt-4">{formatDate(post.published_at)} · {t('blog.read_time_with_count', { count: post.read_time })}</div>
                 <Link to={`/blog/${post.slug}`} className="inline-flex mt-5 text-primary text-xs font-bold uppercase tracking-wider hover:opacity-80 transition">
-                  Đọc thêm →
+                  {t('blog.read_more_arrow')}
                 </Link>
               </div>
             </article>

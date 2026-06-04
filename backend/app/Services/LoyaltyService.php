@@ -34,7 +34,7 @@ class LoyaltyService
                 'user_id' => $order->user_id,
                 'points' => $points,
                 'type' => 'earn',
-                'description' => "Tích lũy từ đơn hàng {$order->order_code}",
+                'description' => __('api.loyalty.earned_order', ['code' => $order->order_code]),
                 'order_id' => $order->id
             ]);
         }
@@ -57,7 +57,7 @@ class LoyaltyService
                 'user_id' => $order->user_id,
                 'points' => $redeemedPoints->points,
                 'type' => 'earn', // treat refund as points earned/returned
-                'description' => "Hoàn trả điểm tích lũy từ đơn hàng hủy {$order->order_code}",
+                'description' => __('api.loyalty.refund_cancelled_order', ['code' => $order->order_code]),
                 'order_id' => $order->id
             ]);
         }
@@ -73,7 +73,7 @@ class LoyaltyService
                 'user_id' => $order->user_id,
                 'points' => $earnedPoints->points,
                 'type' => 'redeem', // deduct points by redeeming them back
-                'description' => "Thu hồi điểm tích lũy của đơn hàng hủy {$order->order_code}",
+                'description' => __('api.loyalty.revoke_cancelled_order', ['code' => $order->order_code]),
                 'order_id' => $order->id
             ]);
         }

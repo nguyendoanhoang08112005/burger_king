@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1900 1000" width="100%" height="100%">
+  <rect width="1900" height="1000" fill="#b22234"/>
+  <path d="M0 76.9h1900M0 230.8h1900M0 384.6h1900M0 538.5h1900M0 692.3h1900M0 846.2h1900" stroke="#fff" stroke-width="76.92"/>
+  <rect width="760" height="538.5" fill="#3c3b6e"/>
+  <defs>
+    <g id="star">
+      <polygon points="0,-18 5.3,-3.8 20.3,-3.8 8.1,5 12.8,19.3 0,10.5 -12.8,19.3 -8.1,5 -20.3,-3.8 -5.3,-3.8" fill="#fff"/>
+    </g>
+  </defs>
+  <use xlink:href="#star" x="63.3" y="53.8"/>
+  <use xlink:href="#star" x="190" y="53.8"/>
+  <use xlink:href="#star" x="316.7" y="53.8"/>
+  <use xlink:href="#star" x="443.3" y="53.8"/>
+  <use xlink:href="#star" x="570" y="53.8"/>
+  <use xlink:href="#star" x="696.7" y="53.8"/>
+  <use xlink:href="#star" x="126.7" y="107.7"/>
+  <use xlink:href="#star" x="253.3" y="107.7"/>
+  <use xlink:href="#star" x="380" y="107.7"/>
+  <use xlink:href="#star" x="506.7" y="107.7"/>
+  <use xlink:href="#star" x="633.3" y="107.7"/>
+  <use xlink:href="#star" x="63.3" y="161.5"/>
+  <use xlink:href="#star" x="190" y="161.5"/>
+  <use xlink:href="#star" x="316.7" y="161.5"/>
+  <use xlink:href="#star" x="443.3" y="161.5"/>
+  <use xlink:href="#star" x="570" y="161.5"/>
+  <use xlink:href="#star" x="696.7" y="161.5"/>
+  <use xlink:href="#star" x="126.7" y="215.4"/>
+  <use xlink:href="#star" x="253.3" y="215.4"/>
+  <use xlink:href="#star" x="380" y="215.4"/>
+  <use xlink:href="#star" x="506.7" y="215.4"/>
+  <use xlink:href="#star" x="633.3" y="215.4"/>
+  <use xlink:href="#star" x="63.3" y="269.2"/>
+  <use xlink:href="#star" x="190" y="269.2"/>
+  <use xlink:href="#star" x="316.7" y="269.2"/>
+  <use xlink:href="#star" x="443.3" y="269.2"/>
+  <use xlink:href="#star" x="570" y="269.2"/>
+  <use xlink:href="#star" x="696.7" y="269.2"/>
+  <use xlink:href="#star" x="126.7" y="323.1"/>
+  <use xlink:href="#star" x="253.3" y="323.1"/>
+  <use xlink:href="#star" x="380" y="323.1"/>
+  <use xlink:href="#star" x="506.7" y="323.1"/>
+  <use xlink:href="#star" x="633.3" y="323.1"/>
+  <use xlink:href="#star" x="63.3" y="376.9"/>
+  <use xlink:href="#star" x="190" y="376.9"/>
+  <use xlink:href="#star" x="316.7" y="376.9"/>
+  <use xlink:href="#star" x="443.3" y="376.9"/>
+  <use xlink:href="#star" x="570" y="376.9"/>
+  <use xlink:href="#star" x="696.7" y="376.9"/>
+  <use xlink:href="#star" x="126.7" y="430.8"/>
+  <use xlink:href="#star" x="253.3" y="430.8"/>
+  <use xlink:href="#star" x="380" y="430.8"/>
+  <use xlink:href="#star" x="506.7" y="430.8"/>
+  <use xlink:href="#star" x="633.3" y="430.8"/>
+  <use xlink:href="#star" x="63.3" y="484.6"/>
+  <use xlink:href="#star" x="190" y="484.6"/>
+  <use xlink:href="#star" x="316.7" y="484.6"/>
+  <use xlink:href="#star" x="443.3" y="484.6"/>
+  <use xlink:href="#star" x="570" y="484.6"/>
+  <use xlink:href="#star" x="696.7" y="484.6"/>
+</svg>

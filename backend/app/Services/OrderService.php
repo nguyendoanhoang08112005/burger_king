@@ -34,7 +34,7 @@ class OrderService
         );
 
         if (!empty($result['out_of_range'])) {
-            throw new Exception($result['message'] ?? 'Dia chi giao hang nam ngoai pham vi phuc vu.');
+            throw new Exception($result['message'] ?? __('api.errors.delivery_out_of_range'));
         }
 
         return (float) ($result['fee'] ?? 0);
@@ -50,12 +50,13 @@ class OrderService
             foreach ($data['items'] as $item) {
                 $product = Product::findOrFail($item['product_id']);
                 if (!$product->is_available) {
-                    throw new Exception("Sản phẩm {$product->name} hiện đang hết hàng.");
+                    throw new Exception(__('api.errors.product_unavailable', ['name' => $product->name]));
                 }
 
                 $price = $product->sale_price ?? $product->base_price;
 
                 // Handle size extra price
+                $sizeModel = null;
                 if (!empty($item['size'])) {
                     $sizeModel = ProductSize::where('product_id', $product->id)
                         ->where('size', $item['size'])
@@ -64,6 +65,8 @@ class OrderService
                         $price += $sizeModel->extra_price;
                     }
                 }
+                $selectedSize = $item['size'] ?? 'M';
+                $sizeSku = $sizeModel?->sku ?? ($product->sku ? "{$product->sku}-{$selectedSize}" : null);
 
                 // Handle toppings extra prices
                 $toppingsList = [];
@@ -72,15 +75,16 @@ class OrderService
                     foreach ($item['toppings'] as $toppingId) {
                         $topping = ProductTopping::findOrFail($toppingId);
                         if (!$topping->is_available) {
-                            throw new Exception("Topping {$topping->name} hiện đang hết hàng.");
+                            throw new Exception(__('api.errors.topping_unavailable', ['name' => $topping->name]));
                         }
                         $allowedCategoryIds = $topping->category_ids ?? [];
                         if (!empty($allowedCategoryIds) && !in_array((int) $product->category_id, array_map('intval', $allowedCategoryIds), true)) {
-                            throw new Exception("Topping {$topping->name} không áp dụng cho sản phẩm {$product->name}.");
+                            throw new Exception(__('api.errors.topping_not_applicable', ['topping' => $topping->name, 'product' => $product->name]));
                         }
                         $toppingsList[] = [
                             'id' => $topping->id,
                             'name' => $topping->name,
+                            'sku' => $topping->sku,
                             'price' => (float) $topping->price
                         ];
                         $toppingPriceSum += $topping->price;
@@ -94,7 +98,9 @@ class OrderService
                 $itemsData[] = [
                     'product_id' => $product->id,
                     'product_name' => $product->name,
-                    'size' => $item['size'] ?? 'M',
+                    'product_sku' => $product->sku,
+                    'size' => $selectedSize,
+                    'size_sku' => $sizeSku,
                     'price' => $itemUnitPrice,
                     'quantity' => $item['quantity'],
                     'toppings' => $toppingsList,
@@ -128,7 +134,7 @@ class OrderService
                 $loyaltyPointsNeeded = $pointsNeeded;
                 $userBalance = $user->loyalty_balance;
                 if ($userBalance < $pointsNeeded) {
-                    throw new Exception("Điểm tích lũy không đủ để thực hiện thanh toán này (Cần {$pointsNeeded} điểm, có {$userBalance} điểm).");
+                    throw new Exception(__('api.errors.loyalty_insufficient', ['needed' => $pointsNeeded, 'current' => $userBalance]));
                 }
                 // Loyalty Points payment logic
                 $discount = $total;
@@ -157,7 +163,9 @@ class OrderService
                     'order_id' => $order->id,
                     'product_id' => $item['product_id'],
                     'product_name' => $item['product_name'],
+                    'product_sku' => $item['product_sku'],
                     'size' => $item['size'],
+                    'size_sku' => $item['size_sku'],
                     'price' => $item['price'],
                     'quantity' => $item['quantity'],
                     'toppings' => $item['toppings'],
@@ -187,7 +195,7 @@ class OrderService
                     $user->loyaltyPoints()->create([
                         'points' => $loyaltyPointsNeeded,
                         'type' => 'redeem',
-                        'description' => "Thanh toán đơn hàng {$order->order_code}",
+                        'description' => __('api.loyalty.redeem_order', ['code' => $order->order_code]),
                         'order_id' => $order->id
                     ]);
                 }

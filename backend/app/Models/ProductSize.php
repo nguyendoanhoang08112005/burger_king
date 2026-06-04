@@ -12,6 +12,7 @@ class ProductSize extends Model
     protected $fillable = [
         'product_id',
         'size',
+        'sku',
         'extra_price',
         'is_available',
     ];

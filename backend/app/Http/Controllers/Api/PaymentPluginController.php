@@ -43,7 +43,9 @@ class PaymentPluginController extends Controller
 
         return response()->json([
             'data' => $plugin,
-            'message' => $plugin->is_active ? "Đã kích hoạt {$plugin->name}" : "Đã tắt {$plugin->name}",
+            'message' => $plugin->is_active
+                ? __('api.messages.payment_plugin_enabled', ['name' => $plugin->name])
+                : __('api.messages.payment_plugin_disabled', ['name' => $plugin->name]),
         ]);
     }
 
@@ -66,7 +68,7 @@ class PaymentPluginController extends Controller
 
         return response()->json([
             'data' => $plugin,
-            'message' => 'Đã lưu cấu hình',
+            'message' => __('api.messages.payment_config_saved'),
         ]);
     }
 
@@ -75,15 +77,15 @@ class PaymentPluginController extends Controller
         return [
             [
                 'key' => 'cod',
-                'name' => 'Tiền mặt khi nhận hàng (COD)',
-                'description' => 'Thanh toán khi nhận được hàng',
+                'name' => __('api.payments.cod_name'),
+                'description' => __('api.payments.cod_description'),
                 'icon' => 'cod',
                 'is_default' => true,
             ],
             [
                 'key' => 'loyalty_points',
-                'name' => 'Thanh toán bằng điểm tích lũy',
-                'description' => 'Dùng điểm tích lũy để thanh toán',
+                'name' => __('api.payments.loyalty_name'),
+                'description' => __('api.payments.loyalty_description'),
                 'icon' => 'loyalty',
                 'is_default' => true,
             ],
@@ -96,15 +98,15 @@ class PaymentPluginController extends Controller
             [
                 'key' => 'cod',
                 'name' => 'COD',
-                'description' => 'Mặc định, không thể tắt',
+                'description' => __('api.payments.default_description'),
                 'icon' => 'cod',
                 'is_active' => true,
                 'is_default' => true,
             ],
             [
                 'key' => 'loyalty_points',
-                'name' => 'Điểm tích lũy',
-                'description' => 'Mặc định, không thể tắt',
+                'name' => __('api.payments.loyalty_admin_name'),
+                'description' => __('api.payments.default_description'),
                 'icon' => 'loyalty',
                 'is_active' => true,
                 'is_default' => true,

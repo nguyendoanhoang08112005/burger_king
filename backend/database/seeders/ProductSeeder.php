@@ -6,6 +6,7 @@ use App\Models\Category;
 use App\Models\Product;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class ProductSeeder extends Seeder
 {
@@ -650,10 +651,257 @@ class ProductSeeder extends Seeder
             ],
         ];
 
-        DB::transaction(function () use ($products) {
+        $translations = [
+            'whopper' => [
+                'name' => 'Whopper',
+                'short_description' => 'Legendary flame-grilled beef burger — the icon of Hamburger King.',
+                'description' => 'The ultimate icon of Hamburger King! Flame-grilled US beef patty with rich smoky flavor, topped with crisp lettuce, fresh tomatoes, onions, pickles, and special mayonnaise in a toasted sesame bun.'
+            ],
+            'double-whopper' => [
+                'name' => 'Double Whopper',
+                'short_description' => 'Giant double-layer flame-grilled beef version of the legendary Whopper.',
+                'description' => 'Double the power! Two flame-grilled US beef patties combined with fresh crisp vegetables, pickles, onions, and signature sauce — satisfying every true burger lover.'
+            ],
+            'cheeseburger' => [
+                'name' => 'Cheeseburger',
+                'short_description' => 'Classic beef burger topped with melted Cheddar cheese.',
+                'description' => 'A classic flavor that never goes out of style. Juicy grilled beef patty topped with rich melted Cheddar cheese, pickles, mustard, and traditional ketchup.'
+            ],
+            'double-cheeseburger' => [
+                'name' => 'Double Cheeseburger',
+                'short_description' => 'Double Cheeseburger — double cheese, double the taste.',
+                'description' => 'Two perfectly grilled beef patties, each topped with a slice of melted Cheddar cheese, combined with crisp pickles and a mild honey mustard sauce.'
+            ],
+            'bacon-king' => [
+                'name' => 'Bacon King',
+                'short_description' => 'Premium beef burger with 4 strips of crispy bacon and double cheese.',
+                'description' => 'The king of flavors! Two flame-grilled beef patties topped with four strips of crispy smoked bacon, two slices of American cheese, mayonnaise, and ketchup — absolutely irresistible.'
+            ],
+            'chicken-burger' => [
+                'name' => 'Chicken Burger',
+                'short_description' => 'Crispy fried chicken burger, light and delicious flavor.',
+                'description' => 'Crispy fried chicken fillet on the outside, tender and juicy inside, combined with fresh lettuce, sliced tomatoes, and light mayonnaise in a toasted sesame bun.'
+            ],
+            'fish-burger' => [
+                'name' => 'Fish Burger',
+                'short_description' => 'Crispy cod fish burger topped with creamy tartar sauce.',
+                'description' => 'Golden breaded Alaska cod fish fillet, topped with a slice of rich cheese and special creamy tartar sauce — ocean flavor in every bite.'
+            ],
+            'veggie-burger' => [
+                'name' => 'Veggie Burger',
+                'short_description' => 'Pure vegetarian burger with grilled veggie patty and fresh avocado.',
+                'description' => 'A green choice for healthy eaters! A crispy grilled veggie patty combined with fresh avocado, romaine lettuce, tomatoes, and aromatic cilantro pesto sauce — delicious without meat.'
+            ],
+            'crispy-chicken' => [
+                'name' => 'Crispy Chicken',
+                'short_description' => 'Crispy golden breaded chicken breast, juicy inside.',
+                'description' => 'Whole chicken breast breaded and fried to a perfect crunch on the outside while keeping its juicy tenderness inside. Served with smoky BBQ sauce — super delicious!'
+            ],
+            'chicken-nuggets-6' => [
+                'name' => 'Chicken Nuggets (6 pcs)',
+                'short_description' => '6 crispy breaded chicken nuggets with choice of sauce.',
+                'description' => '6 golden crispy chicken nuggets, tender and flavorful inside. Served with BBQ or sweet & sour sauce — the perfect snack anytime, anywhere.'
+            ],
+            'chicken-fries' => [
+                'name' => 'Chicken Fries',
+                'short_description' => 'New crispy chicken strips in a creative french fry style.',
+                'description' => 'Crispy breaded chicken strips cut into french fry shapes — a unique creation combining chicken and fry flavors. Crispy outside, tender inside, with smoky BBQ sauce.'
+            ],
+            'spicy-chicken-burger' => [
+                'name' => 'Spicy Chicken Burger',
+                'short_description' => 'Crispy fried chicken burger in a spicy explosive version.',
+                'description' => 'Crispy fried chicken fillet seasoned with spicy Cayenne pepper, topped with fiery Sriracha sauce, crisp iceberg lettuce, and fresh tomatoes — explosive heat in every bite!'
+            ],
+            'chicken-wings-6' => [
+                'name' => 'Chicken Wings (6 pcs)',
+                'short_description' => '6 crispy fried chicken wings with special Buffalo or BBQ sauce.',
+                'description' => '6 crispy chicken wings seasoned with special spices, tossed in fiery Buffalo or sweet smoky BBQ sauce. Crispy skin, tender meat — the peak of fried chicken.'
+            ],
+            'french-fries' => [
+                'name' => 'French Fries',
+                'short_description' => 'Crispy golden french fries sprinkled with sea salt, hot and aromatic.',
+                'description' => 'Imported french fries cut and fried to a golden crisp, sprinkled with pure sea salt. Hot, fragrant, and crispy — an essential side for the perfect burger.'
+            ],
+            'onion-rings' => [
+                'name' => 'Onion Rings',
+                'short_description' => 'Crisp breaded onion rings, sweet and soft inside.',
+                'description' => 'Breaded onion rings fried to a golden crunch, featuring sweet, tender onion inside. Served with creamy ranch sauce — the ultimate side dish.'
+            ],
+            'mozzarella-sticks' => [
+                'name' => 'Mozzarella Sticks',
+                'short_description' => 'Crispy fried Mozzarella sticks with rich stretchy cheese.',
+                'description' => 'Mozzarella cheese sticks coated in breadcrumbs and fried to a golden crisp, stretchy and rich. Served with tangy marinara sauce — a snack you cannot resist.'
+            ],
+            'hash-browns' => [
+                'name' => 'Hash Browns',
+                'short_description' => 'Crispy hash browns fried on both sides, soft and tender inside.',
+                'description' => 'Shredded potato patties fried to a golden crisp on both sides, crunchy outside and soft inside. A perfect breakfast or a great side dish for burgers.'
+            ],
+            'corn-cup' => [
+                'name' => 'Corn Cup',
+                'short_description' => 'Steamed sweet corn topped with butter and fragrant Parmesan cheese.',
+                'description' => 'Steamed golden sweet corn kernels, tossed in butter and rich Parmesan cheese. A sweet, warm cup of corn — a light and delightful side dish.'
+            ],
+            'caesar-salad' => [
+                'name' => 'Caesar Salad',
+                'short_description' => 'Classic Caesar Salad with creamy dressing and Parmesan cheese.',
+                'description' => 'Traditional Caesar Salad with crisp romaine lettuce, crunchy croutons, shaved Parmesan, and rich, creamy Caesar dressing — light yet elegant.'
+            ],
+            'chicken-caesar-salad' => [
+                'name' => 'Chicken Caesar Salad',
+                'short_description' => 'Premium Caesar Salad with sliced grilled chicken breast.',
+                'description' => 'Special Caesar Salad featuring sliced grilled chicken breast, crisp romaine, golden croutons, and Parmesan cheese tossed in rich Caesar dressing — filling yet healthy.'
+            ],
+            'garden-salad' => [
+                'name' => 'Garden Salad',
+                'short_description' => 'Fresh organic garden salad with vinaigrette dressing.',
+                'description' => 'Fresh garden salad with a mix of organic greens, cherry tomatoes, cucumbers, carrots, and red onions. Served with tangy passion fruit vinaigrette.'
+            ],
+            'fresh-vegetable-salad' => [
+                'name' => 'Fresh Vegetable Salad',
+                'short_description' => 'Colorful fresh vegetable salad with Japanese roasted sesame dressing.',
+                'description' => 'A colorful plate of fresh raw vegetables including bell peppers, purple cabbage, carrots, peas, and sweet corn. Topped with sunflower seeds and fragrant roasted sesame dressing.'
+            ],
+            'chicken-wrap' => [
+                'name' => 'Chicken Wrap',
+                'short_description' => 'Grilled chicken wrap in soft tortilla with rich ranch dressing.',
+                'description' => 'Soft tortilla wrap filled with sliced grilled chicken, crisp romaine, diced tomatoes, Cheddar cheese, and creamy ranch dressing — quick and satisfying.'
+            ],
+            'spicy-wrap' => [
+                'name' => 'Spicy Wrap',
+                'short_description' => 'Spicy chicken wrap with Sriracha mayo for an explosive flavor.',
+                'description' => 'Spicy tortilla wrap with crispy chicken seasoned in Cayenne, sweet coleslaw, sliced jalapeños, and rich Sriracha mayo — a fiery version for wrap lovers.'
+            ],
+            'grilled-chicken-sandwich' => [
+                'name' => 'Grilled Chicken Sandwich',
+                'short_description' => 'Pan-seared grilled chicken sandwich with crispy bread and pesto.',
+                'description' => 'Toasted sandwich loaded with fragrant pan-seared chicken fillet, fresh iceberg lettuce, sliced tomatoes, and aromatic cilantro pesto — a nutritious lunch choice.'
+            ],
+            'coca-cola' => [
+                'name' => 'Coca-Cola',
+                'short_description' => 'Ice-cold refreshing Coca-Cola — the classic taste.',
+                'description' => 'Chilled sparkling Coca-Cola, a classic flavor that never fades. The perfect refreshing beverage to accompany your hot burger.'
+            ],
+            'sprite' => [
+                'name' => 'Sprite',
+                'short_description' => 'Ice-cold lemon Sprite, crisp and refreshing.',
+                'description' => 'Sparkling lemon Sprite, cold and refreshing. A light natural lemon flavor to cleanse your palate after a savory meal.'
+            ],
+            'fanta' => [
+                'name' => 'Fanta',
+                'short_description' => 'Sparkling orange Fanta, sweet and easy to drink.',
+                'description' => 'Sparkling Fanta with a refreshing orange flavor, fun and colorful. A sweet orange taste — a great beverage for all ages.'
+            ],
+            'iced-tea' => [
+                'name' => 'Iced Tea',
+                'short_description' => 'Traditional iced tea, cool and instant thirst-quencher.',
+                'description' => 'Traditional iced tea brewed from fragrant green tea, lightly sweetened with rock sugar and served chilled. A familiar refreshing drink to beat the summer heat.'
+            ],
+            'coffee' => [
+                'name' => 'Coffee',
+                'short_description' => 'Hand-roasted Robusta black coffee, bold and aromatic.',
+                'description' => 'Rich black coffee brewed from hand-roasted Buôn Ma Thuột Robusta beans. Enjoy hot or iced — keep awake and refreshed after a delicious meal.'
+            ],
+            'milkshake-chocolate' => [
+                'name' => 'Milkshake Chocolate',
+                'short_description' => 'Thick Belgian chocolate milkshake topped with whipped cream.',
+                'description' => 'Thick chocolate milkshake made from imported cream and pure Belgian cocoa powder, topped with whipped cream and cocoa powder. Sweet and creamy — chocolate heaven.'
+            ],
+            'milkshake-vanilla' => [
+                'name' => 'Milkshake Vanilla',
+                'short_description' => 'Smooth Madagascar vanilla milkshake topped with whipped cream.',
+                'description' => 'Fragrant vanilla milkshake made with fresh cream and Madagascar vanilla extract. Thick, smooth, lightly sweetened, and topped with whipped cream and cookie crumbs.'
+            ],
+            'milkshake-strawberry' => [
+                'name' => 'Milkshake Strawberry',
+                'short_description' => 'Fresh pink Da Lat strawberry milkshake topped with whipped cream.',
+                'description' => 'Sweet pink milkshake made with fresh cream and ripe Da Lat strawberries. Topped with whipped cream and a strawberry slice — a romantic flavor.'
+            ],
+            'sundae' => [
+                'name' => 'Sundae',
+                'short_description' => 'Ice cream sundae topped with chocolate/caramel sauce and peanuts.',
+                'description' => 'Cold ice cream sundae topped with rich chocolate or caramel sauce, roasted peanuts, and whipped cream. The perfect dessert to complete an amazing meal.'
+            ],
+            'ice-cream-cone' => [
+                'name' => 'Ice Cream Cone',
+                'short_description' => 'Smooth vanilla soft serve on a crispy wafer cone.',
+                'description' => 'Cold, towering vanilla soft serve melting gently in a crispy, fragrant wafer cone. A small dessert that brings big joy.'
+            ],
+            'chocolate-brownie' => [
+                'name' => 'Chocolate Brownie',
+                'short_description' => 'Moist Belgian chocolate brownie with hot sauce and vanilla ice cream.',
+                'description' => 'Belgian chocolate brownie baked to perfection, slightly crusty on the outside and moist inside. Topped with hot chocolate sauce and vanilla ice cream — hot and cold.'
+            ],
+            'apple-pie' => [
+                'name' => 'Apple Pie',
+                'short_description' => 'Crispy American apple pie with warm cinnamon apple filling.',
+                'description' => 'Warm crispy apple pie with golden crust, filled with sliced green apples cooked in cinnamon, brown sugar, and butter. A classic comforting American flavor.'
+            ],
+            'cookie' => [
+                'name' => 'Cookie',
+                'short_description' => 'Freshly baked chocolate chip cookie, soft and chewy.',
+                'description' => 'Chocolate chip cookies baked fresh daily, slightly crisp on the outside and soft inside, loaded with melted Belgian chocolate chips. Perfect with coffee.'
+            ],
+            'whopper-combo' => [
+                'name' => 'Whopper Combo',
+                'short_description' => 'Whopper Combo — Whopper + Medium Fries + Medium Coke (Save 15%).',
+                'description' => 'Best value combo for Whopper fans! 1 legendary Whopper + 1 Medium Fries + 1 Medium Coca-Cola. Saves up to 15% compared to individual items — a complete meal.'
+            ],
+            'chicken-combo' => [
+                'name' => 'Chicken Combo',
+                'short_description' => 'Chicken Combo — Crispy Chicken + Medium Fries + Medium Sprite (Save 15%).',
+                'description' => 'Crispy chicken combo! 1 Crispy Chicken + 1 Medium French Fries + 1 Medium Sprite. Quick, quality meal that saves 15% compared to buying separately.'
+            ],
+            'family-combo' => [
+                'name' => 'Family Combo',
+                'short_description' => 'Family Combo for 4 — 2 Whoppers + 2 Chickens + 4 Large Fries + 4 Large Drinks.',
+                'description' => 'Warm family feast! 2 Whoppers + 2 Chickens + 4 Large Fries + 4 Large Drinks. Super saver combo for a family of 4 — saves 20% compared to buying separately.'
+            ],
+            'kids-meal' => [
+                'name' => 'Kids Meal',
+                'short_description' => 'Kids Meal Combo — Kids Burger + Small Fries + Juice Box.',
+                'description' => 'Special combo for the little ones! 1 Kids Burger + 1 Small Fries + 1 natural Juice Box. Fun and nutritious meal for our little champions.'
+            ],
+            'kids-burger' => [
+                'name' => 'Kids Burger',
+                'short_description' => 'Small beef cheeseburger, designed specifically for kids.',
+                'description' => 'Mini burger designed for kids with a tender beef patty, melted Cheddar cheese, sweet ketchup, and a soft bun. Mild flavor and perfect size for children.'
+            ],
+            'kids-nuggets-4' => [
+                'name' => 'Kids Nuggets (4 pcs)',
+                'short_description' => '4 small crispy chicken nuggets for kids with choice of sauce.',
+                'description' => '4 small golden crispy chicken nuggets, tender inside. Served with sweet & sour or BBQ sauce — a favorite snack for kids.'
+            ],
+            'kids-fries' => [
+                'name' => 'Kids Fries',
+                'short_description' => 'Small portion of crispy fries, perfect for kids.',
+                'description' => 'Small portion of french fries for kids, fried to a golden crisp with light salt. Just the right amount for a healthy snack.'
+            ],
+            'juice-box' => [
+                'name' => 'Juice Box',
+                'short_description' => '200ml natural juice box for kids — orange or apple.',
+                'description' => '200ml natural fruit juice box for kids, no artificial sugars or preservatives. Refreshing orange or apple flavor — a healthy drink for angels.'
+            ],
+        ];
+
+        DB::transaction(function () use ($products, $translations) {
             foreach ($products as $product) {
+                $slug = $product['slug'];
+                $viName = $product['name'];
+                $viShort = $product['short_description'];
+                $viDesc = $product['description'];
+
+                $enName = $translations[$slug]['name'] ?? $viName;
+                $enShort = $translations[$slug]['short_description'] ?? $viShort;
+                $enDesc = $translations[$slug]['description'] ?? $viDesc;
+
+                $product['name'] = ['vi' => $viName, 'en' => $enName];
+                $product['short_description'] = ['vi' => $viShort, 'en' => $enShort];
+                $product['description'] = ['vi' => $viDesc, 'en' => $enDesc];
+                $product['sku'] = 'PRD-' . Str::upper(Str::slug($slug));
+
                 Product::updateOrCreate(
-                    ['slug' => $product['slug']],
+                    ['slug' => $slug],
                     $product
                 );
             }

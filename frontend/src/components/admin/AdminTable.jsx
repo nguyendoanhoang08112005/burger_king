@@ -1,4 +1,5 @@
 import { Pencil, Trash2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 const Skeleton = ({ cols }) => (
   <tbody className="animate-pulse divide-y divide-gray-100 dark:divide-gray-700">
@@ -14,7 +15,10 @@ const Skeleton = ({ cols }) => (
   </tbody>
 )
 
-export default function AdminTable({ columns, data = [], loading, onEdit, onDelete, emptyText = 'Không tìm thấy dữ liệu phù hợp.' }) {
+export default function AdminTable({ columns, data = [], loading, onEdit, onDelete, renderActions, renderLanguageActions, emptyText }) {
+  const { t } = useTranslation()
+  const hasLanguageActions = typeof renderLanguageActions === 'function'
+
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-left text-sm">
@@ -23,11 +27,21 @@ export default function AdminTable({ columns, data = [], loading, onEdit, onDele
             {columns.map(column => (
               <th key={column.key} className="py-3 pr-4 whitespace-nowrap">{column.label}</th>
             ))}
-            <th className="py-3 text-right whitespace-nowrap">Actions</th>
+            {hasLanguageActions && (
+              <>
+                <th className="py-3 text-center whitespace-nowrap">
+                  <img src="/flags/vn.svg" alt="Vietnamese" className="mx-auto h-5 w-7 rounded-sm object-cover shadow-sm" />
+                </th>
+                <th className="py-3 text-center whitespace-nowrap">
+                  <img src="/flags/us.svg" alt="English" className="mx-auto h-5 w-7 rounded-sm object-cover shadow-sm" />
+                </th>
+              </>
+            )}
+            <th className="py-3 text-right whitespace-nowrap">{t('common.actions')}</th>
           </tr>
         </thead>
         {loading ? (
-          <Skeleton cols={columns.length} />
+          <Skeleton cols={columns.length + (hasLanguageActions ? 2 : 0)} />
         ) : (
           <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
             {data.map(item => (
@@ -37,17 +51,22 @@ export default function AdminTable({ columns, data = [], loading, onEdit, onDele
                     {column.render ? column.render(item) : item[column.key]}
                   </td>
                 ))}
+                {hasLanguageActions && renderLanguageActions(item)}
                 <td className="py-3 text-right">
-                  <div className="inline-flex items-center gap-2">
-                    {onEdit && (
-                      <button type="button" onClick={() => onEdit(item)} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500" aria-label="Sửa">
-                        <Pencil size={15} />
-                      </button>
-                    )}
-                    {onDelete && (
-                      <button type="button" onClick={() => onDelete(item)} className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 text-red-500" aria-label="Xoá">
-                        <Trash2 size={15} />
-                      </button>
+                  <div className="inline-flex items-center gap-2 justify-end">
+                    {renderActions ? renderActions(item) : (
+                      <>
+                        {onEdit && (
+                          <button type="button" onClick={() => onEdit(item)} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500" aria-label={t('common.edit')}>
+                            <Pencil size={15} />
+                          </button>
+                        )}
+                        {onDelete && (
+                          <button type="button" onClick={() => onDelete(item)} className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 text-red-500" aria-label={t('common.delete')}>
+                            <Trash2 size={15} />
+                          </button>
+                        )}
+                      </>
                     )}
                   </div>
                 </td>
@@ -55,8 +74,8 @@ export default function AdminTable({ columns, data = [], loading, onEdit, onDele
             ))}
             {!data.length && (
               <tr>
-                <td colSpan={columns.length + 1} className="py-10 text-center text-gray-400">
-                  {emptyText}
+                <td colSpan={columns.length + (hasLanguageActions ? 3 : 1)} className="py-10 text-center text-gray-400">
+                  {emptyText || t('common.no_result')}
                 </td>
               </tr>
             )}

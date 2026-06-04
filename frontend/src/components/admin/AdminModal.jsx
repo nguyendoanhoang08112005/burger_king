@@ -1,6 +1,9 @@
 import { Loader2, X } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 export default function AdminModal({ open, title, onClose, children, onSubmit, loading }) {
+  const { t } = useTranslation()
+
   if (!open) return null
 
   return (
@@ -15,17 +18,17 @@ export default function AdminModal({ open, title, onClose, children, onSubmit, l
           <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">{title}</h3>
           <button type="button" onClick={onClose} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 hover:bg-gray-100 dark:text-gray-300 dark:hover:text-white dark:hover:bg-gray-700 transition-colors">
             <X size={16} />
-            Đóng
+            {t('common.close')}
           </button>
         </div>
         <div className="p-6 overflow-y-auto space-y-4">{children}</div>
         <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-700 flex justify-end gap-3">
           <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-200 bg-white dark:bg-[#161825] border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors">
-            Huỷ
+            {t('common.cancel')}
           </button>
           <button type="submit" disabled={loading} className="px-4 py-2 text-sm bg-[#D62300] text-white rounded-lg hover:bg-[#b51e00] disabled:opacity-50 flex items-center gap-2">
             {loading && <Loader2 size={14} className="animate-spin" />}
-            Lưu
+            {t('common.save')}
           </button>
         </div>
       </form>

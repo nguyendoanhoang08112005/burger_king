@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 
 function BlogSlider({ posts = [] }) {
+  const { t } = useTranslation()
   const [current, setCurrent] = useState(0)
   const [isHovered, setIsHovered] = useState(false)
   const timerRef = useRef(null)
@@ -24,10 +26,10 @@ function BlogSlider({ posts = [] }) {
     <section className="py-16 bg-[#FFFAF5]">
       <div className="max-w-6xl mx-auto px-4">
         <p className="text-[#D62300] font-semibold text-sm uppercase tracking-widest text-center mb-2">
-          Câu Chuyện Thương Hiệu
+          {t('blog.slider_eyebrow')}
         </p>
         <h2 data-aos="fade-up" className="text-3xl font-bold text-center text-gray-900 mb-10">
-          TỪ BẾP LỬA ĐẾN BÀN ĂN
+          {t('blog.slider_title')}
         </h2>
 
         <div
@@ -56,8 +58,8 @@ function BlogSlider({ posts = [] }) {
                     to={`/blog/${post.slug}`}
                     className="inline-flex items-center gap-2 text-[#D62300] font-semibold text-sm hover:gap-3 transition-all group w-fit"
                   >
-                    Xem thêm
-                    <span className="group-hover:translate-x-1 transition-transform">→</span>
+                    {t('common.see_more')}
+                    <span className="group-hover:translate-x-1 transition-transform" aria-hidden="true">→</span>
                   </Link>
                 </div>
               </div>
@@ -70,7 +72,7 @@ function BlogSlider({ posts = [] }) {
                 type="button"
                 key={post.id}
                 onClick={() => setCurrent(index)}
-                aria-label={`Chuyển đến bài ${index + 1}`}
+                aria-label={t('blog.slide_to', { index: index + 1 })}
                 className={`h-2 rounded-full transition-all duration-300 ${
                   index === current ? 'w-6 bg-[#D62300]' : 'w-2 bg-gray-300 hover:bg-gray-400'
                 }`}
@@ -82,7 +84,7 @@ function BlogSlider({ posts = [] }) {
             type="button"
             onClick={() => setCurrent(prev => (prev === 0 ? posts.length - 1 : prev - 1))}
             className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/80 shadow flex items-center justify-center hover:bg-white transition-colors text-gray-700"
-            aria-label="Bài trước"
+            aria-label={t('blog.previous')}
           >
             ‹
           </button>
@@ -90,7 +92,7 @@ function BlogSlider({ posts = [] }) {
             type="button"
             onClick={() => setCurrent(prev => (prev + 1) % posts.length)}
             className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/80 shadow flex items-center justify-center hover:bg-white transition-colors text-gray-700"
-            aria-label="Bài tiếp theo"
+            aria-label={t('blog.next')}
           >
             ›
           </button>

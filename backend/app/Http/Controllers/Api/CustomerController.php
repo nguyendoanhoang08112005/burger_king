@@ -162,7 +162,7 @@ class CustomerController extends Controller
         $address = $request->user()->addresses()->findOrFail($id);
         $address->delete();
 
-        return response()->json(['message' => 'Xóa địa chỉ thành công.']);
+        return response()->json(['message' => __('api.messages.address_deleted')]);
     }
 
     // Wishlists
@@ -182,13 +182,13 @@ class CustomerController extends Controller
 
         if ($wishlist) {
             $wishlist->delete();
-            return response()->json(['message' => 'Đã xóa khỏi danh sách yêu thích.', 'wishlisted' => false]);
+            return response()->json(['message' => __('api.messages.wishlist_removed'), 'wishlisted' => false]);
         } else {
             Wishlist::create([
                 'user_id' => $user->id,
                 'product_id' => $request->product_id
             ]);
-            return response()->json(['message' => 'Đã thêm vào danh sách yêu thích.', 'wishlisted' => true]);
+        return response()->json(['message' => __('api.messages.wishlist_added'), 'wishlisted' => true]);
         }
     }
 
@@ -203,7 +203,7 @@ class CustomerController extends Controller
         $coupon = Coupon::where('code', $request->code)->first();
 
         if (!$coupon || !$coupon->isValidFor($request->subtotal)) {
-            return response()->json(['message' => 'Mã giảm giá không hợp lệ hoặc không đủ điều kiện áp dụng.'], 422);
+            return response()->json(['message' => __('api.messages.coupon_invalid')], 422);
         }
 
         $discount = $coupon->calculateDiscount($request->subtotal);
@@ -214,12 +214,12 @@ class CustomerController extends Controller
             'value' => (float) $coupon->value,
             'max_discount' => $coupon->max_discount !== null ? (float) $coupon->max_discount : null,
             'discount' => (float) $discount,
-            'message' => 'Áp dụng mã giảm giá thành công!'
+            'message' => __('api.messages.coupon_applied')
         ]);
     }
 
     // Checkout
-    public function checkout(Request $request, OrderService $orderService, PaymentService $paymentService)
+    public function checkout(Request $request, OrderService $orderService, PaymentService $paymentService, NotificationService $notificationService)
     {
         $request->validate([
             'delivery_type' => 'required|in:delivery,pickup',
@@ -244,12 +244,13 @@ class CustomerController extends Controller
         try {
             $user = $request->user('sanctum');
             $order = $orderService->createOrder($user, $request->all());
+            $notificationService->sendNewOrderNotification($order);
 
             // Generate Payment URLs
             $paymentUrl = $paymentService->createPaymentUrl($order, $request->payment_method);
 
             return response()->json([
-                'message' => 'Đặt hàng thành công!',
+                'message' => __('api.messages.order_created'),
                 'order' => $order->load(['items', 'address']),
                 'payment_url' => $paymentUrl
             ], 201);
@@ -277,7 +278,7 @@ class CustomerController extends Controller
 
         // Security check
         if ($order->user_id && $order->user_id !== $request->user()->id) {
-            abort(403, 'Bạn không có quyền truy cập đơn hàng này.');
+            abort(403, __('api.messages.order_forbidden'));
         }
 
         return response()->json($order);
@@ -288,7 +289,7 @@ class CustomerController extends Controller
         $order = $request->user()->orders()->where('order_code', $code)->firstOrFail();
 
         if ($order->status !== 'pending') {
-            return response()->json(['message' => 'Chỉ có thể hủy đơn hàng khi trạng thái là Chờ Xử Lý.'], 400);
+            return response()->json(['message' => __('api.messages.order_cancel_only_pending')], 400);
         }
 
         $order->update([
@@ -302,7 +303,7 @@ class CustomerController extends Controller
         $notificationService->sendOrderStatusNotification($order);
 
         return response()->json([
-            'message' => 'Hủy đơn hàng thành công!',
+            'message' => __('api.messages.order_cancelled'),
             'order' => $order
         ]);
     }
@@ -334,7 +335,7 @@ class CustomerController extends Controller
         ]);
 
         return response()->json([
-            'message' => 'Đánh giá sản phẩm thành công!',
+            'message' => __('api.messages.review_created'),
             'review' => $review
         ], 201);
     }
@@ -364,7 +365,7 @@ class CustomerController extends Controller
         $notification = $request->user()->notifications()->findOrFail($id);
         $notification->markAsRead();
 
-        return response()->json(['message' => 'Đã đọc thông báo.']);
+        return response()->json(['message' => __('api.messages.notification_read')]);
     }
 
     // Loyalty Ledger
