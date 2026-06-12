@@ -72,8 +72,7 @@ class TestDataSeeder extends Seeder
         // ─── 2. Generate 50 sample orders ───
         $this->command->info('📦 Creating 50 test orders...');
 
-        $products       = Product::all();
-        $statuses       = ['pending', 'confirmed', 'preparing', 'delivering', 'delivered', 'cancelled'];
+        $statuses       = ['pending', 'confirmed', 'preparing', 'delivering', 'completed', 'cancelled'];
         $paymentMethods = ['vnpay', 'momo', 'cod'];
         $allUsers       = User::where('role', 'customer')->get();
 
@@ -86,7 +85,7 @@ class TestDataSeeder extends Seeder
             $user          = $allUsers->random();
             $status        = fake()->randomElement($statuses);
             $paymentMethod = fake()->randomElement($paymentMethods);
-            $paymentStatus = $status === 'delivered' ? 'paid' : ($status === 'cancelled' ? 'unpaid' : fake()->randomElement(['unpaid', 'paid']));
+            $paymentStatus = $status === 'completed' ? 'paid' : ($status === 'cancelled' ? 'unpaid' : fake()->randomElement(['unpaid', 'paid']));
             $deliveryType  = fake()->randomElement(['delivery', 'pickup']);
 
             // Pick 1-4 random products for this order
@@ -155,8 +154,8 @@ class TestDataSeeder extends Seeder
                 ]);
             }
 
-            // Add loyalty points for delivered orders
-            if ($status === 'delivered') {
+            // Add loyalty points for completed orders
+            if ($status === 'completed') {
                 LoyaltyPoint::create([
                     'user_id'     => $user->id,
                     'points'      => (int) floor($total / 10000),
@@ -170,7 +169,7 @@ class TestDataSeeder extends Seeder
         // ─── 3. Generate 100 sample reviews ───
         $this->command->info('⭐ Creating 100 test reviews...');
 
-        $deliveredOrders = Order::where('status', 'delivered')->with('items')->get();
+        $deliveredOrders = Order::where('status', 'completed')->with('items')->get();
         $reviewComments  = [
             'Burger ngon lắm, thịt bò mọng nước, phô mai béo ngậy!',
             'Giao hàng nhanh, đóng gói cẩn thận, sẽ order lại.',

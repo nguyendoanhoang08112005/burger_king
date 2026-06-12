@@ -21,7 +21,11 @@ use App\Services\NotificationService;
 use App\Services\LoyaltyService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 use Carbon\Carbon;
 
 class AdminController extends Controller
@@ -52,9 +56,11 @@ class AdminController extends Controller
     {
         // 1. Core Metrics
         $totalSales = (float) Order::where('payment_status', 'paid')->sum('total');
+        $totalOrders = Order::count();
         $pendingOrders = Order::where('status', 'pending')->count();
         $activeCustomers = User::where('role', 'customer')->count();
         $totalProducts = Product::count();
+        $totalReviews = Review::count();
 
         // 2. Sales Trend (Last 7 Days) for Recharts
         $salesTrend = [];
@@ -88,9 +94,11 @@ class AdminController extends Controller
         return $this->ok([
             'metrics' => [
                 'total_sales' => $totalSales,
+                'total_orders' => $totalOrders,
                 'pending_orders' => $pendingOrders,
                 'active_customers' => $activeCustomers,
                 'total_products' => $totalProducts,
+                'total_reviews' => $totalReviews,
             ],
             'sales_trend' => $salesTrend,
             'top_products' => $topProducts,
@@ -106,9 +114,10 @@ class AdminController extends Controller
             '3months' => 90,
             default => 7,
         };
+        $startDate = now()->subDays($days - 1)->startOfDay();
 
-        $data = Order::where('status', 'delivered')
-            ->where('created_at', '>=', now()->subDays($days))
+        $data = Order::where('status', 'completed')
+            ->where('created_at', '>=', $startDate)
             ->selectRaw('DATE(created_at) as date, SUM(total) as revenue, COUNT(*) as orders')
             ->groupBy('date')
             ->orderBy('date')
@@ -135,9 +144,11 @@ class AdminController extends Controller
         return $this->ok(Order::with(['user', 'items', 'address'])->latest()->limit(10)->get());
     }
 
-    public function activityLog()
+    public function activityLog(Request $request)
     {
-        $activities = Order::with('user')->latest()->limit(10)->get()->map(fn ($order) => [
+        $paginator = Order::with('user')->latest()->paginate($request->get('per_page', 5));
+
+        $paginator->getCollection()->transform(fn ($order) => [
             'name' => $order->user?->name ?? __('api.messages.walk_in_customer'),
             'role' => $order->user?->role ?? 'customer',
             'action' => __('api.messages.activity_created_order', ['code' => $order->order_code]),
@@ -145,7 +156,7 @@ class AdminController extends Controller
             'ip' => request()->ip(),
         ]);
 
-        return $this->ok($activities);
+        return $this->page($paginator);
     }
 
     // --- ORDERS MANAGEMENT ---
@@ -193,7 +204,7 @@ class AdminController extends Controller
     public function updateOrderStatus(Request $request, $id, NotificationService $notificationService, LoyaltyService $loyaltyService)
     {
         $request->validate([
-            'status' => 'required|in:pending,confirmed,preparing,delivering,delivered,cancelled',
+            'status' => 'required|in:pending,confirmed,preparing,delivering,completed,cancelled',
             'payment_status' => 'nullable|in:unpaid,paid,refunded'
         ]);
 
@@ -203,8 +214,8 @@ class AdminController extends Controller
             'pending' => ['confirmed', 'cancelled'],
             'confirmed' => ['preparing', 'cancelled'],
             'preparing' => ['delivering', 'cancelled'],
-            'delivering' => ['delivered'],
-            'delivered' => [],
+            'delivering' => ['completed'],
+            'completed' => [],
             'cancelled' => [],
         ];
 
@@ -219,15 +230,15 @@ class AdminController extends Controller
             $updateData['payment_status'] = $request->payment_status;
         }
 
-        // If status becomes delivered, auto mark paid if COD/others
-        if ($request->status === 'delivered' && $order->payment_method === 'cod') {
+        // If status becomes completed, auto mark paid if COD/others
+        if ($request->status === 'completed' && $order->payment_method === 'cod') {
             $updateData['payment_status'] = 'paid';
         }
 
         $order->update($updateData);
 
         // 1. Award loyalty points on order completion
-        if ($request->status === 'delivered' && $order->payment_status === 'paid') {
+        if ($request->status === 'completed' && $order->payment_status === 'paid') {
             $loyaltyService->awardPointsForOrder($order);
         }
 
@@ -610,7 +621,7 @@ class AdminController extends Controller
 
     public function listUsers(Request $request)
     {
-        $query = User::withCount('orders')->withTrashed();
+        $query = User::withCount('orders')->with('permissions')->withTrashed();
 
         if ($request->filled('role')) {
             $query->where('role', $request->role);
@@ -628,21 +639,113 @@ class AdminController extends Controller
         return $this->page($query->latest()->paginate($request->get('per_page', 20)));
     }
 
+    public function createStaff(Request $request)
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|max:255|unique:users,email',
+            'phone' => 'nullable|string|max:20',
+            'password' => 'required|string|min:8|confirmed',
+            'permissions' => 'array',
+            'permissions.*' => ['string', Rule::in(config('admin_permissions'))],
+        ]);
+
+        $staff = User::create([
+            'name' => $data['name'],
+            'email' => $data['email'],
+            'phone' => $data['phone'] ?? null,
+            'password' => Hash::make($data['password']),
+            'role' => 'staff',
+        ]);
+        $staff->assignRole(Role::firstOrCreate(['name' => 'staff']));
+        $this->syncStaffPermissions($staff, $data['permissions'] ?? []);
+
+        return $this->ok($staff->load('permissions'), __('api.messages.staff_created'));
+    }
+
+    public function updateStaff(Request $request, $id)
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $staff = User::withTrashed()->where('role', 'staff')->findOrFail($id);
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($staff->id)],
+            'phone' => 'nullable|string|max:20',
+            'permissions' => 'array',
+            'permissions.*' => ['string', Rule::in(config('admin_permissions'))],
+        ]);
+
+        $staff->update([
+            'name' => $data['name'],
+            'email' => $data['email'],
+            'phone' => $data['phone'] ?? null,
+        ]);
+        $this->syncStaffPermissions($staff, $data['permissions'] ?? []);
+
+        return $this->ok($staff->load('permissions'), __('api.messages.staff_updated'));
+    }
+
+    public function updateUser(Request $request, $id)
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $user = User::withTrashed()->findOrFail($id);
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
+            'phone' => 'nullable|string|max:20',
+        ]);
+
+        $user->update($data);
+
+        return $this->ok($user->load('permissions'), __('api.messages.user_updated'));
+    }
+
+    private function syncStaffPermissions(User $staff, array $modules): void
+    {
+        $permissions = collect($modules)->map(
+            fn (string $module) => Permission::firstOrCreate(['name' => "access.{$module}"])
+        );
+        $staff->syncPermissions($permissions);
+    }
+
     public function updateUserRole(Request $request, $id)
     {
+        abort_unless($request->user()->isAdmin(), 403);
         $request->validate(['role' => 'required|in:customer,admin,staff']);
         $user = User::withTrashed()->findOrFail($id);
         $user->update(['role' => $request->role]);
+        $user->syncRoles([Role::firstOrCreate(['name' => $request->role])]);
+        if ($request->role !== 'staff') {
+            $user->syncPermissions([]);
+        }
 
         return $this->ok($user, __('api.messages.role_updated'));
     }
 
-    public function toggleUserStatus($id)
+    public function toggleUserStatus(Request $request, $id)
     {
+        abort_unless($request->user()->isAdmin(), 403);
         $user = User::withTrashed()->findOrFail($id);
+        abort_if($user->id === $request->user()->id, 422, __('api.messages.current_user_protected'));
+        abort_if($user->isAdmin(), 422, __('api.messages.admin_user_protected'));
         $user->trashed() ? $user->restore() : $user->delete();
 
         return $this->ok(User::withTrashed()->find($id), __('api.messages.account_status_updated'));
+    }
+
+    public function deleteUser(Request $request, $id)
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+        $user = User::withTrashed()->findOrFail($id);
+        abort_if($user->id === $request->user()->id, 422, __('api.messages.current_user_protected'));
+        abort_if($user->isAdmin(), 422, __('api.messages.admin_user_protected'));
+        $user->forceDelete();
+
+        return $this->ok(null, __('api.messages.user_deleted'));
     }
 
     public function listReviews(Request $request)
@@ -657,23 +760,38 @@ class AdminController extends Controller
             }
         }
 
-        return $this->page($query->paginate($request->get('per_page', 20)));
+        $paginator = $query->paginate($request->get('per_page', 20));
+        $locale = $request->header('X-Locale', app()->getLocale());
+
+        $items = collect($paginator->items())->map(function ($review) use ($locale) {
+            $data = $review->toArray();
+            $data['product'] = $review->product ? [
+                'id' => $review->product->id,
+                'name' => $review->product->getTranslation('name', $locale),
+                'sku' => $review->product->sku,
+            ] : null;
+            $data['user'] = $review->user ? [
+                'id' => $review->user->id,
+                'name' => $review->user->name,
+                'email' => $review->user->email,
+            ] : null;
+
+            return $data;
+        })->all();
+
+        return $this->ok($items, 'OK', [
+            'total' => $paginator->total(),
+            'per_page' => $paginator->perPage(),
+            'current_page' => $paginator->currentPage(),
+            'last_page' => $paginator->lastPage(),
+        ]);
     }
 
-    public function approveReview($id)
+    public function showReview(Request $request, $id)
     {
-        $review = Review::findOrFail($id);
-        $review->update(['is_approved' => true]);
+        $review = Review::with(['product', 'user', 'order.items', 'order.address'])->findOrFail($id);
 
-        return $this->ok($review->load(['product', 'user']), __('api.messages.review_approved'));
-    }
-
-    public function hideReview($id)
-    {
-        $review = Review::findOrFail($id);
-        $review->update(['is_approved' => false]);
-
-        return $this->ok($review->load(['product', 'user']), __('api.messages.review_hidden'));
+        return $this->ok($this->serializeReview($review, $request));
     }
 
     public function deleteReview($id)
@@ -683,16 +801,60 @@ class AdminController extends Controller
         return $this->ok(null, __('api.messages.review_deleted'));
     }
 
+    private function serializeReview(Review $review, Request $request): array
+    {
+        $locale = $request->header('X-Locale', app()->getLocale());
+        $data = $review->toArray();
+        $data['product'] = $review->product ? [
+            'id' => $review->product->id,
+            'name' => $review->product->getTranslation('name', $locale),
+            'sku' => $review->product->sku,
+        ] : null;
+        $data['user'] = $review->user ? [
+            'id' => $review->user->id,
+            'name' => $review->user->name,
+            'email' => $review->user->email,
+            'phone' => $review->user->phone,
+        ] : null;
+        $data['order'] = $review->order ? [
+            'id' => $review->order->id,
+            'order_code' => $review->order->order_code,
+            'status' => $review->order->status,
+            'total' => (float) $review->order->total,
+            'created_at' => $review->order->created_at,
+            'items' => $review->order->items,
+            'address' => $review->order->address,
+        ] : null;
+
+        return $data;
+    }
+
     public function reportSummary()
     {
         $start = now()->startOfMonth();
+        $last30Days = now()->subDays(29)->startOfDay();
         $orders = Order::where('created_at', '>=', $start);
+        $counts = Order::select('status', DB::raw('COUNT(*) as total'))->groupBy('status')->pluck('total', 'status');
+        $counts['total'] = $counts->sum();
+        $deliveredOrders = Order::where('status', 'completed');
+        $totalRevenue = (float) (clone $deliveredOrders)->sum('total');
+        $deliveredOrdersCount = (clone $deliveredOrders)->count();
+        $completedOrdersLast30Days = Order::where('status', 'completed')->where('created_at', '>=', $last30Days)->count();
+        $totalReviews = Review::count();
 
         return $this->ok([
-            'month_revenue' => (float) (clone $orders)->where('status', 'delivered')->sum('total'),
+            'month_revenue' => (float) (clone $orders)->where('status', 'completed')->sum('total'),
             'month_orders' => (clone $orders)->count(),
+            'total_revenue' => $totalRevenue,
+            'total_orders' => (int) $counts['total'],
+            'completed_orders_30_days' => $completedOrdersLast30Days,
+            'average_order_value' => $deliveredOrdersCount ? round($totalRevenue / $deliveredOrdersCount) : 0,
+            'total_customers' => User::where('role', 'customer')->count(),
+            'total_products' => Product::count(),
+            'total_reviews' => $totalReviews,
+            'average_rating' => $totalReviews ? round((float) Review::avg('rating'), 1) : 0,
             'newCustomers' => User::where('role', 'customer')->where('created_at', '>=', $start)->count(),
-            'counts' => Order::select('status', DB::raw('COUNT(*) as total'))->groupBy('status')->pluck('total', 'status'),
+            'counts' => $counts,
         ]);
     }
 
@@ -714,6 +876,7 @@ class AdminController extends Controller
             ->select('users.id', 'users.name', 'users.email')
             ->join('orders', 'orders.user_id', '=', 'users.id')
             ->selectRaw('COUNT(orders.id) as orders_count, SUM(orders.total) as total_spent')
+            ->where('orders.status', 'completed')
             ->groupBy('users.id', 'users.name', 'users.email')
             ->orderByDesc('total_spent')
             ->limit(10)
@@ -950,7 +1113,7 @@ class AdminController extends Controller
             'subtitle' => 'nullable',
             'image' => 'required|string',
             'link' => 'nullable|string|max:255',
-            'position' => 'required|in:hero,popup,sidebar',
+            'position' => 'required|in:hero,blog_hero,popup,sidebar',
             'sort_order' => 'nullable|integer',
             'starts_at' => 'nullable|date',
             'expires_at' => 'nullable|date',
@@ -981,7 +1144,7 @@ class AdminController extends Controller
             'subtitle' => 'nullable',
             'image' => 'required|string',
             'link' => 'nullable|string|max:255',
-            'position' => 'required|in:hero,popup,sidebar',
+            'position' => 'required|in:hero,blog_hero,popup,sidebar',
             'sort_order' => 'nullable|integer',
             'starts_at' => 'nullable|date',
             'expires_at' => 'nullable|date',

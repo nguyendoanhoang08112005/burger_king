@@ -14,11 +14,13 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->api(prepend: [
             \App\Http\Middleware\SetLocale::class,
+            \App\Http\Middleware\EnsureAccountActive::class,
         ]);
         $middleware->alias([
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
+            'admin.permission' => \App\Http\Middleware\EnsureAdminPermission::class,
         ]);
         $middleware->redirectGuestsTo('/login');
     })

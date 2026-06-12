@@ -8,6 +8,8 @@ use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\PaymentPluginController;
 use App\Http\Controllers\Api\PostController;
 use App\Http\Controllers\Api\SettingController;
+use App\Http\Controllers\Api\ReviewController;
+use App\Http\Controllers\Api\ComplaintController;
 
 /*
 |--------------------------------------------------------------------------
@@ -18,6 +20,7 @@ use App\Http\Controllers\Api\SettingController;
 // --- PUBLIC STOREFRONT ENDPOINTS ---
 Route::get('/products', [CustomerController::class, 'products']);
 Route::get('/products/{slug}', [CustomerController::class, 'productDetail']);
+Route::get('/products/{productId}/reviews', [ReviewController::class, 'getProductReviews']);
 Route::get('/categories', [CustomerController::class, 'categories']);
 Route::get('/toppings', [CustomerController::class, 'toppings']);
 Route::get('/combos', [CustomerController::class, 'combos']);
@@ -44,10 +47,13 @@ Route::middleware('auth:sanctum')->group(function () {
     // Auth & Profile
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::get('/profile', [AuthController::class, 'profile']);
+    Route::put('/profile', [AuthController::class, 'updateProfile']);
+    Route::put('/profile/password', [AuthController::class, 'changePassword']);
     
     // Addresses
     Route::get('/addresses', [CustomerController::class, 'listAddresses']);
     Route::post('/addresses', [CustomerController::class, 'addAddress']);
+    Route::put('/addresses/{id}', [CustomerController::class, 'updateAddress']);
     Route::delete('/addresses/{id}', [CustomerController::class, 'deleteAddress']);
     
     // Wishlist
@@ -64,7 +70,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/orders/{code}/cancel', [CustomerController::class, 'cancelOrder']);
     
     // Reviews
+    Route::post('/reviews/upload', [CustomerController::class, 'uploadReviewImage']);
     Route::post('/reviews', [CustomerController::class, 'addReview']);
+    Route::post('/reviews/order', [ReviewController::class, 'submit']);
+    
+    // Complaints
+    Route::post('/complaints', [ComplaintController::class, 'submit']);
     
     // Notifications
     Route::get('/notifications', [CustomerController::class, 'listNotifications']);
@@ -75,7 +86,7 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 // --- SECURE ADMIN ENDPOINTS (auth:sanctum + role:admin/staff) ---
-Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(function () {
+Route::middleware(['auth:sanctum', 'role:admin|staff', 'admin.permission'])->prefix('admin')->group(function () {
     // We check user's role column or Spatie role inside the endpoints, which is robust
     Route::get('/dashboard', [AdminController::class, 'dashboardStats']);
     Route::get('/dashboard/stats', [AdminController::class, 'dashboardStats']);
@@ -130,14 +141,24 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(functi
 
     // Users
     Route::get('/users', [AdminController::class, 'listUsers']);
+    Route::post('/users/staff', [AdminController::class, 'createStaff']);
+    Route::put('/users/{id}', [AdminController::class, 'updateUser']);
+    Route::put('/users/{id}/staff', [AdminController::class, 'updateStaff']);
     Route::patch('/users/{id}/role', [AdminController::class, 'updateUserRole']);
     Route::patch('/users/{id}/toggle-status', [AdminController::class, 'toggleUserStatus']);
+    Route::delete('/users/{id}', [AdminController::class, 'deleteUser']);
 
     // Reviews
-    Route::get('/reviews', [AdminController::class, 'listReviews']);
-    Route::patch('/reviews/{id}/approve', [AdminController::class, 'approveReview']);
-    Route::patch('/reviews/{id}/hide', [AdminController::class, 'hideReview']);
-    Route::delete('/reviews/{id}', [AdminController::class, 'deleteReview']);
+    Route::get('/reviews', [ReviewController::class, 'listReviews']);
+    Route::post('/reviews/{id}/approve', [ReviewController::class, 'toggleApproval']);
+    Route::delete('/reviews/{id}', [ReviewController::class, 'delete']);
+    
+    // Complaints
+    Route::get('/complaints', [ComplaintController::class, 'listComplaints']);
+    Route::get('/complaints/pending-count', [ComplaintController::class, 'getPendingCount']);
+    Route::get('/complaints/counts', [ComplaintController::class, 'getCounts']);
+    Route::get('/complaints/{id}', [ComplaintController::class, 'show']);
+    Route::post('/complaints/{id}/process', [ComplaintController::class, 'process']);
 
     // Reports
     Route::get('/reports/summary', [AdminController::class, 'reportSummary']);

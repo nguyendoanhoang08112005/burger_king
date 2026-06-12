@@ -68,6 +68,18 @@ class User extends Authenticatable
         return $this->role === 'customer';
     }
 
+    public function adminPermissions(): array
+    {
+        if ($this->isAdmin()) {
+            return collect(config('admin_permissions'))
+                ->map(fn (string $module) => "access.{$module}")
+                ->values()
+                ->all();
+        }
+
+        return $this->getPermissionNames()->values()->all();
+    }
+
     /* Relationships */
     public function addresses()
     {

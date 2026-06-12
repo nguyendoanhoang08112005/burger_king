@@ -11,7 +11,7 @@ return new class extends Migration {
             $table->foreignId('order_id')->constrained('orders')->cascadeOnDelete();
             $table->foreignId('product_id')->constrained('products')->cascadeOnDelete();
             $table->string('product_name');
-            $table->string('size')->default('M');
+            $table->string('size')->nullable();
             $table->decimal('price', 12, 2);
             $table->integer('quantity');
             $table->json('toppings')->nullable(); // holds name, price of toppings

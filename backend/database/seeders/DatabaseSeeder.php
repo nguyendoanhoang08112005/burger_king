@@ -8,6 +8,7 @@ use App\Models\LoyaltyPoint;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 use Spatie\Permission\Models\Role;
+use Spatie\Permission\Models\Permission;
 use Spatie\Permission\PermissionRegistrar;
 
 class DatabaseSeeder extends Seeder
@@ -38,21 +39,24 @@ class DatabaseSeeder extends Seeder
         $adminRole    = Role::firstOrCreate(['name' => 'admin']);
         $staffRole    = Role::firstOrCreate(['name' => 'staff']);
         $customerRole = Role::firstOrCreate(['name' => 'customer']);
+        $permissions = collect(config('admin_permissions'))
+            ->map(fn (string $module) => Permission::firstOrCreate(['name' => "access.{$module}"]));
+        $adminRole->syncPermissions($permissions);
 
         $adminSeed = [
-            'email' => env('SEED_ADMIN_EMAIL', 'admin@example.test'),
+            'email' => env('SEED_ADMIN_EMAIL', 'admin@hamburgerking.com'),
             'name' => env('SEED_ADMIN_NAME', 'Admin User'),
             'password' => env('SEED_ADMIN_PASSWORD') ?: Str::random(32),
             'phone' => env('SEED_ADMIN_PHONE', '0900000000'),
         ];
         $staffSeed = [
-            'email' => env('SEED_STAFF_EMAIL', 'staff@example.test'),
+            'email' => env('SEED_STAFF_EMAIL', 'staff@hamburgerking.com'),
             'name' => env('SEED_STAFF_NAME', 'Store Manager'),
             'password' => env('SEED_STAFF_PASSWORD') ?: Str::random(32),
             'phone' => env('SEED_STAFF_PHONE', '0900000001'),
         ];
         $customerSeed = [
-            'email' => env('SEED_CUSTOMER_EMAIL', 'customer@example.test'),
+            'email' => env('SEED_CUSTOMER_EMAIL', 'customer@hamburgerking.com'),
             'name' => env('SEED_CUSTOMER_NAME', 'Demo Customer'),
             'password' => env('SEED_CUSTOMER_PASSWORD') ?: Str::random(32),
             'phone' => env('SEED_CUSTOMER_PHONE', '0900000002'),
@@ -83,6 +87,17 @@ class DatabaseSeeder extends Seeder
             ]
         );
         if (!$staff->hasRole('staff')) $staff->assignRole($staffRole);
+        if ($staff->getPermissionNames()->isEmpty()) {
+            $staff->syncPermissions($permissions->filter(fn (Permission $permission) => in_array($permission->name, [
+                'access.dashboard',
+                'access.orders',
+                'access.products',
+                'access.categories',
+                'access.combos',
+                'access.toppings',
+                'access.notifications',
+            ], true)));
+        }
 
         // Demo Customer
         $customer = User::firstOrCreate(

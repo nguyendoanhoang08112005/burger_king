@@ -60,8 +60,10 @@ class Setting extends Model
             Cache::forget("setting_{$key}");
             Cache::forget('settings_group_' . str($key)->before('.')->toString());
         }
-        Cache::forget('public_settings');
         Cache::forget('settings_admin_index');
+        foreach (['vi', 'en'] as $loc) {
+            Cache::forget("public_settings_{$loc}");
+        }
     }
 
     public function getParsedValueAttribute(): mixed

@@ -36,7 +36,8 @@ class AuthController extends Controller
             'access_token' => $token,
             'token_type' => 'Bearer',
             'user' => array_merge($user->toArray(), [
-                'loyalty_balance' => $user->loyalty_balance
+                'loyalty_balance' => $user->loyalty_balance,
+                'permissions' => $user->adminPermissions(),
             ]),
         ], 201);
     }
@@ -48,12 +49,19 @@ class AuthController extends Controller
             'password' => 'required|string',
         ]);
 
-        $user = User::where('email', $request->email)->first();
+        $user = User::withTrashed()->where('email', $request->email)->first();
 
         if (!$user || !Hash::check($request->password, $user->password)) {
             throw ValidationException::withMessages([
                 'email' => [__('api.messages.auth_invalid')],
             ]);
+        }
+
+        if ($user->trashed()) {
+            return response()->json([
+                'message' => __('api.messages.auth_account_locked'),
+                'code' => 'ACCOUNT_LOCKED',
+            ], 423);
         }
 
         // Revoke old tokens
@@ -66,7 +74,8 @@ class AuthController extends Controller
             'access_token' => $token,
             'token_type' => 'Bearer',
             'user' => array_merge($user->toArray(), [
-                'loyalty_balance' => $user->loyalty_balance
+                'loyalty_balance' => $user->loyalty_balance,
+                'permissions' => $user->adminPermissions(),
             ]),
         ]);
     }
@@ -85,7 +94,53 @@ class AuthController extends Controller
         $user = $request->user();
         return response()->json(array_merge($user->toArray(), [
             'loyalty_balance' => $user->loyalty_balance,
-            'addresses' => $user->addresses
+            'addresses' => $user->addresses,
+            'permissions' => $user->adminPermissions(),
         ]));
+    }
+
+    public function updateProfile(Request $request)
+    {
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
+            'phone' => 'nullable|string|max:20',
+        ]);
+
+        $user = $request->user();
+        $user->update($data);
+        $user->refresh();
+
+        return response()->json([
+            'message' => __('api.messages.profile_updated'),
+            'user' => array_merge($user->toArray(), [
+                'loyalty_balance' => $user->loyalty_balance,
+                'addresses' => $user->addresses,
+                'permissions' => $user->adminPermissions(),
+            ]),
+        ]);
+    }
+
+    public function changePassword(Request $request)
+    {
+        $data = $request->validate([
+            'current_password' => 'required|string',
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        $user = $request->user();
+
+        if (!Hash::check($data['current_password'], $user->password)) {
+            throw ValidationException::withMessages([
+                'current_password' => [__('api.messages.current_password_invalid')],
+            ]);
+        }
+
+        $user->update([
+            'password' => Hash::make($data['password']),
+        ]);
+
+        return response()->json([
+            'message' => __('api.messages.password_changed'),
+        ]);
     }
 }

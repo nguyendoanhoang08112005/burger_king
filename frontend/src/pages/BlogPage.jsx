@@ -7,13 +7,18 @@ import { formatDate } from '../utils/format'
 function BlogPage() {
   const { t, i18n } = useTranslation()
   const [posts, setPosts] = useState([])
+  const [banners, setBanners] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   useEffect(() => {
-    apiClient.get('/posts', { params: { per_page: 9 } })
-      .then(res => {
-        setPosts(res.data.data || [])
+    Promise.all([
+      apiClient.get('/posts', { params: { per_page: 9 } }),
+      apiClient.get('/banners'),
+    ])
+      .then(([postsRes, bannersRes]) => {
+        setPosts(postsRes.data.data || [])
+        setBanners(Array.isArray(bannersRes.data) ? bannersRes.data : [])
         setLoading(false)
       })
       .catch(err => {
@@ -25,6 +30,10 @@ function BlogPage() {
 
   const featured = posts[0]
   const gridPosts = posts.slice(1)
+  const blogHero = banners.find(banner => banner.position === 'blog_hero')
+  const heroImage = blogHero?.image || featured?.thumbnail
+  const heroTitle = blogHero?.title || t('blog.hero_title')
+  const heroDesc = blogHero?.subtitle || t('blog.hero_desc')
 
   if (loading) {
     return (
@@ -45,20 +54,22 @@ function BlogPage() {
   return (
     <div className="bg-[#FFFAF5] text-[#1A1A1A]">
       <section className="relative min-h-[360px] flex items-center overflow-hidden bg-black">
-        {featured?.thumbnail && (
+        {heroImage && (
           <img
-            src={featured.thumbnail}
-            alt={featured.title}
-            className="absolute inset-0 w-full h-full object-cover opacity-65"
+            src={heroImage}
+            alt={heroTitle}
+            className="absolute inset-0 z-0 w-full h-full object-cover"
           />
         )}
-        <div className="relative z-10 max-w-7xl mx-auto px-6 md:px-12 w-full">
+        <div className="absolute inset-0 z-10 bg-gradient-to-r from-black/75 via-black/45 to-black/15" />
+        <div className="absolute inset-0 z-10 bg-black/15" />
+        <div className="relative z-20 max-w-7xl mx-auto px-6 md:px-12 w-full">
           <p className="text-[#FFC72C] text-sm font-bold uppercase tracking-widest mb-3">Blog</p>
-          <h1 className="text-white font-extrabold text-[clamp(36px,6vw,72px)] uppercase leading-none max-w-3xl">
-            {t('blog.hero_title')}
+          <h1 style={{ color: '#fff' }} className="font-extrabold text-[clamp(36px,6vw,72px)] uppercase leading-none max-w-3xl drop-shadow-lg">
+            {heroTitle}
           </h1>
-          <p className="text-white/90 max-w-xl mt-5 text-sm md:text-base leading-relaxed">
-            {t('blog.hero_desc')}
+          <p style={{ color: '#fff' }} className="max-w-xl mt-5 text-sm md:text-base leading-relaxed drop-shadow">
+            {heroDesc}
           </p>
         </div>
       </section>

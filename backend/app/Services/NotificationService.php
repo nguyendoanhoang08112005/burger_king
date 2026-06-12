@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Order;
+use App\Models\OrderReview;
 use App\Models\User;
 
 class NotificationService
@@ -14,7 +15,9 @@ class NotificationService
             ?? $order->user?->name
             ?? __('api.notifications.guest_customer');
 
-        $admins = User::where('role', 'admin')->get();
+        $admins = User::where('role', 'admin')->get()
+            ->merge(User::permission('access.orders')->where('role', 'staff')->get())
+            ->unique('id');
         foreach ($admins as $admin) {
             $admin->notifications()->create([
                 'id' => \Illuminate\Support\Str::uuid(),
@@ -96,6 +99,45 @@ class NotificationService
                 'body' => $body,
             ]),
         ]);
+    }
+
+    public function sendNewReviewNotification(Order $order, ?OrderReview $review): void
+    {
+        if (!$review) {
+            return;
+        }
+
+        $order->loadMissing(['user', 'address', 'items']);
+        $customerName = $order->address?->recipient_name
+            ?? $order->user?->name
+            ?? __('api.notifications.guest_customer');
+
+        $admins = User::where('role', 'admin')->get()
+            ->merge(User::permission('access.reviews')->where('role', 'staff')->get())
+            ->unique('id');
+
+        foreach ($admins as $admin) {
+            $admin->notifications()->create([
+                'id' => \Illuminate\Support\Str::uuid(),
+                'type' => 'App\Notifications\AdminNewReview',
+                'data' => json_encode([
+                    'review_id' => $review->id,
+                    'order_id' => $order->id,
+                    'order_code' => $order->order_code,
+                    'rating' => (int) $review->rating,
+                    'customer_name' => $customerName,
+                    'event_at' => now()->toISOString(),
+                    'order_created_at' => $order->created_at?->toISOString(),
+                    'items_count' => $order->items->sum('quantity'),
+                    'title' => __('api.notifications.new_review_title'),
+                    'body' => __('api.notifications.new_review_body', [
+                        'code' => $order->order_code,
+                        'customer' => $customerName,
+                        'rating' => (int) $review->rating,
+                    ]),
+                ]),
+            ]);
+        }
     }
 
     private function formatOrderAddress(Order $order): ?string

@@ -50,20 +50,34 @@ class SettingController extends Controller
             'settings' => 'required|array',
         ]);
 
-        DB::transaction(function () use ($request) {
+        $dynamicSettings = [
+            'general.branch_id' => ['type' => 'number', 'is_public' => false],
+            'general.logo_width' => ['type' => 'number', 'is_public' => true],
+            'general.logo_height' => ['type' => 'number', 'is_public' => true],
+            'general.favicon_width' => ['type' => 'number', 'is_public' => true],
+            'general.favicon_height' => ['type' => 'number', 'is_public' => true],
+        ];
+
+        DB::transaction(function () use ($request, $dynamicSettings) {
             foreach ($request->settings as $key => $value) {
                 $setting = Setting::where('key', $key)->first();
-                if (!$setting) {
+                if (!$setting && !array_key_exists($key, $dynamicSettings)) {
                     continue;
                 }
 
+                $dynamicConfig = $dynamicSettings[$key] ?? [];
                 Setting::set($key, $value, [
-                    'group' => $setting->group,
-                    'type' => $setting->type,
-                    'is_public' => $setting->is_public,
+                    'group' => $setting?->group ?? str($key)->before('.')->toString(),
+                    'type' => $setting?->type ?? ($dynamicConfig['type'] ?? 'text'),
+                    'is_public' => $setting?->is_public ?? ($dynamicConfig['is_public'] ?? false),
                 ]);
             }
         });
+
+        Cache::forget('settings_admin_index');
+        foreach (['vi', 'en'] as $loc) {
+            Cache::forget("public_settings_{$loc}");
+        }
 
         return response()->json([
             'success' => true,
@@ -182,10 +196,20 @@ class SettingController extends Controller
 
     public function publicSettings()
     {
-        $data = Cache::remember('public_settings', 3600, function () {
+        $locale = app()->getLocale();
+        $cacheKey = "public_settings_{$locale}";
+
+        $data = Cache::remember($cacheKey, 3600, function () use ($locale) {
             return Setting::where('is_public', true)
                 ->get()
-                ->mapWithKeys(fn (Setting $setting) => [$setting->key => $setting->parsed_value]);
+                ->mapWithKeys(function (Setting $setting) use ($locale) {
+                    $value = $setting->parsed_value;
+                    if (is_array($value) && (isset($value['vi']) || isset($value['en']))) {
+                        $value = $value[$locale] ?? $value['vi'] ?? reset($value) ?? '';
+                    }
+                    return [$setting->key => $value];
+                })
+                ->toArray();
         });
 
         return response()->json(['data' => $data]);
@@ -194,8 +218,13 @@ class SettingController extends Controller
     public function upload(Request $request)
     {
         $request->validate([
-            'image' => 'required|image|max:4096',
-            'type' => 'required|in:logo,favicon,hero,og',
+            'image' => 'required|file|mimes:jpg,jpeg,png,webp,gif,svg,ico|max:4096',
+            'type' => 'required|in:logo,favicon',
+        ], [
+            'image.required' => __('api.messages.upload_image_required'),
+            'image.file' => __('api.messages.upload_image_invalid'),
+            'image.mimes' => __('api.messages.upload_image_invalid_type'),
+            'image.max' => __('api.messages.upload_image_too_large'),
         ]);
 
         $path = $request->file('image')->store("settings/{$request->type}", 'public');
@@ -204,11 +233,13 @@ class SettingController extends Controller
         $key = match ($request->type) {
             'logo' => 'general.logo',
             'favicon' => 'general.favicon',
-            'hero' => 'appearance.hero_image',
-            'og' => 'appearance.og_image',
         };
 
         Setting::set($key, $url);
+        Cache::forget('settings_admin_index');
+        foreach (['vi', 'en'] as $loc) {
+            Cache::forget("public_settings_{$loc}");
+        }
 
         return response()->json([
             'success' => true,
@@ -238,6 +269,7 @@ class SettingController extends Controller
             'lat' => 'nullable|numeric',
             'lng' => 'nullable|numeric',
             'order_amount' => 'required|numeric|min:0',
+            'address' => 'nullable|array',
         ]);
 
         return response()->json([
@@ -245,7 +277,8 @@ class SettingController extends Controller
             'data' => $shippingService->calculate(
                 (float) $request->order_amount,
                 $request->filled('lat') ? (float) $request->lat : null,
-                $request->filled('lng') ? (float) $request->lng : null
+                $request->filled('lng') ? (float) $request->lng : null,
+                $request->address
             ),
         ]);
     }

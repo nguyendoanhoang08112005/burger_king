@@ -14,20 +14,52 @@ use App\Models\Coupon;
 use App\Models\ProductTopping;
 use App\Models\Wishlist;
 use App\Models\Review;
+use App\Models\Setting;
 use App\Services\OrderService;
 use App\Services\PaymentService;
 use App\Services\LoyaltyService;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Exception;
 
 class CustomerController extends Controller
 {
     // --- PUBLIC ENDPOINTS ---
 
+    private function markWishlisted($products, $user): void
+    {
+        if (!$user) {
+            return;
+        }
+
+        $collection = $products instanceof \Illuminate\Support\Collection ? $products : collect([$products]);
+        $productIds = $collection->pluck('id')->filter()->values();
+
+        if ($productIds->isEmpty()) {
+            return;
+        }
+
+        $wishlistIds = Wishlist::where('user_id', $user->id)
+            ->whereIn('product_id', $productIds)
+            ->pluck('product_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $wishlistMap = array_flip($wishlistIds);
+
+        $collection->each(function ($product) use ($wishlistMap) {
+            $product->setAttribute('wishlisted', isset($wishlistMap[(int) $product->id]));
+        });
+    }
+
     public function products(Request $request)
     {
-        $query = Product::with(['category', 'sizes'])->where('is_available', true);
+        $query = Product::with(['category', 'sizes'])
+            ->withCount('reviews')
+            ->withAvg('reviews', 'rating')
+            ->where('is_available', true);
 
         // Filter by category id when provided. Empty/all means "all products".
         if ($request->filled('category_id') && $request->category_id !== 'all') {
@@ -64,17 +96,27 @@ class CustomerController extends Controller
         }
 
         if ($request->filled('limit')) {
-            return response()->json($query->limit((int) $request->limit)->get());
+            $products = $query->limit((int) $request->limit)->get();
+            $this->markWishlisted($products, $request->user('sanctum'));
+
+            return response()->json($products);
         }
 
-        return response()->json($query->paginate($request->get('per_page', 9)));
+        $products = $query->paginate($request->get('per_page', 9));
+        $this->markWishlisted($products->getCollection(), $request->user('sanctum'));
+
+        return response()->json($products);
     }
 
-    public function productDetail($slug)
+    public function productDetail(Request $request, $slug)
     {
-        $product = Product::with(['category', 'images', 'sizes', 'reviews.user'])
+        $product = Product::with(['category', 'images', 'sizes'])
+            ->withCount('reviews')
+            ->withAvg('reviews', 'rating')
             ->where('slug', $slug)
             ->firstOrFail();
+
+        $this->markWishlisted($product, $request->user('sanctum'));
 
         return response()->json($product);
     }
@@ -157,6 +199,40 @@ class CustomerController extends Controller
         return response()->json($address, 201);
     }
 
+    public function updateAddress(Request $request, $id)
+    {
+        $data = $request->validate([
+            'label' => 'required|string',
+            'recipient_name' => 'required|string',
+            'phone' => 'required|string',
+            'province' => 'required|string',
+            'district' => 'required|string',
+            'ward' => 'required|string',
+            'street' => 'required|string',
+            'is_default' => 'nullable|boolean',
+        ]);
+
+        $user = $request->user();
+        $address = $user->addresses()->findOrFail($id);
+
+        if ($request->boolean('is_default')) {
+            $user->addresses()->where('id', '!=', $address->id)->update(['is_default' => false]);
+        }
+
+        $address->update([
+            'label' => $data['label'],
+            'recipient_name' => $data['recipient_name'],
+            'phone' => $data['phone'],
+            'province' => $data['province'],
+            'district' => $data['district'],
+            'ward' => $data['ward'],
+            'street' => $data['street'],
+            'is_default' => $request->boolean('is_default'),
+        ]);
+
+        return response()->json($address->fresh());
+    }
+
     public function deleteAddress(Request $request, $id)
     {
         $address = $request->user()->addresses()->findOrFail($id);
@@ -168,7 +244,7 @@ class CustomerController extends Controller
     // Wishlists
     public function wishlist(Request $request)
     {
-        return response()->json($request->user()->wishlists()->with('product')->get());
+        return response()->json($request->user()->wishlists()->with(['product.category', 'product.sizes'])->get());
     }
 
     public function toggleWishlist(Request $request)
@@ -264,7 +340,7 @@ class CustomerController extends Controller
     {
         return response()->json(
             $request->user()->orders()
-                ->with(['items'])
+                ->with(['items', 'reviews'])
                 ->orderBy('created_at', 'desc')
                 ->paginate(10)
         );
@@ -272,7 +348,7 @@ class CustomerController extends Controller
 
     public function orderDetail(Request $request, $code)
     {
-        $order = Order::with(['items', 'address'])
+        $order = Order::with(['items', 'address', 'orderReview', 'productReviews', 'complaints'])
             ->where('order_code', $code)
             ->firstOrFail();
 
@@ -309,10 +385,23 @@ class CustomerController extends Controller
     }
 
     // Reviews
-    public function addReview(Request $request)
+    public function uploadReviewImage(Request $request)
     {
         $request->validate([
-            'product_id' => 'required|exists:products,id',
+            'image' => 'required|image|max:4096',
+        ]);
+
+        $path = $request->file('image')->store('reviews', 'public');
+
+        return response()->json([
+            'message' => __('api.messages.image_uploaded'),
+            'url' => url(Storage::url($path)),
+        ]);
+    }
+
+    public function addReview(Request $request, NotificationService $notificationService)
+    {
+        $request->validate([
             'order_id' => 'required|exists:orders,id',
             'rating' => 'required|integer|min:1|max:5',
             'comment' => 'nullable|string',
@@ -324,19 +413,47 @@ class CustomerController extends Controller
         // Verify order belongs to user
         $order = Order::where('id', $request->order_id)->where('user_id', $user->id)->firstOrFail();
 
-        $review = Review::create([
-            'user_id' => $user->id,
-            'product_id' => $request->product_id,
-            'order_id' => $order->id,
-            'rating' => $request->rating,
-            'comment' => $request->comment,
-            'images' => $request->images ?? [],
-            'is_approved' => true // auto-approve for dev ease
-        ]);
+        if ($order->status !== 'completed') {
+            return response()->json(['message' => __('api.messages.review_only_delivered')], 422);
+        }
+
+        $alreadyReviewed = Review::where('user_id', $user->id)
+            ->where('order_id', $order->id)
+            ->exists();
+
+        if ($alreadyReviewed) {
+            return response()->json(['message' => __('api.messages.review_already_exists')], 422);
+        }
+
+        $productIds = $order->items()
+            ->pluck('product_id')
+            ->unique()
+            ->values();
+
+        if ($productIds->isEmpty()) {
+            return response()->json(['message' => __('api.messages.review_product_not_in_order')], 422);
+        }
+
+        $reviews = DB::transaction(function () use ($productIds, $user, $order, $request) {
+            return $productIds->map(function ($productId) use ($user, $order, $request) {
+                return Review::create([
+                    'user_id' => $user->id,
+                    'product_id' => $productId,
+                    'order_id' => $order->id,
+                    'rating' => $request->rating,
+                    'comment' => $request->comment,
+                    'images' => $request->images ?? [],
+                    'is_approved' => false
+                ]);
+            });
+        });
+
+        $notificationService->sendNewReviewNotification($order, $reviews->first());
 
         return response()->json([
             'message' => __('api.messages.review_created'),
-            'review' => $review
+            'reviews' => $reviews,
+            'review' => $reviews->first()
         ], 201);
     }
 
@@ -372,8 +489,13 @@ class CustomerController extends Controller
     public function loyaltyPoints(Request $request)
     {
         $user = $request->user();
+        $vndPerPoint = max(1, (float) Setting::get('loyalty.vnd_per_point', 100));
+        $balance = $user->loyalty_balance;
+
         return response()->json([
-            'balance' => $user->loyalty_balance,
+            'balance' => $balance,
+            'vnd_per_point' => $vndPerPoint,
+            'balance_value' => $balance * $vndPerPoint,
             'transactions' => $user->loyaltyPoints()->orderBy('created_at', 'desc')->get()
         ]);
     }

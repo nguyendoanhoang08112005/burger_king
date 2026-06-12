@@ -23,6 +23,7 @@ class Order extends Model
         'note',
         'delivery_type',
         'scheduled_at',
+        'completed_at',
     ];
 
     protected $casts = [
@@ -31,7 +32,19 @@ class Order extends Model
         'shipping_fee' => 'decimal:2',
         'total' => 'decimal:2',
         'scheduled_at' => 'datetime',
+        'completed_at' => 'datetime',
     ];
+
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::updating(function ($order) {
+            if ($order->isDirty('status') && $order->status === 'completed') {
+                $order->completed_at = now();
+            }
+        });
+    }
 
     /* Relationships */
     public function user()
@@ -57,5 +70,25 @@ class Order extends Model
     public function loyaltyPoints()
     {
         return $this->hasMany(LoyaltyPoint::class);
+    }
+
+    public function orderReview()
+    {
+        return $this->hasOne(OrderReview::class);
+    }
+
+    public function productReviews()
+    {
+        return $this->hasMany(ProductReview::class);
+    }
+
+    public function complaints()
+    {
+        return $this->hasMany(Complaint::class);
+    }
+
+    public function activeComplaint()
+    {
+        return $this->hasOne(Complaint::class)->whereIn('status', ['pending', 'reviewing']);
     }
 }

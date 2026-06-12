@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { 
   BrowserRouter as Router, 
   Routes, 
@@ -12,12 +12,13 @@ import {
 } from 'react-router-dom'
 import AOS from 'aos'
 import 'aos/dist/aos.css'
-import { Toaster } from 'react-hot-toast'
+import toast, { Toaster } from 'react-hot-toast'
 import { 
   ShoppingBag, 
   User as UserIcon, 
   MapPin, 
   X, 
+  ChevronLeft,
   ChevronRight, 
   Plus, 
   Minus, 
@@ -32,7 +33,9 @@ import {
   Gift, 
   Bell, 
   Heart,
-  Package
+  Package,
+  Star,
+  Upload
 } from 'lucide-react'
 
 // Utilities
@@ -49,6 +52,7 @@ import { useUiStore } from './store/uiStore'
 import apiClient from './api/axios'
 import BlogSlider from './components/BlogSlider'
 import ScrollToTopButton from './components/ScrollToTopButton'
+import VietnamAddressSelector from './components/VietnamAddressSelector'
 import BlogPage from './pages/BlogPage'
 import BlogDetailPage from './pages/BlogDetailPage'
 import AdminPanel from './admin/AdminPanel'
@@ -60,6 +64,54 @@ const assetUrl = value => {
   if (!value) return ''
   if (/^(https?:)?\/\//.test(value) || value.startsWith('data:') || value.startsWith('blob:')) return value
   return `${apiOrigin}${value.startsWith('/') ? value : `/${value}`}`
+}
+
+const getLastCheckoutAddress = () => {
+  try {
+    return JSON.parse(localStorage.getItem('hk_last_checkout_address') || 'null') || {}
+  } catch {
+    return {}
+  }
+}
+
+const logoSizeValue = (value, fallback) => {
+  const numeric = Number(value)
+  return Number.isFinite(numeric) && numeric > 0 ? `${numeric}px` : fallback
+}
+
+function BrandLogo({
+  className = '',
+  containerClassName = 'h-14 w-[260px] max-w-full',
+  imageClassName = 'object-contain',
+  textClassName = 'text-3xl',
+}) {
+  const logo = useUiStore(state => state.publicSettings['general.logo'])
+  const logoWidth = useUiStore(state => state.publicSettings['general.logo_width'])
+  const logoHeight = useUiStore(state => state.publicSettings['general.logo_height'])
+  const storeName = useUiStore(state => state.publicSettings['general.store_name'])
+
+  if (logo) {
+    return (
+      <span className={`inline-flex items-center ${containerClassName} ${className}`}>
+        <img
+          src={assetUrl(logo)}
+          alt={storeName || 'Hamburger King'}
+          style={{
+            width: logoSizeValue(logoWidth, '260px'),
+            height: logoSizeValue(logoHeight, '64px'),
+          }}
+          className={`max-h-full max-w-full ${imageClassName}`}
+        />
+      </span>
+    )
+  }
+
+  return (
+    <span className={`inline-flex items-center ${containerClassName} ${className}`}>
+      <span className={`font-extrabold ${textClassName} tracking-wider text-primary`}>HAMBURGER</span>
+      <span className={`font-extrabold ${textClassName} tracking-wider text-white bg-primary px-2 py-0.5 rounded-[8px] ml-1`}>KING</span>
+    </span>
+  )
 }
 
 // --- CORE LAYOUT COMPONENTS ---
@@ -81,6 +133,31 @@ function AosRefresh() {
   useEffect(() => {
     AOS.refresh()
   }, [location])
+
+  return null
+}
+
+function SessionGuard() {
+  const isAuthenticated = useAuthStore(state => state.isAuthenticated)
+
+  useEffect(() => {
+    if (!isAuthenticated) return undefined
+
+    const checkSession = () => {
+      if (document.visibilityState === 'visible') {
+        apiClient.get('/profile').catch(() => {})
+      }
+    }
+
+    checkSession()
+    const interval = window.setInterval(checkSession, 5000)
+    window.addEventListener('focus', checkSession)
+
+    return () => {
+      window.clearInterval(interval)
+      window.removeEventListener('focus', checkSession)
+    }
+  }, [isAuthenticated])
 
   return null
 }
@@ -133,9 +210,8 @@ function Header() {
 
   return (
     <header className="sticky top-0 z-40 w-full bg-white shadow-premium border-b border-[#E8E8E8] py-4 px-6 md:px-12 flex items-center justify-between">
-      <a href="/" onClick={handleHomeClick} className="flex items-center gap-2">
-        <span className="font-extrabold text-3xl tracking-wider text-primary">HAMBURGER</span>
-        <span className="font-extrabold text-3xl tracking-wider text-white bg-primary px-2 py-0.5 rounded-[8px] ml-1">KING</span>
+      <a href="/" onClick={handleHomeClick} className="flex h-16 items-center gap-2 overflow-hidden">
+        <BrandLogo containerClassName="h-16 w-[220px] sm:w-[280px] max-w-[38vw]" />
       </a>
 
       <nav className="hidden md:flex items-center gap-8 font-semibold text-sm tracking-wide">
@@ -170,7 +246,7 @@ function Header() {
               <UserIcon className="w-4 h-4 text-primary" />
               <span className="hidden sm:inline font-semibold">{user.name}</span>
             </Link>
-            {user.role === 'admin' && (
+            {['admin', 'staff'].includes(user.role) && (
               <Link to="/admin" className="bg-[#FFC72C] text-[#1A1A1A] px-4 py-2 rounded-[8px] text-xs font-semibold hover:opacity-90 hover:-translate-y-[1px] transition">
                 ADMIN
               </Link>
@@ -200,10 +276,9 @@ function Footer() {
   const { t } = useTranslation()
   return (
     <footer className="w-full bg-white border-t border-[#E8E8E8] py-12 px-6 md:px-12 mt-auto">
-      <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+      <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-[1.35fr_0.85fr_1.25fr_1.35fr] gap-8 lg:gap-6 mb-8">
         <div>
-          <span className="font-extrabold text-3xl tracking-wider text-primary">HAMBURGER</span>
-          <span className="font-extrabold text-3xl tracking-wider text-white bg-primary px-2 py-0.5 rounded-[8px] ml-1">KING</span>
+          <BrandLogo containerClassName="h-12 w-[220px]" />
           <p className="text-[#666666] text-sm mt-4 leading-relaxed">
             {t('footer.brand_desc')}
           </p>
@@ -332,9 +407,11 @@ function CartDrawer() {
                   <div className="flex-1 min-w-0">
                     <h4 className="font-bold text-sm text-[#1A1A1A] truncate">{item.product.name}</h4>
                     <div className="flex items-center gap-2 mt-1">
-                      <span className="text-xs font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded">
-                        Size {item.size}
-                      </span>
+                      {item.size && (
+                        <span className="text-xs font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded">
+                          Size {item.size}
+                        </span>
+                      )}
                       <span className="text-xs text-gray-500">
                         {formatVND(unitTotal)}
                       </span>
@@ -466,15 +543,41 @@ function MobileNav() {
 // Product Card
 function ProductCard({ product, onSelect, index = 0 }) {
   const { t } = useTranslation()
-  const addItem = useCartStore(state => state.addItem)
   const showToast = useUiStore(state => state.showToast)
+  const isAuthenticated = useAuthStore(state => state.isAuthenticated)
+  const navigate = useNavigate()
+  const location = useLocation()
+  const [wishlistOverride, setWishlistOverride] = useState(null)
+  const wishlisted = wishlistOverride?.productId === product.id
+    ? wishlistOverride.value
+    : Boolean(product.wishlisted)
 
   const hasSale = product.sale_price && parseFloat(product.sale_price) < parseFloat(product.base_price)
 
   const handleQuickAdd = (e) => {
     e.stopPropagation()
-    addItem(product, 'S', [], 1)
-    showToast(t('cart.added_product', { name: product.name, size: 'S' }))
+    onSelect(product)
+  }
+
+  const handleToggleWishlist = (e) => {
+    e.stopPropagation()
+    if (!isAuthenticated) {
+      showToast(t('cart.login_required'), 'error')
+      navigate('/login', { state: { from: `${location.pathname}${location.search}` || '/menu' } })
+      return
+    }
+
+    const previous = wishlisted
+    setWishlistOverride({ productId: product.id, value: !previous })
+    apiClient.post('/wishlist', { product_id: product.id })
+      .then(res => {
+        setWishlistOverride({ productId: product.id, value: Boolean(res.data.wishlisted) })
+        showToast(res.data.message)
+      })
+      .catch(err => {
+        setWishlistOverride({ productId: product.id, value: previous })
+        showToast(err.response?.data?.message || t('common.error'), 'error')
+      })
   }
 
   return (
@@ -490,6 +593,16 @@ function ProductCard({ product, onSelect, index = 0 }) {
           - {product.discount_percentage}%
         </span>
       )}
+      <button
+        type="button"
+        onClick={handleToggleWishlist}
+        className={`absolute right-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-white/80 shadow-glass transition hover:-translate-y-0.5 ${
+          wishlisted ? 'bg-primary text-white' : 'bg-white/90 text-[#1A1A1A] hover:text-primary'
+        }`}
+        aria-label={t('profile.wishlist_title')}
+      >
+        <Heart className={`h-4 w-4 ${wishlisted ? 'fill-current' : ''}`} />
+      </button>
 
       {/* Image container */}
       <div className="relative aspect-video w-full overflow-hidden bg-[#F5F5F5]">
@@ -542,14 +655,19 @@ function ProductCard({ product, onSelect, index = 0 }) {
 
 // Product Customizer Dialog / Detail modal
 function ProductDetailModal({ product, onClose }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const addItem = useCartStore(state => state.addItem)
   const showToast = useUiStore(state => state.showToast)
+  const initialRatingSummary = {
+    count: Number(product?.reviews_count || 0),
+    average: Number(product?.reviews_avg_rating || 0),
+  }
   
   const [size, setSize] = useState('S')
   const [selectedToppings, setSelectedToppings] = useState([])
   const [quantity, setQuantity] = useState(1)
   const [allToppings, setToppings] = useState([])
+  const [ratingSummary, setRatingSummary] = useState(initialRatingSummary)
   const availableSizes = (product?.sizes || [])
     .filter(item => item.is_available !== false)
     .sort((a, b) => ['S', 'M', 'L', 'XL'].indexOf(a.size) - ['S', 'M', 'L', 'XL'].indexOf(b.size))
@@ -559,12 +677,37 @@ function ProductDetailModal({ product, onClose }) {
     apiClient.get('/toppings', { params: { category_id: categoryId || undefined } })
       .then(res => setToppings(res.data || []))
       .catch(() => setToppings([]))
-  }, [product])
+  }, [product, i18n.language])
 
   useEffect(() => {
-    if (!availableSizes.length) return
+    if (!product?.slug) return undefined
+
+    let ignore = false
+    apiClient.get(`/products/${product.slug}`)
+      .then(res => {
+        if (!ignore) {
+          setRatingSummary({
+            count: Number(res.data.reviews_count || 0),
+            average: Number(res.data.reviews_avg_rating || 0),
+          })
+        }
+      })
+      .catch(() => {})
+
+    return () => {
+      ignore = true
+    }
+  }, [product?.slug])
+
+  useEffect(() => {
+    if (!availableSizes.length) {
+      if (size) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setSize('')
+      }
+      return
+    }
     if (!availableSizes.some(item => item.size === size)) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSize(availableSizes[0].size)
     }
   }, [availableSizes, size])
@@ -584,6 +727,8 @@ function ProductDetailModal({ product, onClose }) {
   const toppingsPrice = selectedToppings.reduce((sum, t) => sum + parseFloat(t.price), 0)
   const unitPrice = basePrice + toppingsPrice
   const totalCost = unitPrice * quantity
+  const reviewCount = ratingSummary.count
+  const averageRating = ratingSummary.average
 
   const handleToppingToggle = (topping) => {
     const isSelected = selectedToppings.some(t => t.id === topping.id)
@@ -595,8 +740,11 @@ function ProductDetailModal({ product, onClose }) {
   }
 
   const handleAdd = () => {
-    addItem(product, size, selectedToppings, quantity)
-    showToast(t('cart.added_product_quantity', { quantity, name: product.name, size }))
+    const selectedSize = availableSizes.length ? size : ''
+    addItem(product, selectedSize, selectedToppings, quantity)
+    showToast(selectedSize
+      ? t('cart.added_product_quantity', { quantity, name: product.name, size: selectedSize })
+      : t('cart.added_product_quantity_simple', { quantity, name: product.name }))
     onClose()
   }
 
@@ -642,61 +790,80 @@ function ProductDetailModal({ product, onClose }) {
           <h2 className="font-bold text-2xl text-[#1A1A1A] uppercase tracking-wide">{product.name}</h2>
           <p className="text-xs text-[#666666] leading-relaxed mt-3">{product.description}</p>
 
-          {/* Size radio pickers */}
-          <div className="mt-6">
-            <h4 className="font-bold text-[20px] text-[#1A1A1A] tracking-wide uppercase mb-3">{t('product.size').toUpperCase()}</h4>
-            <div className={`grid gap-2 ${availableSizes.length >= 4 ? 'grid-cols-4' : availableSizes.length === 3 ? 'grid-cols-3' : availableSizes.length === 2 ? 'grid-cols-2' : 'grid-cols-1'}`}>
-              {availableSizes.map((sModel) => {
-                const s = sModel.size
-                const extra = sModel ? parseFloat(sModel.extra_price) : 0
-                return (
-                  <button 
-                    key={s}
-                    onClick={() => setSize(s)}
-                    className={`flex flex-col items-center py-2.5 rounded-[10px] border transition text-sm ${
-                      size === s 
-                        ? 'bg-primary/10 border-primary text-primary font-semibold' 
-                        : 'bg-[#F8F8F8] border-[#E8E8E8] text-gray-500 hover:border-gray-400'
-                    }`}
-                  >
-                    <span className="font-semibold">{s}</span>
-                    {extra > 0 && <span className="text-[10px] opacity-80">+{formatVND(extra)}</span>}
-                  </button>
-                )
-              })}
+          <div className="mt-4 rounded-xl border border-[#E8E8E8] bg-[#F8F8F8] p-4">
+            <div className="flex items-center justify-between gap-3">
+              <h4 className="text-sm font-bold uppercase tracking-wide text-[#1A1A1A]">{t('product.customer_reviews')}</h4>
+              <div className="flex items-center gap-1 text-[#FFC72C]">
+                {[1, 2, 3, 4, 5].map(star => (
+                  <Star key={star} size={15} className={star <= Math.round(averageRating) ? 'fill-current' : ''} />
+                ))}
+                <span className="ml-1 text-xs font-bold text-[#1A1A1A]">{averageRating ? averageRating.toFixed(1) : '-'}</span>
+              </div>
             </div>
+            <p className="mt-3 text-xs text-gray-400">
+              {reviewCount ? t('product.rating_count', { count: reviewCount }) : t('product.no_reviews')}
+            </p>
           </div>
 
-          {/* Premium topping selections */}
-          <div className="mt-6">
-            <h4 className="font-bold text-[20px] text-[#1A1A1A] tracking-wide uppercase mb-3">{t('product.topping').toUpperCase()}</h4>
-            <div className="space-y-2">
-              {allToppings.map((topping) => {
-                const isSelected = selectedToppings.some(t => t.id === topping.id)
-                return (
-                  <div 
-                    key={topping.id}
-                    onClick={() => handleToppingToggle(topping)}
-                    className={`flex items-center justify-between p-3 rounded-[10px] border cursor-pointer transition ${
-                      isSelected 
-                        ? 'bg-primary/10 border-primary text-primary' 
-                        : 'bg-[#F8F8F8] border-[#E8E8E8] text-gray-500 hover:border-gray-400'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      {topping.image ? (
-                        <img src={assetUrl(topping.image)} alt="" className="w-6 h-6 rounded-full object-cover bg-white" />
-                      ) : (
-                        <span className="text-lg">{topping.category === 'cheese' ? '🧀' : topping.category === 'meat' ? '🥓' : topping.category === 'veggie' ? '🧅' : '🏺'}</span>
-                      )}
-                      <span className="text-xs font-bold text-[#1A1A1A]">{topping.name}</span>
-                    </div>
-                    <span className="text-xs font-semibold text-primary">+{formatVND(topping.price)}</span>
-                  </div>
-                )
-              })}
+          {/* Size radio pickers */}
+          {availableSizes.length > 0 && (
+            <div className="mt-6">
+              <h4 className="font-bold text-[20px] text-[#1A1A1A] tracking-wide uppercase mb-3">{t('product.size').toUpperCase()}</h4>
+              <div className={`grid gap-2 ${availableSizes.length >= 4 ? 'grid-cols-4' : availableSizes.length === 3 ? 'grid-cols-3' : availableSizes.length === 2 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                {availableSizes.map((sModel) => {
+                  const s = sModel.size
+                  const extra = sModel ? parseFloat(sModel.extra_price) : 0
+                  return (
+                    <button 
+                      key={s}
+                      onClick={() => setSize(s)}
+                      className={`flex flex-col items-center py-2.5 rounded-[10px] border transition text-sm ${
+                        size === s 
+                          ? 'bg-primary/10 border-primary text-primary font-semibold' 
+                          : 'bg-[#F8F8F8] border-[#E8E8E8] text-gray-500 hover:border-gray-400'
+                      }`}
+                    >
+                      <span className="font-semibold">{s}</span>
+                      {extra > 0 && <span className="text-[10px] opacity-80">+{formatVND(extra)}</span>}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* Premium topping selections */}
+          {allToppings.length > 0 && (
+            <div className="mt-6">
+              <h4 className="font-bold text-[20px] text-[#1A1A1A] tracking-wide uppercase mb-3">{t('product.topping').toUpperCase()}</h4>
+              <div className="space-y-2">
+                {allToppings.map((topping) => {
+                  const isSelected = selectedToppings.some(t => t.id === topping.id)
+                  return (
+                    <div 
+                      key={topping.id}
+                      onClick={() => handleToppingToggle(topping)}
+                      className={`flex items-center justify-between p-3 rounded-[10px] border cursor-pointer transition ${
+                        isSelected 
+                          ? 'bg-primary/10 border-primary text-primary' 
+                          : 'bg-[#F8F8F8] border-[#E8E8E8] text-gray-500 hover:border-gray-400'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        {topping.image ? (
+                          <img src={assetUrl(topping.image)} alt="" className="w-6 h-6 rounded-full object-cover bg-white" />
+                        ) : (
+                          <span className="text-lg">{topping.category === 'cheese' ? '🧀' : topping.category === 'meat' ? '🥓' : topping.category === 'veggie' ? '🧅' : '🏺'}</span>
+                        )}
+                        <span className="text-xs font-bold text-[#1A1A1A]">{topping.name}</span>
+                      </div>
+                      <span className="text-xs font-semibold text-primary">+{formatVND(topping.price)}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Add to cart control panel */}
           <div className="mt-8 pt-4 border-t border-[#E8E8E8] flex items-center justify-between">
@@ -744,22 +911,29 @@ function Home({ onSelectProduct }) {
   const [categories, setCategories] = useState([])
   const [featuredProducts, setFeatured] = useState([])
   const [combos, setCombos] = useState([])
+  const [comboProducts, setComboProducts] = useState([])
   const [branches, setBranches] = useState([])
   const [blogPosts, setBlogPosts] = useState([])
   const [loading, setLoading] = useState(true)
+  const [heroIndex, setHeroIndex] = useState(0)
+  const heroBanners = banners.filter(b => b.position === 'hero')
+  const activeHero = heroBanners[heroIndex] || heroBanners[0]
 
   useEffect(() => {
     Promise.all([
       apiClient.get('/banners'),
       apiClient.get('/categories'),
       apiClient.get('/products', { params: { featured: true, limit: 3 } }),
+      apiClient.get('/products', { params: { category: 'combo-meals', limit: 50 } }),
       apiClient.get('/combos'),
       apiClient.get('/branches'),
       apiClient.get('/posts/featured')
-    ]).then(([bannersRes, catsRes, productsRes, combosRes, branchesRes, postsRes]) => {
+    ]).then(([bannersRes, catsRes, productsRes, comboProductsRes, combosRes, branchesRes, postsRes]) => {
       setBanners(bannersRes.data)
+      setHeroIndex(0)
       setCategories(catsRes.data)
       setFeatured(Array.isArray(productsRes.data) ? productsRes.data : (productsRes.data.data || []))
+      setComboProducts(Array.isArray(comboProductsRes.data) ? comboProductsRes.data : (comboProductsRes.data.data || []))
       setCombos(combosRes.data)
       setBranches(branchesRes.data)
       setBlogPosts(postsRes.data || [])
@@ -771,6 +945,15 @@ function Home({ onSelectProduct }) {
     })
   }, [i18n.language])
 
+  useEffect(() => {
+    if (heroBanners.length <= 1) return undefined
+    const timer = window.setInterval(() => {
+      setHeroIndex(index => (index + 1) % heroBanners.length)
+    }, 6000)
+
+    return () => window.clearInterval(timer)
+  }, [heroBanners.length])
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#FFFAF5] flex items-center justify-center">
@@ -779,19 +962,24 @@ function Home({ onSelectProduct }) {
     )
   }
 
-  // Use seeded hero banner as active backdrop
-  const activeHero = banners.find(b => b.position === 'hero')
+  const findSellableComboProduct = (combo) => {
+    const comboSlug = String(combo?.slug || '')
+    const sellableSlug = comboSlug.replace(/-set$/, '')
+    return comboProducts.find(product => product.slug === sellableSlug)
+      || comboProducts.find(product => String(product.name || '').toLowerCase() === String(combo?.name || '').toLowerCase())
+  }
 
   return (
     <div className="bg-[#FFFAF5] text-[#1A1A1A]">
       {/* Premium Hero Banner */}
-      <section className="relative w-full h-[65vh] flex items-center bg-black overflow-hidden">
+      <section className="relative flex h-[640px] w-full items-center overflow-hidden bg-black pb-24 lg:h-[680px]">
         <div className="absolute inset-0 z-0">
           {activeHero?.image && (
             <img
+              key={activeHero.id || activeHero.image}
               src={activeHero.image}
               alt={activeHero.title}
-              className="w-full h-full object-cover opacity-70 animate-scale-slow"
+              className="absolute inset-0 h-full w-full object-cover object-center opacity-70"
             />
           )}
           <div className="absolute inset-0 bg-[#FFFAF5]/30" />
@@ -799,7 +987,7 @@ function Home({ onSelectProduct }) {
 
         <div className="relative z-10 max-w-7xl mx-auto px-6 md:px-12 w-full">
           <span className="text-[#FFC72C] font-semibold text-lg tracking-widest uppercase mb-3 block animate-float">{t('home.hero_badge').toUpperCase()}</span>
-          <h1 className="font-extrabold text-[clamp(36px,5vw,64px)] leading-none text-white tracking-[-0.5px] uppercase max-w-2xl drop-shadow-lg">
+          <h1 className="font-extrabold text-[clamp(34px,4.4vw,58px)] leading-none text-white tracking-[-0.5px] uppercase max-w-2xl drop-shadow-lg">
             {activeHero?.title || t('home.hero_title')}
           </h1>
           <p className="text-sm md:text-base text-white max-w-md mt-6 leading-relaxed">
@@ -807,7 +995,7 @@ function Home({ onSelectProduct }) {
           </p>
           <div className="flex gap-4 mt-8">
             <Link 
-              to="/menu" 
+              to={activeHero?.link || '/menu'}
               className="bg-primary hover:opacity-90 text-white font-semibold px-8 py-3.5 rounded-[8px] text-sm tracking-widest transition hover:-translate-y-[1px]"
             >
               {t('home.order_now').toUpperCase()}
@@ -820,6 +1008,37 @@ function Home({ onSelectProduct }) {
             </Link>
           </div>
         </div>
+        {heroBanners.length > 1 && (
+          <div className="absolute bottom-8 right-6 z-20 flex items-center gap-3 rounded-full border border-white/20 bg-black/25 px-3 py-2 backdrop-blur md:right-12">
+            <button
+              type="button"
+              onClick={() => setHeroIndex(index => (index - 1 + heroBanners.length) % heroBanners.length)}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/40 bg-white/15 text-white transition hover:bg-white/25"
+              aria-label="Previous banner"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+            <div className="flex items-center gap-2">
+              {heroBanners.map((banner, index) => (
+                <button
+                  key={banner.id || `${banner.image}-${index}`}
+                  type="button"
+                  onClick={() => setHeroIndex(index)}
+                  className={`h-2.5 rounded-full transition-all ${index === heroIndex ? 'w-8 bg-[#FFC72C]' : 'w-2.5 bg-white/60 hover:bg-white'}`}
+                  aria-label={`Go to banner ${index + 1}`}
+                />
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => setHeroIndex(index => (index + 1) % heroBanners.length)}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/40 bg-white/15 text-white transition hover:bg-white/25"
+              aria-label="Next banner"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </button>
+          </div>
+        )}
       </section>
 
       {/* Category grid navigations */}
@@ -881,30 +1100,38 @@ function Home({ onSelectProduct }) {
           <p className="text-xs text-[#666666] max-w-xs mx-auto mt-2">{t('combo.home_subtitle')}</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {combos.map((combo, index) => (
-            <div key={combo.id} data-aos="zoom-in" data-aos-delay={index * 100} className="flex flex-col sm:flex-row gap-6 p-[28px_32px] rounded-2xl bg-white border border-[#E8E8E8] shadow-glass">
-              <img 
-                src={combo.image} 
-                alt={combo.name} 
-                className="w-full sm:w-44 h-44 object-cover rounded-xl"
-              />
-              <div className="flex-1 flex flex-col justify-between">
-                <div>
-                  <h4 className="font-semibold text-xl text-[#1A1A1A] uppercase tracking-wide">{combo.name}</h4>
-                  <p className="text-xs text-[#666666] leading-relaxed mt-2">{combo.description}</p>
-                </div>
-                <div className="flex items-center justify-between mt-6 pt-4 border-t border-[#E8E8E8]">
-                  <span className="font-semibold text-2xl text-primary">{formatVND(combo.price)}</span>
-                  <Link 
-                    to="/menu"
-                    className="bg-[#FFC72C] text-[#1A1A1A] font-semibold px-5 py-2.5 rounded-[8px] text-xs tracking-wide hover:opacity-90 hover:-translate-y-[1px] transition"
-                  >
-                    {t('combo.buy').toUpperCase()}
-                  </Link>
+          {combos.map((combo, index) => {
+            const sellableCombo = findSellableComboProduct(combo)
+
+            return (
+              <div key={combo.id} data-aos="zoom-in" data-aos-delay={index * 100} className="flex flex-col sm:flex-row gap-6 p-[28px_32px] rounded-2xl bg-white border border-[#E8E8E8] shadow-glass">
+                <img
+                  src={combo.image}
+                  alt={combo.name}
+                  className="w-full sm:w-44 h-44 object-cover rounded-xl"
+                />
+                <div className="flex-1 flex flex-col justify-between">
+                  <div>
+                    <h4 className="font-semibold text-xl text-[#1A1A1A] uppercase tracking-wide">{combo.name}</h4>
+                    <p className="text-xs text-[#666666] leading-relaxed mt-2">{combo.description}</p>
+                  </div>
+                  <div className="flex items-center justify-between mt-6 pt-4 border-t border-[#E8E8E8]">
+                    <span className="font-semibold text-2xl text-primary">{formatVND(combo.price)}</span>
+                    <button
+                      type="button"
+                      onClick={() => sellableCombo && onSelectProduct?.(sellableCombo)}
+                      disabled={!sellableCombo}
+                      aria-label={t('product.add_to_cart')}
+                      title={t('product.add_to_cart')}
+                      className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[10px] bg-[#FFC72C] text-[#1A1A1A] transition hover:-translate-y-[1px] hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <Plus className="h-5 w-5" />
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </section>
 
@@ -1336,8 +1563,7 @@ function Login() {
     <div className="min-h-[70vh] bg-[#FFFAF5] flex items-center justify-center p-6 text-[#1A1A1A]">
       <div className="w-full max-w-md p-8 rounded-2xl bg-white border border-[#E8E8E8] shadow-premium">
         <div className="text-center mb-8">
-          <span className="font-extrabold text-3xl tracking-wider text-primary">HAMBURGER</span>
-          <span className="font-extrabold text-3xl tracking-wider text-white bg-primary px-2 py-0.5 rounded-[8px] ml-1">KING</span>
+          <BrandLogo className="justify-center mx-auto" containerClassName="h-16 w-[260px]" />
           <h2 className="font-bold text-2xl text-[#1A1A1A] uppercase tracking-wide mt-6">{t('auth.member_login_title')}</h2>
         </div>
 
@@ -1429,8 +1655,7 @@ function Register() {
     <div className="min-h-[70vh] bg-[#FFFAF5] flex items-center justify-center p-6 text-[#1A1A1A]">
       <div className="w-full max-w-md p-8 rounded-2xl bg-white border border-[#E8E8E8] shadow-premium">
         <div className="text-center mb-8">
-          <span className="font-extrabold text-3xl tracking-wider text-primary">HAMBURGER</span>
-          <span className="font-extrabold text-3xl tracking-wider text-white bg-primary px-2 py-0.5 rounded-[8px] ml-1">KING</span>
+          <BrandLogo className="justify-center mx-auto" containerClassName="h-16 w-[260px]" />
           <h2 className="font-bold text-2xl text-[#1A1A1A] uppercase tracking-wide mt-6">{t('auth.member_register_title')}</h2>
         </div>
 
@@ -1589,8 +1814,9 @@ function PaymentMethodSelector({ selected, onChange }) {
 }
 
 function Checkout() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { cartItems, getCartTotals, coupon, applyCoupon, removeCoupon, clearCart } = useCartStore()
+  const user = useAuthStore(state => state.user)
   const { showToast } = useUiStore()
   const navigate = useNavigate()
 
@@ -1602,13 +1828,16 @@ function Checkout() {
   const [selectedAddress, setSelectedAddress] = useState(null)
   
   // Custom manual address input
-  const [manualAddress, setManualAddress] = useState({
-    recipient_name: '',
-    phone: '',
-    province: t('address.default_province'),
-    district: '',
-    ward: '',
-    street: '',
+  const [manualAddress, setManualAddress] = useState(() => {
+    const savedAddress = getLastCheckoutAddress()
+    return {
+      recipient_name: savedAddress.recipient_name || user?.name || '',
+      phone: savedAddress.phone || user?.phone || '',
+      province: savedAddress.province || '',
+      district: savedAddress.district || '',
+      ward: savedAddress.ward || '',
+      street: savedAddress.street || '',
+    }
   })
 
   // Scheduler options
@@ -1616,8 +1845,34 @@ function Checkout() {
   const [scheduledAt, setScheduledAt] = useState('')
   const [note, setNote] = useState('')
   const [loading, setLoading] = useState(false)
+  const [loyaltyInfo, setLoyaltyInfo] = useState({
+    balance: user?.loyalty_balance || 0,
+    vnd_per_point: 100,
+    loading: Boolean(user)
+  })
+
+  const [shippingCalculation, setShippingCalculation] = useState(null)
+  const [calculatingShipping, setCalculatingShipping] = useState(false)
+  const [shippingError, setShippingError] = useState(null)
+
+  // Pickup Branch Selection states
+  const [branches, setBranches] = useState([])
+  const [selectedBranch, setSelectedBranch] = useState(null)
 
   const totals = getCartTotals(deliveryType)
+  const displayShippingFee = deliveryType === 'pickup' ? 0 : (shippingCalculation?.fee ?? (totals.subtotal >= 300000 ? 0 : 15000))
+  const displayTotal = Math.max(0, totals.subtotal - totals.couponDiscount + displayShippingFee)
+
+  const loyaltyPointValue = Math.max(1, Number(loyaltyInfo.vnd_per_point) || 100)
+  const loyaltyBalance = Math.max(0, Number(loyaltyInfo.balance) || 0)
+  const loyaltyAvailableValue = loyaltyBalance * loyaltyPointValue
+  const loyaltyPointsNeeded = Math.ceil(displayTotal / loyaltyPointValue)
+  const loyaltyShortfall = Math.max(0, loyaltyPointsNeeded - loyaltyBalance)
+  const canPayWithLoyalty = Boolean(user) && loyaltyShortfall === 0
+  const isShippingInvalid = deliveryType === 'delivery' && (calculatingShipping || !shippingCalculation || shippingCalculation.out_of_range)
+  
+  const isPickupInvalid = deliveryType === 'pickup' && (!selectedBranch || !manualAddress.recipient_name || !manualAddress.phone)
+  const isCheckoutInvalid = isShippingInvalid || isPickupInvalid
 
   useEffect(() => {
     // Load customer address book
@@ -1629,7 +1884,82 @@ function Checkout() {
       }).catch(err => {
         console.error(err)
       })
+
+    // Load active branches
+    apiClient.get('/branches')
+      .then(res => {
+        setBranches(res.data)
+        if (res.data.length > 0) {
+          setSelectedBranch(res.data[0])
+        }
+      }).catch(err => {
+        console.error('Failed to load branches:', err)
+      })
   }, [])
+
+  useEffect(() => {
+    if (!user) return
+
+    let ignore = false
+    apiClient.get('/loyalty-points')
+      .then(res => {
+        if (ignore) return
+        setLoyaltyInfo({
+          balance: res.data?.balance || 0,
+          vnd_per_point: res.data?.vnd_per_point || 100,
+          loading: false
+        })
+      })
+      .catch(() => {
+        if (!ignore) setLoyaltyInfo(current => ({ ...current, loading: false }))
+      })
+
+    return () => {
+      ignore = true
+    }
+  }, [user])
+
+  useEffect(() => {
+    if (deliveryType !== 'delivery') {
+      setShippingCalculation(null)
+      return
+    }
+
+    const addr = selectedAddress || manualAddress
+    if (!addr || !addr.province || !addr.district) {
+      setShippingCalculation(null)
+      return
+    }
+
+    const timer = setTimeout(() => {
+      setCalculatingShipping(true)
+      setShippingError(null)
+
+      apiClient.post('/shipping/calculate', {
+        order_amount: totals.subtotal,
+        lat: addr.lat || null,
+        lng: addr.lng || null,
+        address: {
+          province: addr.province,
+          district: addr.district,
+          ward: addr.ward,
+          street: addr.street
+        }
+      })
+      .then(res => {
+        setShippingCalculation(res.data.data)
+      })
+      .catch(err => {
+        console.error('Failed to calculate shipping:', err)
+        setShippingError(err.response?.data?.message || t('checkout.shipping_error_fallback'))
+      })
+      .finally(() => {
+        setCalculatingShipping(false)
+      })
+    }, 400)
+
+    return () => clearTimeout(timer)
+  }, [deliveryType, selectedAddress, manualAddress.province, manualAddress.district, manualAddress.ward, manualAddress.street, totals.subtotal])
 
   if (cartItems.length === 0) {
     return <Navigate to="/menu" />
@@ -1648,6 +1978,14 @@ function Checkout() {
   }
 
   const handleCheckoutSubmit = () => {
+    if (paymentMethod === 'loyalty_points' && !canPayWithLoyalty) {
+      showToast(t('checkout.loyalty_not_enough', {
+        needed: loyaltyPointsNeeded,
+        current: loyaltyBalance
+      }), 'error')
+      return
+    }
+
     setLoading(true)
 
     const payload = {
@@ -1660,7 +1998,7 @@ function Checkout() {
       items: cartItems.map(item => ({
         product_id: item.product.id,
         quantity: item.quantity,
-        size: item.size,
+        size: item.size || null,
         toppings: item.toppings.map(t => t.id)
       }))
     }
@@ -1674,15 +2012,43 @@ function Checkout() {
           district: selectedAddress.district,
           ward: selectedAddress.ward,
           street: selectedAddress.street,
+          lat: selectedAddress.lat || shippingCalculation?.lat || null,
+          lng: selectedAddress.lng || shippingCalculation?.lng || null,
         }
       } else {
         // Validate manual input
-        if (!manualAddress.recipient_name || !manualAddress.phone || !manualAddress.district || !manualAddress.ward || !manualAddress.street) {
+        if (!manualAddress.recipient_name || !manualAddress.phone || !manualAddress.province || !manualAddress.district || !manualAddress.ward || !manualAddress.street) {
           showToast(t('checkout.address_required'), 'error')
           setLoading(false)
           return
         }
-        payload.address = manualAddress
+        payload.address = {
+          ...manualAddress,
+          lat: shippingCalculation?.lat || null,
+          lng: shippingCalculation?.lng || null
+        }
+        localStorage.setItem('hk_last_checkout_address', JSON.stringify(manualAddress))
+      }
+    } else if (deliveryType === 'pickup') {
+      if (!selectedBranch) {
+        showToast(t('checkout.branch_required'), 'error')
+        setLoading(false)
+        return
+      }
+      if (!manualAddress.recipient_name || !manualAddress.phone) {
+        showToast(t('checkout.recipient_info_required'), 'error')
+        setLoading(false)
+        return
+      }
+      payload.address = {
+        recipient_name: manualAddress.recipient_name,
+        phone: manualAddress.phone,
+        province: selectedBranch.name,
+        district: selectedBranch.address,
+        ward: 'pickup',
+        street: selectedBranch.phone || '',
+        lat: selectedBranch.lat || null,
+        lng: selectedBranch.lng || null
       }
     }
 
@@ -1813,36 +2179,45 @@ function Checkout() {
                           className="w-full bg-[#F8F8F8] border border-[#E8E8E8] rounded-[10px] py-[14px] px-[16px] text-sm text-[#1A1A1A] focus:outline-none focus:border-primary focus:ring-3 focus:ring-primary/10 transition-all duration-200"
                         />
                       </div>
-                      <div>
-                        <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">{t('checkout.district')}</label>
-                        <input 
-                          type="text" 
-                          placeholder={t('address.district_placeholder')}
-                          value={manualAddress.district}
-                          onChange={(e) => setManualAddress({ ...manualAddress, district: e.target.value })}
-                          className="w-full bg-[#F8F8F8] border border-[#E8E8E8] rounded-[10px] py-[14px] px-[16px] text-sm text-[#1A1A1A] focus:outline-none focus:border-primary focus:ring-3 focus:ring-primary/10 transition-all duration-200"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">{t('checkout.ward')}</label>
-                        <input 
-                          type="text" 
-                          placeholder={t('address.ward_placeholder')}
-                          value={manualAddress.ward}
-                          onChange={(e) => setManualAddress({ ...manualAddress, ward: e.target.value })}
-                          className="w-full bg-[#F8F8F8] border border-[#E8E8E8] rounded-[10px] py-[14px] px-[16px] text-sm text-[#1A1A1A] focus:outline-none focus:border-primary focus:ring-3 focus:ring-primary/10 transition-all duration-200"
-                        />
-                      </div>
-                      <div className="sm:col-span-2">
-                        <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">{t('checkout.street')}</label>
-                        <input 
-                          type="text" 
-                          placeholder={t('address.street_placeholder')}
-                          value={manualAddress.street}
-                          onChange={(e) => setManualAddress({ ...manualAddress, street: e.target.value })}
-                          className="w-full bg-[#F8F8F8] border border-[#E8E8E8] rounded-[10px] py-[14px] px-[16px] text-sm text-[#1A1A1A] focus:outline-none focus:border-primary focus:ring-3 focus:ring-primary/10 transition-all duration-200"
-                        />
-                      </div>
+                      <VietnamAddressSelector
+                        province={manualAddress.province}
+                        district={manualAddress.district}
+                        ward={manualAddress.ward}
+                        street={manualAddress.street}
+                        onChange={({ province, district, ward, street }) =>
+                          setManualAddress({ ...manualAddress, province, district, ward, street })
+                        }
+                        theme="storefront"
+                      />
+                    </div>
+                  )}
+
+                  {/* Shipping status/warnings */}
+                  {calculatingShipping && (
+                    <div className="p-3 bg-blue-50 border border-blue-200 text-blue-700 text-xs rounded-xl mt-3 animate-pulse font-semibold">
+                      🔄 {t('checkout.calculating')}
+                    </div>
+                  )}
+                  {shippingError && (
+                    <div className="p-3 bg-amber-50 border border-amber-200 text-amber-700 text-xs rounded-xl mt-3 font-semibold">
+                      ⚠️ {shippingError}
+                    </div>
+                  )}
+                  {shippingCalculation?.out_of_range && (
+                    <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl mt-3 font-semibold">
+                      ⚠️ {shippingCalculation.message || t('checkout.out_of_range_error')}
+                    </div>
+                  )}
+                  {shippingCalculation && !shippingCalculation.out_of_range && shippingCalculation.distance_km && (
+                    <div className="p-3 bg-green-50 border border-green-200 text-green-700 text-xs rounded-xl mt-3 font-semibold space-y-1">
+                      {shippingCalculation.nearest_branch_name && (
+                        <p>🏪 {t('checkout.fulfilled_by')}: <span className="font-bold text-[#1A1A1A]">{shippingCalculation.nearest_branch_name}</span></p>
+                      )}
+                      <p>📍 {t('checkout.distance')}: {shippingCalculation.distance_km}km. {t('checkout.estimated')}: {
+                        typeof shippingCalculation.estimated === 'object'
+                          ? (shippingCalculation.estimated[i18n.language] || shippingCalculation.estimated.vi || '30-45 phút')
+                          : (shippingCalculation.estimated || '30-45 phút')
+                      }</p>
                     </div>
                   )}
                 </div>
@@ -1894,9 +2269,96 @@ function Checkout() {
                 />
               </div>
 
+              {/* Self-pickup branch selection UI */}
+              {deliveryType === 'pickup' && (
+                <div className="space-y-6 pt-4 border-t border-[#E8E8E8]">
+                  {/* Recipient info for pickup */}
+                  <div className="space-y-4">
+                    <h3 className="font-bold text-[18px] text-[#1A1A1A] uppercase tracking-wide">
+                      {t('checkout.recipient_info')}
+                    </h3>
+                    <div className="p-5 rounded-2xl border border-[#E8E8E8] bg-[#F8F8F8] grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[11px] font-bold tracking-[0.5px] text-[#888888] mb-2 uppercase">
+                          {t('checkout.recipient_name')} <span className="text-red-500">*</span>
+                        </label>
+                        <input 
+                          type="text" 
+                          placeholder={t('auth.name_placeholder')}
+                          value={manualAddress.recipient_name}
+                          onChange={(e) => setManualAddress({ ...manualAddress, recipient_name: e.target.value })}
+                          className="w-full bg-white border border-[#E8E8E8] rounded-[10px] py-[12px] px-[14px] text-xs text-[#1A1A1A] focus:outline-none focus:border-primary focus:ring-3 focus:ring-primary/10 transition-all duration-200"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold tracking-[0.5px] text-[#888888] mb-2 uppercase">
+                          {t('checkout.phone')} <span className="text-red-500">*</span>
+                        </label>
+                        <input 
+                          type="tel" 
+                          placeholder="09xxxxxx" 
+                          value={manualAddress.phone}
+                          onChange={(e) => setManualAddress({ ...manualAddress, phone: e.target.value })}
+                          className="w-full bg-white border border-[#E8E8E8] rounded-[10px] py-[12px] px-[14px] text-xs text-[#1A1A1A] focus:outline-none focus:border-primary focus:ring-3 focus:ring-primary/10 transition-all duration-200"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Branch selection */}
+                  <div className="space-y-4 pt-4 border-t border-[#E8E8E8]">
+                    <h3 className="font-bold text-[18px] text-[#1A1A1A] uppercase tracking-wide">
+                      {t('checkout.select_pickup_branch')}
+                    </h3>
+                    
+                    {branches.length > 0 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {branches.map((br) => {
+                          const isSelected = selectedBranch?.id === br.id
+                          return (
+                            <div 
+                              key={br.id}
+                              onClick={() => setSelectedBranch(br)}
+                              className={`p-4 rounded-xl border cursor-pointer transition-all duration-300 relative overflow-hidden flex flex-col justify-between hover:shadow-premium ${
+                                isSelected 
+                                  ? 'border-primary bg-primary/5 text-[#1A1A1A]' 
+                                  : 'border-[#E8E8E8] bg-white text-gray-500 hover:border-gray-400'
+                              }`}
+                            >
+                              {isSelected && (
+                                <div className="absolute top-0 right-0 bg-primary text-white text-[8px] font-bold px-2.5 py-0.5 rounded-bl-lg uppercase tracking-wider">
+                                  {t('checkout.selected')}
+                                </div>
+                              )}
+                              <div>
+                                <h4 className="font-bold text-xs text-[#1A1A1A] mb-1.5 pr-12">{br.name}</h4>
+                                <p className="text-[10px] leading-relaxed text-[#666666] mb-2">{br.address}</p>
+                              </div>
+                              <div className="pt-2 border-t border-dashed border-[#E8E8E8] flex flex-col sm:flex-row sm:justify-between gap-1 text-[9px] text-[#888888]">
+                                <span>📞 {t('checkout.branch_hotline')}: <strong className="text-[#1A1A1A]">{br.phone || '-'}</strong></span>
+                                <span>🕒 {br.open_time?.substring(0, 5) || '08:00'} - {br.close_time?.substring(0, 5) || '22:00'}</span>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    ) : (
+                      <div className="p-6 text-center border border-[#E8E8E8] rounded-2xl text-xs text-gray-400 bg-white">
+                        ⚠️ {t('checkout.no_active_branches')}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <button 
                 onClick={() => setStep(2)}
-                className="w-full bg-primary hover:opacity-90 text-white font-semibold py-3.5 rounded-[8px] tracking-wider text-sm transition hover:-translate-y-[1px] active:translate-y-0 mt-6 flex justify-center items-center gap-2"
+                disabled={isCheckoutInvalid}
+                className={`w-full font-semibold py-3.5 rounded-[8px] tracking-wider text-sm transition flex justify-center items-center gap-2 active:translate-y-0 mt-6 ${
+                  isCheckoutInvalid
+                    ? 'bg-gray-300 text-white cursor-not-allowed'
+                    : 'bg-primary hover:opacity-90 text-white hover:-translate-y-[1px]'
+                }`}
               >
                 {t('checkout.continue_to_payment')}
                 <ChevronRight className="w-4 h-4" />
@@ -1911,9 +2373,38 @@ function Checkout() {
               <PaymentMethodSelector selected={paymentMethod} onChange={setPayment} />
 
               {paymentMethod === 'loyalty_points' && (
-                <p className="text-[10px] text-gray-400 italic">
-                  {t('checkout.loyalty_exchange_note')}
-                </p>
+                <div className={`rounded-xl border p-4 text-xs space-y-3 ${
+                  canPayWithLoyalty
+                    ? 'border-emerald-200 bg-emerald-50/70'
+                    : 'border-amber-200 bg-amber-50/80'
+                }`}>
+                  <div className="grid sm:grid-cols-3 gap-3">
+                    <div>
+                      <p className="text-[10px] uppercase font-bold tracking-wide text-gray-400">{t('checkout.loyalty_balance_label')}</p>
+                      <p className="font-bold text-[#1A1A1A] mt-1">
+                        {loyaltyInfo.loading ? t('checkout.loyalty_loading') : `${loyaltyBalance} ${t('profile.points')}`}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase font-bold tracking-wide text-gray-400">{t('checkout.loyalty_value_label')}</p>
+                      <p className="font-bold text-[#1A1A1A] mt-1">{formatVND(loyaltyAvailableValue)}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase font-bold tracking-wide text-gray-400">{t('checkout.loyalty_needed_label')}</p>
+                      <p className="font-bold text-[#1A1A1A] mt-1">{loyaltyPointsNeeded} {t('profile.points')}</p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-t border-black/5 pt-3">
+                    <p className="text-[11px] text-gray-500">
+                      {t('checkout.loyalty_exchange_note', { value: formatVND(loyaltyPointValue) })}
+                    </p>
+                    <p className={`font-bold ${canPayWithLoyalty ? 'text-emerald-600' : 'text-amber-700'}`}>
+                      {canPayWithLoyalty
+                        ? t('checkout.loyalty_enough')
+                        : t('checkout.loyalty_shortfall', { points: loyaltyShortfall, amount: formatVND(loyaltyShortfall * loyaltyPointValue) })}
+                    </p>
+                  </div>
+                </div>
               )}
 
               <div className="flex gap-4 mt-8">
@@ -1925,8 +2416,12 @@ function Checkout() {
                 </button>
                 <button 
                   onClick={handleCheckoutSubmit}
-                  disabled={loading}
-                  className="w-1/2 bg-primary hover:opacity-90 text-white font-semibold py-3.5 rounded-[8px] tracking-wider text-xs transition shadow-glass flex justify-center items-center gap-2 hover:-translate-y-[1px] active:translate-y-0"
+                  disabled={loading || (paymentMethod === 'loyalty_points' && !canPayWithLoyalty) || isShippingInvalid}
+                  className={`w-1/2 font-semibold py-3.5 rounded-[8px] tracking-wider text-xs transition shadow-glass flex justify-center items-center gap-2 active:translate-y-0 ${
+                    loading || (paymentMethod === 'loyalty_points' && !canPayWithLoyalty) || isShippingInvalid
+                      ? 'bg-gray-300 text-white cursor-not-allowed'
+                      : 'bg-primary hover:opacity-90 text-white hover:-translate-y-[1px]'
+                  }`}
                 >
                   {loading ? t('checkout.processing') : t('checkout.confirm').toUpperCase()}
                   <CheckCircle className="w-4 h-4" />
@@ -1956,9 +2451,17 @@ function Checkout() {
                       {/* Product Name DM Sans 15px bold */}
                       <p className="font-bold text-[15px] text-[#1A1A1A] leading-tight">{item.product.name}</p>
                       {/* Sub-info size/quantity DM Sans 13px */}
-                      <p className="text-[13px] text-[#888888] mt-1">
-                        Size {item.size} {item.toppings.length > 0 && `+ ${item.toppings.map(t => t.name).join(', ')}`}
-                      </p>
+                      {[
+                        item.size ? `Size ${item.size}` : null,
+                        ...(item.toppings || []).map(t => t.name)
+                      ].filter(Boolean).length > 0 && (
+                        <p className="text-[13px] text-[#888888] mt-1">
+                          {[
+                            item.size ? `Size ${item.size}` : null,
+                            ...(item.toppings || []).map(t => t.name)
+                          ].filter(Boolean).join(' + ')}
+                        </p>
+                      )}
                       <p className="text-[13px] text-[#888888] mt-1 font-semibold">x {item.quantity}</p>
                     </div>
                     <span className="text-[#1A1A1A] font-semibold text-sm">{formatVND(unitTotal * item.quantity)}</span>
@@ -2012,10 +2515,17 @@ function Checkout() {
               <div className="flex justify-between">
                 <span>{t('cart.shipping')}</span>
                 <span className="text-[#1A1A1A] font-semibold">
-                  {totals.shippingFee === 0
-                    ? t('cart.free_shipping')
-                    : formatVND(totals.shippingFee)
-                  }
+                  {calculatingShipping ? (
+                    <span className="text-gray-400 animate-pulse">{t('checkout.calculating')}</span>
+                  ) : deliveryType === 'pickup' ? (
+                    t('cart.free_shipping')
+                  ) : shippingCalculation?.out_of_range ? (
+                    <span className="text-red-500 font-bold">{t('checkout.not_available')}</span>
+                  ) : displayShippingFee === 0 ? (
+                    t('cart.free_shipping')
+                  ) : (
+                    formatVND(displayShippingFee)
+                  )}
                 </span>
               </div>
             </div>
@@ -2025,7 +2535,7 @@ function Checkout() {
               
               {/* Product Total: DM Sans 24px primary red */}
               <span className="font-bold text-2xl text-primary">
-                {formatVND(totals.total)}
+                {formatVND(displayTotal)}
               </span>
             </div>
           </div>
@@ -2037,12 +2547,25 @@ function Checkout() {
 
 // 8. Order List & Tracking Screen (Timeline)
 function OrderDetailTracking() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { code } = useParams()
   const [order, setOrder] = useState(null)
   const [loading, setLoading] = useState(true)
   const [params] = useSearchParams()
   const showToast = useUiStore(state => state.showToast)
+
+  const [showReviewModal, setShowReviewModal] = useState(false)
+  const [showComplaintModal, setShowComplaintModal] = useState(false)
+
+  const publicSettings = useUiStore(state => state.publicSettings)
+
+  const completedAt = order?.completed_at ? new Date(order.completed_at) : null
+  const reviewExpiryDays = Number(publicSettings['review.expiry_days'] || 7)
+  const isWithinReviewExpiry = completedAt && (new Date().getTime() - completedAt.getTime()) < reviewExpiryDays * 24 * 60 * 60 * 1000
+  
+  const complaintExpiryHours = Number(publicSettings['complaint.expiry_hours'] || 24)
+  const isWithinComplaintExpiry = completedAt && (new Date().getTime() - completedAt.getTime()) < complaintExpiryHours * 60 * 60 * 1000
+  const hasActiveComplaint = order?.complaints?.some(c => ['pending', 'reviewing'].includes(c.status))
 
   const loadOrder = () => {
     setLoading(true)
@@ -2057,7 +2580,6 @@ function OrderDetailTracking() {
   }
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadOrder()
     const paymentStatus = params.get('payment')
     if (paymentStatus === 'success') {
@@ -2066,7 +2588,7 @@ function OrderDetailTracking() {
       showToast(t('order.payment_failed'), 'error')
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [code])
+  }, [code, i18n.language])
 
   const handleCancel = () => {
     if (window.confirm(t('order.cancel_confirm'))) {
@@ -2096,7 +2618,7 @@ function OrderDetailTracking() {
     { id: 'confirmed', name: t('order.confirmed') },
     { id: 'preparing', name: t('order.preparing') },
     { id: 'delivering', name: t('order.delivering') },
-    { id: 'delivered', name: t('order.delivered') },
+    { id: 'completed', name: t('order.completed') || t('order.delivered') },
   ]
 
   const currentStepIndex = steps.findIndex(s => s.id === order.status)
@@ -2164,6 +2686,124 @@ function OrderDetailTracking() {
         </div>
       )}
 
+      {/* Review Invitation Banner */}
+      {order.status === 'completed' && !order.order_review && isWithinReviewExpiry && (
+        <div className="p-6 rounded-2xl bg-[#FFF5F3] border border-[#FFD9D2] mb-8 shadow-glass flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 animate-fade-in">
+          <div>
+            <h3 className="font-bold text-lg text-[#D62300]">{t('order.write_review')}</h3>
+            <p className="text-xs text-gray-500 mt-1">
+              {t('review.invitation_desc')}
+            </p>
+          </div>
+          <button 
+            onClick={() => {
+              if (order.order_review) {
+                showToast(t('order.already_reviewed'), 'error')
+                return
+              }
+              setShowReviewModal(true)
+            }}
+            className="bg-[#D62300] hover:bg-[#b51e00] text-white text-xs font-bold uppercase tracking-wider px-6 py-3 rounded-xl transition shadow-md whitespace-nowrap"
+          >
+            {t('order.write_review').toUpperCase()}
+          </button>
+        </div>
+      )}
+
+      {/* Already Reviewed Badge */}
+      {order.status === 'completed' && order.order_review && (
+        <div className="p-4 rounded-2xl bg-green-50 border border-green-200 mb-8 flex items-center gap-3 animate-fade-in">
+          <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+          <span className="text-xs font-semibold text-green-700">{t('order.already_reviewed')}</span>
+        </div>
+      )}
+
+      {/* Complaint Timeline Display */}
+      {order.complaints && order.complaints.length > 0 && (
+        <div className="p-6 rounded-2xl bg-white border border-[#E8E8E8] mb-8 shadow-glass animate-fade-in">
+          <h3 className="font-bold text-lg text-primary uppercase tracking-wide mb-6 text-center">
+            {t('order.complaint_timeline_title')}
+          </h3>
+          <div className="space-y-6">
+            {order.complaints.map((complaint) => {
+              const timelineSteps = [
+                { label: t('order.complaint_status_pending'), done: true, time: formatDate(complaint.created_at) },
+                { label: t('order.complaint_status_reviewing'), done: ['reviewing', 'resolved', 'rejected'].includes(complaint.status), time: complaint.status !== 'pending' ? formatDate(complaint.updated_at) : null },
+                { 
+                  label: complaint.status === 'rejected' ? t('order.complaint_status_rejected') : t('order.complaint_status_resolved'), 
+                  done: ['resolved', 'rejected'].includes(complaint.status), 
+                  time: ['resolved', 'rejected'].includes(complaint.status) ? formatDate(complaint.resolved_at || complaint.updated_at) : null 
+                },
+              ]
+              return (
+                <div key={complaint.id} className="border-t border-gray-100 pt-6 first:border-t-0 first:pt-0">
+                  <div className="flex justify-between items-center mb-4 text-xs">
+                    <span className="font-semibold text-gray-500">{t('complaint.type')}: <strong className="text-gray-800">{t(`complaint.type_${complaint.type}`)}</strong></span>
+                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${
+                      complaint.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                      complaint.status === 'reviewing' ? 'bg-blue-100 text-blue-700' :
+                      complaint.status === 'resolved' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                    }`}>
+                      {t(`order.complaint_status_${complaint.status}`)}
+                    </span>
+                  </div>
+                  
+                  {/* Timeline steps */}
+                  <div className="relative flex justify-between items-start gap-4 mb-6">
+                    <div className="absolute top-3 left-6 right-6 h-0.5 bg-gray-200 z-0" />
+                    {timelineSteps.map((step, idx) => (
+                      <div key={idx} className="relative z-10 flex flex-col items-center text-center flex-1">
+                        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-[10px] font-semibold transition ${
+                          step.done ? 'bg-[#D62300] border-[#D62300] text-white font-bold' : 'bg-white border-[#E8E8E8] text-gray-400'
+                        }`}>
+                          {idx + 1}
+                        </div>
+                        <span className={`text-[11px] font-bold mt-2 ${step.done ? 'text-gray-800' : 'text-gray-400'}`}>{step.label}</span>
+                        {step.time && <span className="text-[9px] text-gray-400 mt-0.5">{step.time}</span>}
+                      </div>
+                    ))}
+                  </div>
+
+                  {complaint.description && (
+                    <div className="mb-4 text-xs bg-gray-50 p-3 rounded-lg text-gray-600">
+                      <span className="font-bold text-gray-700 block mb-1">{t('order.complaint_description_label')}:</span>
+                      "{complaint.description}"
+                    </div>
+                  )}
+
+                  {['resolved', 'rejected'].includes(complaint.status) && (
+                    <div className="p-4 rounded-xl bg-[#FFFBF0] border border-[#FFEBC2] text-xs space-y-2">
+                      <div>
+                        <span className="font-semibold text-gray-500">{t('order.complaint_resolution_label')}:</span>
+                        <span className="ml-2 px-2 py-0.5 bg-primary/10 text-primary rounded text-[10px] font-bold uppercase">{complaint.resolution_type}</span>
+                      </div>
+                      {complaint.resolution_note && (
+                        <div>
+                          <span className="font-semibold text-gray-500">{t('order.complaint_resolution_note')}:</span>
+                          <p className="mt-1 text-gray-700 italic">"{complaint.resolution_note}"</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Complaint Trigger Link */}
+      {order.status === 'completed' && !hasActiveComplaint && isWithinComplaintExpiry && (
+        <div className="text-center mb-8">
+          <button 
+            onClick={() => setShowComplaintModal(true)}
+            className="text-xs text-[#666666] hover:text-[#D62300] font-semibold underline underline-offset-4 cursor-pointer transition"
+          >
+            {t('order.file_complaint')}
+          </button>
+        </div>
+      )}
+
       {/* Summary grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Items lists */}
@@ -2174,7 +2814,9 @@ function OrderDetailTracking() {
               <div key={item.id} className="py-3 flex justify-between text-xs">
                 <div>
                   <p className="font-bold text-[#1A1A1A]">{item.product_name}</p>
-                  <p className="text-[10px] text-gray-500 mt-1">Size {item.size}</p>
+                  {item.size && (
+                    <p className="text-[10px] text-gray-500 mt-1">Size {item.size}</p>
+                  )}
                   {item.toppings?.length > 0 && (
                     <p className="text-[10px] text-gray-500 truncate mt-0.5">Toppings: {item.toppings.map(t => t.name).join(', ')}</p>
                   )}
@@ -2223,10 +2865,35 @@ function OrderDetailTracking() {
                 </p>
               </div>
             ) : (
-              <div className="mt-4 text-xs text-[#666666]">
-                <p className="text-[#1A1A1A] font-bold">{t('order.pickup_customer')}</p>
-                <p className="mt-2">{t('order.pickup_branch')}</p>
-                <p className="text-[10px] text-gray-500 mt-1">{t('order.pickup_address')}</p>
+              <div className="mt-4 text-xs text-[#666666] space-y-2">
+                {order.address ? (
+                  <>
+                    <p className="text-[#1A1A1A] font-bold">{order.address.recipient_name} - {order.address.phone}</p>
+                    <p className="mt-2 font-semibold text-[#1A1A1A]">🏪 {order.address.province}</p>
+                    <p className="text-[10px] text-gray-500 mt-1">📍 {t('order.pickup_address_label')}: {order.address.district}</p>
+                    {order.address.street && (
+                      <p className="text-[10px] text-gray-500">📞 {t('order.pickup_hotline_label')}: {order.address.street}</p>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <p className="text-[#1A1A1A] font-bold">{t('order.pickup_customer')}</p>
+                    <p className="mt-2">{t('order.pickup_branch')}</p>
+                    <p className="text-[10px] text-gray-500 mt-1">{t('order.pickup_address')}</p>
+                  </>
+                )}
+              </div>
+            )}
+            {order.scheduled_at && (
+              <div className="mt-4 rounded-xl border border-[#E8E8E8] bg-[#F8F8F8] p-4 text-xs">
+                <p className="font-semibold uppercase tracking-[0.4px] text-gray-400">{t('order.scheduled_at')}</p>
+                <p className="mt-1 font-bold text-[#1A1A1A]">{formatDate(order.scheduled_at)}</p>
+              </div>
+            )}
+            {order.note && (
+              <div className="mt-4 rounded-xl border border-amber-100 bg-amber-50 p-4 text-xs">
+                <p className="font-semibold uppercase tracking-[0.4px] text-amber-700">{t('checkout.order_note')}</p>
+                <p className="mt-1 whitespace-pre-wrap leading-relaxed text-[#1A1A1A]">{order.note}</p>
               </div>
             )}
           </div>
@@ -2245,40 +2912,758 @@ function OrderDetailTracking() {
           </div>
         </div>
       </div>
+
+      {showReviewModal && <ReviewFlowModal />}
+      {showComplaintModal && <ComplaintFlowModal />}
     </div>
   )
+
+  function ReviewStarsInput({ val, setVal }) {
+    return (
+      <div className="flex gap-1 mt-1">
+        {[1, 2, 3, 4, 5].map(star => (
+          <button
+            type="button"
+            key={star}
+            onClick={() => setVal(star)}
+            className="p-1 hover:scale-110 transition cursor-pointer"
+          >
+            <Star className={`w-6 h-6 ${star <= val ? 'fill-amber-400 text-amber-400 font-bold' : 'text-gray-300'}`} />
+          </button>
+        ))}
+      </div>
+    )
+  }
+
+  function ReviewFlowModal() {
+    const [step, setStep] = useState(1)
+    const [deliveryRating, setDeliveryRating] = useState(5)
+    const [packagingRating, setPackagingRating] = useState(5)
+    const [overallRating, setOverallRating] = useState(5)
+    const [comment, setComment] = useState('')
+    const [productReviews, setProductReviews] = useState({})
+    const [submitting, setSubmitting] = useState(false)
+
+    useEffect(() => {
+      if (step === 2 && order.items) {
+        const initial = {}
+        order.items.forEach(item => {
+          if (!initial[item.product_id]) {
+            initial[item.product_id] = { rating: 5, comment: '' }
+          }
+        })
+        setProductReviews(initial)
+      }
+    }, [step])
+
+    const handleOverallSubmitOnly = async () => {
+      setSubmitting(true)
+      try {
+        const res = await apiClient.post('/reviews/order', {
+          order_id: order.id,
+          delivery_rating: deliveryRating,
+          packaging_rating: packagingRating,
+          overall_rating: overallRating,
+          comment: comment,
+          product_reviews: []
+        })
+        showToast(t('order.review_success'))
+        loadOrder()
+        setShowReviewModal(false)
+      } catch (err) {
+        console.error(err)
+        showToast(err.response?.data?.message || t('order.review_error'), 'error')
+      } finally {
+        setSubmitting(false)
+      }
+    }
+
+    const handleAllSubmit = async () => {
+      setSubmitting(true)
+      try {
+        const productReviewsList = Object.entries(productReviews).map(([pId, val]) => ({
+          product_id: Number(pId),
+          rating: val.rating,
+          comment: val.comment
+        }))
+        const res = await apiClient.post('/reviews/order', {
+          order_id: order.id,
+          delivery_rating: deliveryRating,
+          packaging_rating: packagingRating,
+          overall_rating: overallRating,
+          comment: comment,
+          product_reviews: productReviewsList
+        })
+        showToast(t('order.review_success'))
+        loadOrder()
+        setShowReviewModal(false)
+      } catch (err) {
+        console.error(err)
+        showToast(err.response?.data?.message || t('order.review_error'), 'error')
+      } finally {
+        setSubmitting(false)
+      }
+    }
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div 
+          onClick={() => setShowReviewModal(false)}
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
+        />
+
+        <div className="relative w-full max-w-xl bg-white border border-[#E8E8E8] rounded-2xl shadow-premium overflow-hidden z-10 flex flex-col max-h-[90vh] animate-float-half p-6">
+          <div className="flex justify-between items-center border-b border-[#E8E8E8] pb-4 mb-4">
+            <h3 className="font-bold text-lg text-gray-900">{t('order.order_review')}</h3>
+            <button onClick={() => setShowReviewModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+          </div>
+
+          <div className="overflow-y-auto pr-1 flex-1 space-y-6 text-[#1A1A1A]">
+            {step === 1 ? (
+              <div className="space-y-5">
+                <h4 className="font-bold text-sm text-[#D62300] uppercase tracking-wide">{t('order.step_1_title')}</h4>
+                
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center bg-gray-50 p-3.5 rounded-xl border border-gray-100">
+                    <span className="text-xs font-semibold text-gray-600">{t('order.delivery_rating')}</span>
+                    <ReviewStarsInput val={deliveryRating} setVal={setDeliveryRating} />
+                  </div>
+                  <div className="flex justify-between items-center bg-gray-50 p-3.5 rounded-xl border border-gray-100">
+                    <span className="text-xs font-semibold text-gray-600">{t('order.packaging_rating')}</span>
+                    <ReviewStarsInput val={packagingRating} setVal={setPackagingRating} />
+                  </div>
+                  <div className="flex justify-between items-center bg-gray-50 p-3.5 rounded-xl border border-gray-100">
+                    <span className="text-xs font-semibold text-gray-600">{t('order.overall_rating')}</span>
+                    <ReviewStarsInput val={overallRating} setVal={setOverallRating} />
+                  </div>
+                </div>
+
+                {overallRating <= 2 && (
+                  <div className="bg-amber-50 border border-amber-100 p-3 rounded-xl text-[11px] text-amber-800 space-y-2">
+                    <p className="font-semibold">{t('order.complaint_prompt')}</p>
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        setShowReviewModal(false)
+                        setShowComplaintModal(true)
+                      }}
+                      className="bg-amber-600 hover:bg-amber-700 text-white font-bold px-3.5 py-1.5 rounded-lg transition text-[10px] uppercase cursor-pointer"
+                    >
+                      {t('order.file_complaint')}
+                    </button>
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide block">{t('order.comment_placeholder')}</span>
+                  <textarea
+                    rows={3}
+                    value={comment}
+                    onChange={e => setComment(e.target.value)}
+                    placeholder={t('order.comment_placeholder')}
+                    className="w-full text-xs p-3 border border-[#E8E8E8] rounded-xl focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary bg-white text-[#1A1A1A]"
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={handleOverallSubmitOnly}
+                    disabled={submitting}
+                    className="flex-1 border border-[#E8E8E8] hover:bg-gray-50 text-[#1A1A1A] text-xs font-bold uppercase py-3 rounded-xl tracking-wider transition disabled:opacity-50 cursor-pointer"
+                  >
+                    {submitting ? '...' : t('order.submit_step_1') || t('order.submit_review')}
+                  </button>
+                  {order.items && order.items.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setStep(2)}
+                      className="flex-1 bg-[#D62300] hover:bg-[#b51e00] text-white text-xs font-bold uppercase py-3 rounded-xl tracking-wider transition shadow-md cursor-pointer"
+                    >
+                      {t('order.step_2_title')} →
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-5">
+                <h4 className="font-bold text-sm text-[#D62300] uppercase tracking-wide">{t('order.step_2_title')}</h4>
+                <div className="space-y-5 divide-y divide-gray-100 max-h-[45vh] overflow-y-auto pr-1">
+                  {order.items?.map((item, index) => {
+                    const pr = productReviews[item.product_id] || { rating: 5, comment: '' }
+                    return (
+                      <div key={item.id} className={`${index > 0 ? 'pt-4' : ''} space-y-3`}>
+                        <p className="font-bold text-xs text-[#1A1A1A]">{item.product_name}</p>
+                        <div className="flex justify-between items-center">
+                          <span className="text-[11px] font-semibold text-gray-500">{t('order.product_rating')}</span>
+                          <ReviewStarsInput val={pr.rating} setVal={(rating) => {
+                            setProductReviews(prev => ({
+                              ...prev,
+                              [item.product_id]: { ...prev[item.product_id], rating }
+                            }))
+                          }} />
+                        </div>
+                        <input
+                          type="text"
+                          value={pr.comment}
+                          onChange={e => {
+                            const val = e.target.value
+                            setProductReviews(prev => ({
+                              ...prev,
+                              [item.product_id]: { ...prev[item.product_id], comment: val }
+                            }))
+                          }}
+                          placeholder={t('order.product_comment_placeholder')}
+                          className="w-full text-xs p-2.5 border border-[#E8E8E8] rounded-lg focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary bg-white text-[#1A1A1A]"
+                        />
+                      </div>
+                    )
+                  })}
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setStep(1)}
+                    className="w-1/3 border border-[#E8E8E8] hover:bg-gray-50 text-[#1A1A1A] text-xs font-bold uppercase py-3 rounded-xl tracking-wider transition cursor-pointer"
+                  >
+                    ← {t('order.back')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleAllSubmit}
+                    disabled={submitting}
+                    className="flex-1 bg-[#D62300] hover:bg-[#b51e00] text-white text-xs font-bold uppercase py-3 rounded-xl tracking-wider transition shadow-md disabled:opacity-50 cursor-pointer"
+                  >
+                    {submitting ? '...' : t('order.submit_all')}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  function ComplaintFlowModal() {
+    const [step, setStep] = useState(1)
+    const [type, setType] = useState('wrong_item')
+    const [description, setDescription] = useState('')
+    const [images, setImages] = useState([])
+    const [desiredResolution, setDesiredResolution] = useState('redeliver')
+    const [selectedItems, setSelectedItems] = useState({})
+    const [submitting, setSubmitting] = useState(false)
+    const [uploading, setUploading] = useState(false)
+
+    useEffect(() => {
+      if (order.items) {
+        const initial = {}
+        order.items.forEach(item => {
+          initial[item.product_id] = { selected: false, issue_type: 'wrong', note: '' }
+        })
+        setSelectedItems(initial)
+      }
+    }, [])
+
+    const handleImageUpload = async (e) => {
+      const files = Array.from(e.target.files)
+      if (files.length === 0) return
+      if (images.length + files.length > 5) {
+        showToast("Tối đa 5 ảnh bằng chứng.", "error")
+        return
+      }
+      setUploading(true)
+      try {
+        const uploadedUrls = [...images]
+        for (const file of files) {
+          const formData = new FormData()
+          formData.append('image', file)
+          const res = await apiClient.post('/reviews/upload', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          })
+          if (res.data && res.data.url) {
+            uploadedUrls.push(res.data.url)
+          }
+        }
+        setImages(uploadedUrls)
+        showToast(t('order.review_upload') + ' ✓')
+      } catch (err) {
+        console.error(err)
+        showToast(t('order.review_upload_error'), "error")
+      } finally {
+        setUploading(false)
+      }
+    }
+
+    const removeImage = (index) => {
+      setImages(prev => prev.filter((_, i) => i !== index))
+    }
+
+    const isProductIssue = ['wrong_item', 'missing_item', 'bad_quality'].includes(type)
+
+    const handleNext = () => {
+      if (step === 1) {
+        if (isProductIssue) {
+          setStep(2)
+        } else {
+          setStep(3)
+        }
+      } else if (step === 2) {
+        const anySelected = Object.values(selectedItems).some(item => item.selected)
+        if (!anySelected) {
+          showToast("Vui lòng chọn ít nhất một sản phẩm bị lỗi.", "error")
+          return
+        }
+        setStep(3)
+      } else if (step === 3) {
+        if (!description.trim()) {
+          showToast("Vui lòng nhập mô tả sự cố.", "error")
+          return
+        }
+        setStep(4)
+      }
+    }
+
+    const handlePrev = () => {
+      if (step === 2) {
+        setStep(1)
+      } else if (step === 3) {
+        if (isProductIssue) {
+          setStep(2)
+        } else {
+          setStep(1)
+        }
+      } else if (step === 4) {
+        setStep(3)
+      }
+    }
+
+    const handleSubmit = async () => {
+      setSubmitting(true)
+      try {
+        const itemsList = isProductIssue
+          ? Object.entries(selectedItems)
+              .filter(([, val]) => val.selected)
+              .map(([productId, val]) => ({
+                product_id: Number(productId),
+                issue_type: val.issue_type,
+                note: val.note
+              }))
+          : []
+
+        await apiClient.post('/complaints', {
+          order_id: order.id,
+          type: type,
+          description: description,
+          images: images,
+          desired_resolution: desiredResolution,
+          items: itemsList
+        })
+
+        showToast(t('complaint.success'))
+        loadOrder()
+        setShowComplaintModal(false)
+      } catch (err) {
+        console.error(err)
+        showToast(err.response?.data?.message || t('order.review_error'), 'error')
+      } finally {
+        setSubmitting(false)
+      }
+    }
+
+    const visibleSteps = []
+    visibleSteps.push({ id: 1, label: t('complaint.step_1') })
+    if (isProductIssue) {
+      visibleSteps.push({ id: 2, label: t('complaint.step_2') })
+    }
+    visibleSteps.push({ id: 3, label: t('complaint.step_3') })
+    visibleSteps.push({ id: 4, label: t('complaint.step_4') })
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div 
+          onClick={() => setShowComplaintModal(false)}
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
+        />
+
+        <div className="relative w-full max-w-xl bg-white border border-[#E8E8E8] rounded-2xl shadow-premium overflow-hidden z-10 flex flex-col max-h-[90vh] animate-float-half p-6">
+          <div className="flex justify-between items-center border-b border-[#E8E8E8] pb-4 mb-4">
+            <h3 className="font-bold text-lg text-gray-900">{t('complaint.modal_title')}</h3>
+            <button onClick={() => setShowComplaintModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+          </div>
+
+          <div className="overflow-y-auto pr-1 flex-1 space-y-6 text-[#1A1A1A]">
+            <div className="flex justify-between text-[10px] font-bold text-gray-400 uppercase tracking-wider border-b border-gray-50 pb-2">
+              {visibleSteps.map((s, index) => (
+                <span key={s.id} className={step === s.id ? 'text-[#D62300]' : ''}>
+                  {`${index + 1}. ${s.label}`}
+                </span>
+              ))}
+            </div>
+
+            {step === 1 && (
+              <div className="space-y-4">
+                <h4 className="font-bold text-xs text-gray-700 uppercase tracking-wide">{t('complaint.complaint_type_label')}</h4>
+                <div className="grid grid-cols-1 gap-2.5">
+                  {[
+                    { key: 'wrong_item', label: t('complaint.type_wrong_item') },
+                    { key: 'missing_item', label: t('complaint.type_missing_item') },
+                    { key: 'bad_quality', label: t('complaint.type_bad_quality') },
+                    { key: 'late_delivery', label: t('complaint.type_late_delivery') },
+                    { key: 'shipper_attitude', label: t('complaint.type_shipper_attitude') },
+                    { key: 'other', label: t('complaint.type_other') },
+                  ].map(opt => (
+                    <label key={opt.key} className={`flex items-center gap-3 p-3.5 rounded-xl border transition cursor-pointer text-xs font-semibold ${
+                      type === opt.key ? 'border-[#D62300] bg-[#FFF5F3] text-[#D62300]' : 'border-gray-200 hover:border-gray-300 text-gray-700'
+                    }`}>
+                      <input 
+                        type="radio" 
+                        name="complaint_type" 
+                        value={opt.key}
+                        checked={type === opt.key} 
+                        onChange={() => setType(opt.key)}
+                        className="accent-primary"
+                      />
+                      {opt.label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {step === 2 && (
+              <div className="space-y-4">
+                <h4 className="font-bold text-xs text-gray-700 uppercase tracking-wide">{t('complaint.select_products')}</h4>
+                <div className="space-y-3.5 max-h-[40vh] overflow-y-auto pr-1">
+                  {order.items?.map(item => {
+                    const sItem = selectedItems[item.product_id] || { selected: false, issue_type: 'wrong', note: '' }
+                    return (
+                      <div key={item.id} className="p-3.5 bg-gray-50 border border-gray-100 rounded-xl space-y-3">
+                        <label className="flex items-center gap-3 text-xs font-semibold text-gray-800 cursor-pointer">
+                          <input 
+                            type="checkbox"
+                            checked={sItem.selected}
+                            onChange={(e) => {
+                              setSelectedItems(prev => ({
+                                ...prev,
+                                [item.product_id]: { ...prev[item.product_id], selected: e.target.checked }
+                              }))
+                            }}
+                            className="accent-primary"
+                          />
+                          {item.product_name}
+                        </label>
+                        {sItem.selected && (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pl-6 animate-fade-in">
+                            <div>
+                              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">{t('complaint.issue_detail')}</span>
+                              <select
+                                value={sItem.issue_type}
+                                onChange={(e) => {
+                                  setSelectedItems(prev => ({
+                                    ...prev,
+                                    [item.product_id]: { ...prev[item.product_id], issue_type: e.target.value }
+                                  }))
+                                }}
+                                className="w-full text-xs p-2 mt-1 bg-white border border-[#E8E8E8] rounded-lg focus:outline-none focus:ring-1 focus:ring-primary"
+                              >
+                                <option value="wrong">{t('complaint.issue_wrong')}</option>
+                                <option value="missing">{t('complaint.issue_missing')}</option>
+                                <option value="bad_quality">{t('complaint.issue_bad_quality')}</option>
+                                <option value="other">{t('complaint.issue_other')}</option>
+                              </select>
+                            </div>
+                            <div>
+                              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">{t('checkout.order_note')}</span>
+                              <input 
+                                type="text"
+                                value={sItem.note}
+                                onChange={(e) => {
+                                  setSelectedItems(prev => ({
+                                    ...prev,
+                                    [item.product_id]: { ...prev[item.product_id], note: e.target.value }
+                                  }))
+                                }}
+                                placeholder={t('complaint.description_placeholder')}
+                                className="w-full text-xs p-2 mt-1 bg-white border border-[#E8E8E8] rounded-lg focus:outline-none focus:ring-1 focus:ring-primary"
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {step === 3 && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide block">{t('complaint.description_label')}</span>
+                  <textarea
+                    rows={4}
+                    value={description}
+                    onChange={e => setDescription(e.target.value)}
+                    placeholder={t('complaint.description_placeholder')}
+                    className="w-full text-xs p-3 border border-[#E8E8E8] rounded-xl focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary bg-white text-[#1A1A1A]"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide block">{t('complaint.resolution_label_req')}</span>
+                  <select
+                    value={desiredResolution}
+                    onChange={e => setDesiredResolution(e.target.value)}
+                    className="w-full text-xs p-3 border border-[#E8E8E8] rounded-xl focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary bg-white text-[#1A1A1A]"
+                  >
+                    <option value="redeliver">{t('complaint.resolution_redeliver')}</option>
+                    <option value="refund_partial">{t('complaint.resolution_refund_partial')}</option>
+                    <option value="refund_full">{t('complaint.resolution_refund_full')}</option>
+                    <option value="feedback_only">{t('complaint.resolution_feedback_only')}</option>
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide block">{t('complaint.evidence')}</span>
+                  <div className="flex flex-wrap gap-2 items-center">
+                    {images.map((img, idx) => (
+                      <div key={idx} className="relative w-16 h-16 rounded-lg border border-gray-200 overflow-hidden bg-gray-50">
+                        <img src={img} alt="Evidence" className="w-full h-full object-cover" />
+                        <button 
+                          type="button"
+                          onClick={() => removeImage(idx)}
+                          className="absolute top-0.5 right-0.5 bg-black/60 hover:bg-black/80 text-white rounded-full p-0.5 text-[8px] cursor-pointer"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                    {images.length < 5 && (
+                      <label className="w-16 h-16 rounded-lg border-2 border-dashed border-gray-300 hover:border-primary flex flex-col items-center justify-center cursor-pointer text-gray-400 hover:text-primary transition bg-gray-50">
+                        <Upload className="w-4 h-4" />
+                        <span className="text-[8px] font-bold mt-1 uppercase">{t('order.review_upload')}</span>
+                        <input 
+                          type="file" 
+                          accept="image/*" 
+                          multiple 
+                          onChange={handleImageUpload} 
+                          className="hidden"
+                          disabled={uploading} 
+                        />
+                      </label>
+                    )}
+                    {uploading && <div className="text-[10px] text-gray-400 animate-pulse font-semibold">{t('order.review_uploading')}</div>}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {step === 4 && (
+              <div className="space-y-4">
+                <h4 className="font-bold text-xs text-gray-700 uppercase tracking-wide">{t('order.complaint_step_4_title')}</h4>
+                <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 text-xs space-y-3">
+                  <div>
+                    <span className="text-gray-400 font-semibold uppercase text-[10px] tracking-wide block">{t('complaint.type')}</span>
+                    <span className="font-bold text-gray-800">{t(`complaint.type_${type}`)}</span>
+                  </div>
+                  
+                  {isProductIssue && (
+                    <div>
+                      <span className="text-gray-400 font-semibold uppercase text-[10px] tracking-wide block mb-1">{t('complaint.select_products')}</span>
+                      <ul className="list-disc list-inside space-y-1 text-[11px] text-gray-700">
+                        {Object.entries(selectedItems)
+                          .filter(([, val]) => val.selected)
+                          .map(([productId, val]) => {
+                            const prodName = order.items?.find(item => item.product_id === Number(productId))?.product_name || `Món #${productId}`
+                            return (
+                              <li key={productId} className="font-medium">
+                                {prodName} ({t(`complaint.issue_${val.issue_type}`)}){val.note ? `: ${val.note}` : ''}
+                              </li>
+                            )
+                          })
+                        }
+                      </ul>
+                    </div>
+                  )}
+
+                  <div>
+                    <span className="text-gray-400 font-semibold uppercase text-[10px] tracking-wide block">{t('complaint.description_label')}</span>
+                    <p className="font-medium text-gray-700 leading-relaxed whitespace-pre-wrap">{description}</p>
+                  </div>
+
+                  <div>
+                    <span className="text-gray-400 font-semibold uppercase text-[10px] tracking-wide block">{t('complaint.resolution_label_req')}</span>
+                    <span className="font-bold text-gray-800">{t(`complaint.resolution_${desiredResolution}`)}</span>
+                  </div>
+
+                  {images.length > 0 && (
+                    <div>
+                      <span className="text-gray-400 font-semibold uppercase text-[10px] tracking-wide block mb-1">{t('order.evidence_label')}</span>
+                      <div className="flex gap-2">
+                        {images.map((img, idx) => (
+                          <img key={idx} src={img} alt="Evidence preview" className="w-12 h-12 object-cover rounded-lg border border-gray-200" />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-3 pt-4 border-t border-gray-100">
+              {step > 1 && (
+                <button
+                  type="button"
+                  onClick={handlePrev}
+                  className="w-1/3 border border-[#E8E8E8] hover:bg-gray-50 text-[#1A1A1A] text-xs font-bold uppercase py-3 rounded-xl tracking-wider transition cursor-pointer"
+                >
+                  ← {t('order.back')}
+                </button>
+              )}
+              {step < 4 ? (
+                <button
+                  type="button"
+                  onClick={handleNext}
+                  className="flex-1 bg-[#D62300] hover:bg-[#b51e00] text-white text-xs font-bold uppercase py-3 rounded-xl tracking-wider transition shadow-md cursor-pointer"
+                >
+                  {t('order.continue')} →
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={submitting}
+                  className="flex-1 bg-[#D62300] hover:bg-[#b51e00] text-white text-xs font-bold uppercase py-3 rounded-xl tracking-wider transition shadow-md disabled:opacity-50 cursor-pointer"
+                >
+                  {submitting ? '...' : t('complaint.submit')}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 }
 
 // 9. Profile Management Dashboard (wishlist, loyalty balance, addresses)
-function Profile() {
-  const { t } = useTranslation()
+function Profile({ onSelectProduct }) {
+  const { t, i18n } = useTranslation()
   const { user, updateUser, setLogout } = useAuthStore()
   const { showToast } = useUiStore()
   const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
+  const emptyAddress = useCallback(() => ({
+    label: t('address.home_label'),
+    recipient_name: '',
+    phone: '',
+    province: '',
+    district: '',
+    ward: '',
+    street: '',
+    is_default: false
+  }), [t])
 
   const activeTab = searchParams.get('tab') || 'info'
 
   const [name, setName] = useState(user?.name || '')
   const [phone, setPhone] = useState(user?.phone || '')
+  const [profileSaving, setProfileSaving] = useState(false)
+  const [showPasswordForm, setShowPasswordForm] = useState(false)
+  const [passwordSaving, setPasswordSaving] = useState(false)
+  const [passwordForm, setPasswordForm] = useState({
+    current_password: '',
+    password: '',
+    password_confirmation: '',
+  })
   const [addresses, setAddresses] = useState([])
   const [loyalty, setLoyalty] = useState({ balance: 0, transactions: [] })
   const [notifications, setNotifications] = useState([])
   const [wishlist, setWishlist] = useState([])
   const [orders, setOrders] = useState([])
+  const [profilePages, setProfilePages] = useState({})
+
+  const profilePageSizes = {
+    orders: 4,
+    addresses: 4,
+    loyalty: 4,
+    notifications: 4,
+    wishlist: 4,
+  }
+
+  const getProfilePage = (tabId, totalItems) => {
+    const size = profilePageSizes[tabId] || 4
+    const totalPages = Math.max(1, Math.ceil(totalItems / size))
+    return Math.min(profilePages[tabId] || 1, totalPages)
+  }
+
+  const getProfilePageItems = (items, tabId) => {
+    const size = profilePageSizes[tabId] || 4
+    const page = getProfilePage(tabId, items.length)
+    return items.slice((page - 1) * size, page * size)
+  }
+
+  const renderProfilePagination = (items, tabId) => {
+    const size = profilePageSizes[tabId] || 4
+    const totalPages = Math.ceil(items.length / size)
+    if (totalPages <= 1) return null
+
+    const page = getProfilePage(tabId, items.length)
+    const goToPage = (nextPage) => {
+      setProfilePages(current => ({
+        ...current,
+        [tabId]: Math.min(Math.max(1, nextPage), totalPages),
+      }))
+    }
+    const start = Math.max(1, Math.min(page - 2, totalPages - 4))
+    const pages = Array.from({ length: Math.min(totalPages, 5) }, (_, index) => start + index).filter(pageNumber => pageNumber <= totalPages)
+
+    return (
+      <div className="flex justify-end border-t border-[#E8E8E8] pt-5">
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            disabled={page <= 1}
+            onClick={() => goToPage(page - 1)}
+            className="rounded-lg p-2 text-gray-500 transition hover:bg-[#F5F5F5] disabled:cursor-not-allowed disabled:opacity-40"
+            aria-label={t('common.previous')}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          {pages.map(pageNumber => (
+            <button
+              key={pageNumber}
+              type="button"
+              onClick={() => goToPage(pageNumber)}
+              className={`h-8 w-8 rounded-lg text-sm font-semibold transition ${
+                pageNumber === page
+                  ? 'bg-primary text-white'
+                  : 'text-gray-600 hover:bg-[#F5F5F5]'
+              }`}
+            >
+              {pageNumber}
+            </button>
+          ))}
+          <button
+            type="button"
+            disabled={page >= totalPages}
+            onClick={() => goToPage(page + 1)}
+            className="rounded-lg p-2 text-gray-500 transition hover:bg-[#F5F5F5] disabled:cursor-not-allowed disabled:opacity-40"
+            aria-label={t('common.next')}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   // Addresses Form fields
   const [showAddressForm, setShowAddressForm] = useState(false)
-  const [newAddress, setNewAddress] = useState({
-    label: t('address.home_label'),
-    recipient_name: '',
-    phone: '',
-    province: t('address.default_province'),
-    district: '',
-    ward: '',
-    street: '',
-    is_default: false
-  })
+  const [editingAddressId, setEditingAddressId] = useState(null)
+  const [newAddress, setNewAddress] = useState(() => emptyAddress())
 
   const loadData = useCallback(() => {
     if (activeTab === 'addresses') {
@@ -2292,7 +3677,7 @@ function Profile() {
     } else if (activeTab === 'orders') {
       apiClient.get('/orders').then(res => setOrders(res.data.data || []))
     }
-  }, [activeTab])
+  }, [activeTab, i18n.language])
 
   useEffect(() => {
     loadData()
@@ -2300,29 +3685,109 @@ function Profile() {
 
   const handleUpdateProfile = (e) => {
     e.preventDefault()
-    // Simulate updating user
-    updateUser({ name, phone })
-    showToast(t('profile.update_success'))
+    setProfileSaving(true)
+
+    apiClient.put('/profile', { name, phone })
+      .then(res => {
+        updateUser(res.data.user || { name, phone })
+        showToast(res.data.message || t('profile.update_success'))
+      })
+      .catch(error => {
+        showToast(error.response?.data?.message || t('profile.update_error'), 'error')
+      })
+      .finally(() => setProfileSaving(false))
   }
 
-  const handleCreateAddress = (e) => {
+  const handleChangePassword = (e) => {
     e.preventDefault()
-    apiClient.post('/addresses', newAddress)
+
+    if (passwordForm.password !== passwordForm.password_confirmation) {
+      showToast(t('auth.password_confirmation_mismatch'), 'error')
+      return
+    }
+
+    setPasswordSaving(true)
+    apiClient.put('/profile/password', passwordForm)
       .then(res => {
-        setAddresses([res.data, ...addresses])
+        showToast(res.data.message || t('profile.password_changed'))
+        setPasswordForm({
+          current_password: '',
+          password: '',
+          password_confirmation: '',
+        })
+        setShowPasswordForm(false)
+      })
+      .catch(error => {
+        const errors = error.response?.data?.errors
+        const firstError = errors ? Object.values(errors).flat()[0] : null
+        showToast(firstError || error.response?.data?.message || t('profile.password_change_error'), 'error')
+      })
+      .finally(() => setPasswordSaving(false))
+  }
+
+  const resetAddressForm = () => {
+    setEditingAddressId(null)
+    setNewAddress(emptyAddress())
+  }
+
+  useEffect(() => {
+    setShowAddressForm(false)
+    resetAddressForm()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab])
+
+  const openCreateAddressForm = () => {
+    resetAddressForm()
+    setShowAddressForm(true)
+  }
+
+  const openEditAddressForm = (address) => {
+    setEditingAddressId(address.id)
+    setNewAddress({
+      label: address.label || '',
+      recipient_name: address.recipient_name || '',
+      phone: address.phone || '',
+      province: address.province || '',
+      district: address.district || '',
+      ward: address.ward || '',
+      street: address.street || '',
+      is_default: Boolean(address.is_default)
+    })
+    setShowAddressForm(true)
+  }
+
+  const handleSaveAddress = (e) => {
+    e.preventDefault()
+    const request = editingAddressId
+      ? apiClient.put(`/addresses/${editingAddressId}`, newAddress)
+      : apiClient.post('/addresses', newAddress)
+
+    request
+      .then(res => {
+        setAddresses(current => (
+          editingAddressId
+            ? current.map(address => address.id === editingAddressId ? res.data : { ...address, is_default: res.data.is_default ? false : address.is_default })
+            : [res.data, ...current.map(address => ({ ...address, is_default: res.data.is_default ? false : address.is_default }))]
+        ))
         setShowAddressForm(false)
-        showToast(t('profile.address_created'))
+        resetAddressForm()
+        showToast(t(editingAddressId ? 'profile.address_updated' : 'profile.address_created'))
       }).catch(err => {
         console.error(err)
         showToast(t('profile.address_save_error'), 'error')
       })
   }
 
-  const handleDeleteAddress = (id) => {
+  const handleDeleteAddress = (event, id) => {
+    event.stopPropagation()
     if (window.confirm(t('profile.address_delete_confirm'))) {
       apiClient.delete(`/addresses/${id}`)
         .then(() => {
           setAddresses(addresses.filter(a => a.id !== id))
+          if (editingAddressId === id) {
+            setShowAddressForm(false)
+            resetAddressForm()
+          }
           showToast(t('profile.address_deleted'))
         })
     }
@@ -2336,10 +3801,43 @@ function Profile() {
       })
   }
 
+  const openNotification = (notification) => {
+    if (!notification.read_at) {
+      apiClient.post(`/notifications/${notification.id}/read`)
+        .then(() => {
+          setNotifications(current => current.map(item => (
+            item.id === notification.id ? { ...item, read_at: new Date() } : item
+          )))
+        })
+        .catch(() => {})
+    }
+
+    const data = notification.data || {}
+    const target = data.action_url || data.url || (data.order_code ? `/orders/tracking/${data.order_code}` : null)
+    if (target) {
+      navigate(target)
+    }
+  }
+
+  const handleRemoveWishlist = (event, wishlistItem) => {
+    event.stopPropagation()
+    const productId = wishlistItem.product?.id
+    if (!productId) return
+
+    apiClient.post('/wishlist', { product_id: productId })
+      .then(res => {
+        setWishlist(current => current.filter(item => item.id !== wishlistItem.id))
+        showToast(res.data.message)
+      })
+      .catch(error => {
+        showToast(error.response?.data?.message || t('common.error'), 'error')
+      })
+  }
+
   return (
     <div className="max-w-7xl mx-auto py-10 px-6 md:px-12 bg-[#FFFAF5] text-[#1A1A1A] flex flex-col md:flex-row gap-8">
       {/* Side Tabs */}
-      <aside className="w-full md:w-64 shrink-0 p-6 rounded-2xl bg-white border border-[#E8E8E8] flex flex-col justify-between shadow-glass">
+      <aside className="w-full md:w-64 md:self-start md:sticky md:top-28 shrink-0 p-6 rounded-2xl bg-white border border-[#E8E8E8] flex flex-col shadow-glass">
         <div className="space-y-2">
           {[
             { id: 'info', name: t('profile.personal_info'), icon: <UserIcon className="w-4 h-4" /> },
@@ -2351,7 +3849,10 @@ function Profile() {
           ].map((tab) => (
             <button 
               key={tab.id}
-              onClick={() => setSearchParams({ tab: tab.id })}
+              onClick={() => {
+                setProfilePages(current => ({ ...current, [tab.id]: 1 }))
+                setSearchParams({ tab: tab.id })
+              }}
               className={`w-full text-left text-xs font-semibold px-4 py-3 rounded-[10px] border transition flex items-center gap-3 ${
                 activeTab === tab.id 
                   ? 'bg-primary/10 border-primary text-primary font-bold' 
@@ -2381,46 +3882,147 @@ function Profile() {
           <div className="space-y-6">
             <h2 className="font-bold text-xl text-[#1A1A1A] uppercase tracking-[0.3px] border-b border-[#E8E8E8] pb-3">{t('profile.personal_info')}</h2>
             
-            {/* Loyalty Point Widget */}
-            <div className="p-4 rounded-xl bg-primary/5 border border-primary/15 flex justify-between items-center animate-float">
-              <div>
-                <h4 className="font-bold text-sm text-[#1A1A1A]">{t('profile.loyalty_points_title')}</h4>
-                <p className="text-[10px] text-gray-400 mt-1">{t('profile.loyalty_points_desc')}</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+              <div className="rounded-xl border border-[#E8E8E8] bg-[#F8F8F8] p-4">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">{t('profile.customer_id')}</p>
+                <p className="mt-2 text-sm font-bold text-[#1A1A1A]">#{user.id}</p>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="font-heading text-3xl text-primary">{user.loyalty_balance || 0}</span>
-                <span className="text-xs text-primary font-semibold">{t('profile.points')}</span>
+              <div className="rounded-xl border border-[#E8E8E8] bg-[#F8F8F8] p-4">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">{t('profile.account_role')}</p>
+                <p className="mt-2 text-sm font-bold text-[#1A1A1A] capitalize">{user.role || t('profile.customer_role')}</p>
+              </div>
+              <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600">{t('profile.account_status')}</p>
+                <p className="mt-2 inline-flex items-center gap-1.5 text-sm font-bold text-emerald-700">
+                  <CheckCircle className="h-4 w-4" />
+                  {t('profile.active_account')}
+                </p>
+              </div>
+              <div className="rounded-xl border border-[#E8E8E8] bg-[#F8F8F8] p-4">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">{t('profile.member_since')}</p>
+                <p className="mt-2 text-sm font-bold text-[#1A1A1A]">{user.created_at ? formatDate(user.created_at) : '-'}</p>
               </div>
             </div>
 
-            <form onSubmit={handleUpdateProfile} className="space-y-4 max-w-md">
-              <div>
-                <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">{t('auth.name')}</label>
-                <input 
-                  type="text" 
-                  required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full bg-[#F8F8F8] border border-[#E8E8E8] rounded-[10px] py-[14px] px-[16px] text-sm text-[#1A1A1A] focus:outline-none focus:border-primary focus:ring-3 focus:ring-primary/10 transition-all duration-200"
-                />
-              </div>
-              <div>
-                <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">{t('auth.phone')}</label>
-                <input 
-                  type="tel" 
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className="w-full bg-[#F8F8F8] border border-[#E8E8E8] rounded-[10px] py-[14px] px-[16px] text-sm text-[#1A1A1A] focus:outline-none focus:border-primary focus:ring-3 focus:ring-primary/10 transition-all duration-200"
-                />
+            <form onSubmit={handleUpdateProfile} className="max-w-3xl space-y-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">{t('auth.name')}</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full bg-[#F8F8F8] border border-[#E8E8E8] rounded-[10px] py-[14px] px-[16px] text-sm text-[#1A1A1A] focus:outline-none focus:border-primary focus:ring-3 focus:ring-primary/10 transition-all duration-200"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">{t('profile.login_email')}</label>
+                  <input
+                    type="email"
+                    value={user.email || ''}
+                    disabled
+                    className="w-full bg-[#F8F8F8] border border-[#E8E8E8] rounded-[10px] py-[14px] px-[16px] text-sm text-gray-500 cursor-not-allowed"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">{t('auth.phone')}</label>
+                  <input 
+                    type="tel" 
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="w-full bg-[#F8F8F8] border border-[#E8E8E8] rounded-[10px] py-[14px] px-[16px] text-sm text-[#1A1A1A] focus:outline-none focus:border-primary focus:ring-3 focus:ring-primary/10 transition-all duration-200"
+                  />
+                </div>
+                <div>
+                  <div className="mb-2 flex items-center justify-between gap-3">
+                    <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] uppercase">{t('auth.password')}</label>
+                    <button
+                      type="button"
+                      onClick={() => setShowPasswordForm(current => !current)}
+                      className="text-[10px] font-bold uppercase tracking-wider text-primary transition hover:opacity-70"
+                    >
+                      {showPasswordForm ? t('profile.cancel_password_change') : t('profile.change_password')}
+                    </button>
+                  </div>
+                  <input
+                    type="password"
+                    value="********"
+                    disabled
+                    className="w-full bg-[#F8F8F8] border border-[#E8E8E8] rounded-[10px] py-[14px] px-[16px] text-sm text-gray-500 cursor-not-allowed"
+                  />
+                </div>
               </div>
 
-              <button 
-                type="submit" 
-                className="bg-primary hover:opacity-90 text-white font-semibold px-8 py-3 rounded-[8px] text-xs tracking-wider transition hover:-translate-y-[1px]"
-              >
-                {t('profile.update_info').toUpperCase()}
-              </button>
+              <div className="border-t border-[#E8E8E8] pt-5">
+                <button 
+                  type="submit"
+                  disabled={profileSaving}
+                  className="w-full sm:w-auto bg-primary hover:opacity-90 disabled:opacity-60 text-white font-semibold px-8 py-3 rounded-[8px] text-xs tracking-wider transition hover:-translate-y-[1px]"
+                >
+                  {(profileSaving ? t('profile.saving') : t('profile.update_info')).toUpperCase()}
+                </button>
+              </div>
             </form>
+
+            {showPasswordForm && (
+              <form onSubmit={handleChangePassword} className="max-w-3xl rounded-xl border border-[#E8E8E8] bg-[#F8F8F8] p-4 space-y-4">
+                <div>
+                  <h3 className="text-sm font-bold uppercase tracking-[0.3px] text-[#1A1A1A]">{t('profile.change_password')}</h3>
+                  <p className="mt-1 text-xs text-gray-400">{t('profile.password_security')}</p>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">{t('profile.current_password')}</label>
+                    <input
+                      type="password"
+                      required
+                      value={passwordForm.current_password}
+                      onChange={event => setPasswordForm(current => ({ ...current, current_password: event.target.value }))}
+                      className="w-full bg-white border border-[#E8E8E8] rounded-[10px] py-[14px] px-[16px] text-sm text-[#1A1A1A] focus:outline-none focus:border-primary focus:ring-3 focus:ring-primary/10 transition-all duration-200"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">{t('profile.new_password')}</label>
+                    <input
+                      type="password"
+                      required
+                      minLength={8}
+                      value={passwordForm.password}
+                      onChange={event => setPasswordForm(current => ({ ...current, password: event.target.value }))}
+                      className="w-full bg-white border border-[#E8E8E8] rounded-[10px] py-[14px] px-[16px] text-sm text-[#1A1A1A] focus:outline-none focus:border-primary focus:ring-3 focus:ring-primary/10 transition-all duration-200"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">{t('profile.confirm_new_password')}</label>
+                    <input
+                      type="password"
+                      required
+                      minLength={8}
+                      value={passwordForm.password_confirmation}
+                      onChange={event => setPasswordForm(current => ({ ...current, password_confirmation: event.target.value }))}
+                      className="w-full bg-white border border-[#E8E8E8] rounded-[10px] py-[14px] px-[16px] text-sm text-[#1A1A1A] focus:outline-none focus:border-primary focus:ring-3 focus:ring-primary/10 transition-all duration-200"
+                    />
+                  </div>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button
+                    type="submit"
+                    disabled={passwordSaving}
+                    className="bg-primary hover:opacity-90 disabled:opacity-60 text-white font-semibold px-8 py-3 rounded-[8px] text-xs tracking-wider transition"
+                  >
+                    {(passwordSaving ? t('profile.saving') : t('profile.save_password')).toUpperCase()}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowPasswordForm(false)}
+                    className="border border-[#E8E8E8] bg-white px-8 py-3 rounded-[8px] text-xs font-semibold tracking-wider text-gray-500 transition hover:border-gray-400"
+                  >
+                    {t('common.cancel').toUpperCase()}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         )}
 
@@ -2430,29 +4032,52 @@ function Profile() {
             {orders.length === 0 ? (
               <p className="text-xs text-gray-400">{t('order.empty')}</p>
             ) : (
-              orders.map((o) => (
-                <div key={o.id} className="p-4 rounded-xl border border-[#E8E8E8] bg-white flex flex-col sm:flex-row justify-between gap-4 shadow-glass">
-                  <div>
-                    <h4 className="font-bold text-sm text-[#1A1A1A]">{t('order.code_label', { code: o.order_code })}</h4>
-                    <p className="text-[10px] text-gray-500 mt-1">{t('order.date_label', { date: formatDate(o.created_at) })}</p>
-                    <p className="text-[10px] text-gray-400 mt-1 line-clamp-1">{t('order.items_label', { items: o.items?.map(i => i.product_name).join(', ') })}</p>
-                  </div>
-                  <div className="flex flex-col sm:items-end justify-between">
-                    <span className="font-heading text-lg text-primary">{formatVND(o.total)}</span>
-                    <div className="flex items-center gap-2">
-                      <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded ${
-                        o.status === 'delivered' ? 'bg-green-500/10 text-green-600' : 'bg-primary/10 text-primary'
-                      }`}>{o.status}</span>
-                      <Link 
-                        to={`/orders/tracking/${o.order_code}`}
-                        className="text-xs text-primary font-bold hover:underline"
-                      >
-                        {t('order.track')}
-                      </Link>
+              <>
+                {getProfilePageItems(orders, 'orders').map((o) => (
+                  <div
+                    key={o.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => navigate(`/orders/tracking/${o.order_code}`)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        navigate(`/orders/tracking/${o.order_code}`)
+                      }
+                    }}
+                    className="p-4 rounded-xl border border-[#E8E8E8] bg-white flex flex-col sm:flex-row justify-between gap-4 shadow-glass cursor-pointer transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-premium"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <h4 className="font-bold text-sm text-[#1A1A1A]">{t('order.code_label', { code: o.order_code })}</h4>
+                      <p className="text-[10px] text-gray-500 mt-1">{t('order.date_label', { date: formatDate(o.created_at) })}</p>
+                      <p className="text-[10px] text-gray-400 mt-1 line-clamp-1">{t('order.items_label', { items: o.items?.map(i => i.product_name).join(', ') })}</p>
+                      {o.scheduled_at && (
+                        <p className="text-[10px] text-gray-400 mt-1">{t('order.scheduled_at')}: {formatDate(o.scheduled_at)}</p>
+                      )}
+                      {o.note && (
+                        <p className="text-[10px] text-amber-700 mt-1 line-clamp-2">{t('checkout.order_note')}: {o.note}</p>
+                      )}
+
+                    </div>
+                    <div className="flex flex-col sm:items-end justify-between">
+                      <span className="font-heading text-lg text-primary">{formatVND(o.total)}</span>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded ${
+                          o.status === 'completed' ? 'bg-green-500/10 text-green-600' : 'bg-primary/10 text-primary'
+                        }`}>{t(`order.${o.status?.toLowerCase()}`) || o.status}</span>
+                        <Link 
+                          to={`/orders/tracking/${o.order_code}`}
+                          onClick={(event) => event.stopPropagation()}
+                          className="text-xs text-primary font-bold hover:underline"
+                        >
+                          {t('order.track')}
+                        </Link>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))
+                ))}
+                {renderProfilePagination(orders, 'orders')}
+              </>
             )}
           </div>
         )}
@@ -2462,7 +4087,13 @@ function Profile() {
             <div className="flex justify-between items-center border-b border-[#E8E8E8] pb-3">
               <h2 className="font-bold text-xl text-[#1A1A1A] uppercase tracking-[0.3px]">{t('profile.address_book')}</h2>
               <button 
-                onClick={() => setShowAddressForm(!showAddressForm)}
+                onClick={() => {
+                  if (showAddressForm && !editingAddressId) {
+                    setShowAddressForm(false)
+                  } else {
+                    openCreateAddressForm()
+                  }
+                }}
                 className="bg-primary text-white font-semibold px-4 py-2 rounded-[8px] text-xs tracking-wider hover:opacity-90 transition hover:-translate-y-[1px]"
               >
                 {t('profile.add_address').toUpperCase()}
@@ -2471,7 +4102,12 @@ function Profile() {
 
             {/* Address Form */}
             {showAddressForm && (
-              <form onSubmit={handleCreateAddress} className="p-5 rounded-xl border border-[#E8E8E8] bg-[#F8F8F8] grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <form onSubmit={handleSaveAddress} className="p-5 rounded-xl border border-[#E8E8E8] bg-[#F8F8F8] grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="sm:col-span-2">
+                  <h3 className="text-sm font-bold uppercase tracking-wide text-[#1A1A1A]">
+                    {editingAddressId ? t('profile.edit_address') : t('profile.add_address')}
+                  </h3>
+                </div>
                 <div>
                   <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">{t('address.label')}</label>
                   <input 
@@ -2502,36 +4138,17 @@ function Profile() {
                     className="w-full bg-[#F8F8F8] border border-[#E8E8E8] rounded-[10px] py-[14px] px-[16px] text-sm text-[#1A1A1A] focus:outline-none focus:border-primary focus:ring-3 focus:ring-primary/10 transition-all duration-200"
                   />
                 </div>
-                <div>
-                  <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">{t('checkout.district')}</label>
-                  <input 
-                    type="text" 
-                    required
-                    value={newAddress.district}
-                    onChange={(e) => setNewAddress({ ...newAddress, district: e.target.value })}
-                    className="w-full bg-[#F8F8F8] border border-[#E8E8E8] rounded-[10px] py-[14px] px-[16px] text-sm text-[#1A1A1A] focus:outline-none focus:border-primary focus:ring-3 focus:ring-primary/10 transition-all duration-200"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">{t('checkout.ward')}</label>
-                  <input 
-                    type="text" 
-                    required
-                    value={newAddress.ward}
-                    onChange={(e) => setNewAddress({ ...newAddress, ward: e.target.value })}
-                    className="w-full bg-[#F8F8F8] border border-[#E8E8E8] rounded-[10px] py-[14px] px-[16px] text-sm text-[#1A1A1A] focus:outline-none focus:border-primary focus:ring-3 focus:ring-primary/10 transition-all duration-200"
-                  />
-                </div>
-                <div className="sm:col-span-2">
-                  <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">{t('checkout.street')}</label>
-                  <input 
-                    type="text" 
-                    required
-                    value={newAddress.street}
-                    onChange={(e) => setNewAddress({ ...newAddress, street: e.target.value })}
-                    className="w-full bg-[#F8F8F8] border border-[#E8E8E8] rounded-[10px] py-[14px] px-[16px] text-sm text-[#1A1A1A] focus:outline-none focus:border-primary focus:ring-3 focus:ring-primary/10 transition-all duration-200"
-                  />
-                </div>
+                <VietnamAddressSelector
+                  province={newAddress.province}
+                  district={newAddress.district}
+                  ward={newAddress.ward}
+                  street={newAddress.street}
+                  onChange={({ province, district, ward, street }) =>
+                    setNewAddress({ ...newAddress, province, district, ward, street })
+                  }
+                  required={true}
+                  theme="storefront"
+                />
 
                 <div className="sm:col-span-2 flex items-center gap-2">
                   <input 
@@ -2546,7 +4163,10 @@ function Profile() {
                 <div className="sm:col-span-2 flex gap-2">
                   <button 
                     type="button" 
-                    onClick={() => setShowAddressForm(false)}
+                    onClick={() => {
+                      setShowAddressForm(false)
+                      resetAddressForm()
+                    }}
                     className="bg-white hover:bg-[#F5F5F5] border border-[#E8E8E8] text-[#1A1A1A] font-semibold py-2.5 px-6 rounded-[8px] text-xs tracking-wider transition"
                   >
                     {t('common.cancel').toUpperCase()}
@@ -2555,38 +4175,63 @@ function Profile() {
                     type="submit" 
                     className="bg-primary hover:opacity-90 text-white font-semibold py-2.5 px-6 rounded-[8px] text-xs tracking-wider transition hover:-translate-y-[1px]"
                   >
-                    {t('profile.save_address').toUpperCase()}
+                    {t(editingAddressId ? 'profile.update_address' : 'profile.save_address').toUpperCase()}
                   </button>
                 </div>
               </form>
             )}
 
             {/* List addresses */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {addresses.map((addr) => (
-                <div key={addr.id} className="p-4 rounded-xl border border-[#E8E8E8] bg-white flex flex-col justify-between shadow-glass">
-                  <div>
-                    <div className="flex justify-between items-center">
-                      <span className="font-bold text-xs uppercase tracking-wider text-primary">{addr.label}</span>
-                      {addr.is_default && <span className="text-[10px] bg-[#FFC72C] text-[#1A1A1A] px-2 py-0.5 rounded-[8px] font-bold uppercase">{t('common.default')}</span>}
+            {addresses.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-[#E8E8E8] bg-[#F8F8F8] px-5 py-8 text-center">
+                <MapPin className="mx-auto h-8 w-8 text-gray-300" />
+                <p className="mt-3 text-xs font-semibold text-gray-500">{t('profile.no_addresses')}</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {getProfilePageItems(addresses, 'addresses').map((addr) => (
+                  <div
+                    key={addr.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => openEditAddressForm(addr)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        openEditAddressForm(addr)
+                      }
+                    }}
+                    className={`p-4 rounded-xl border bg-white flex flex-col justify-between shadow-glass cursor-pointer transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-premium ${
+                      editingAddressId === addr.id ? 'border-primary/60 bg-primary/5' : 'border-[#E8E8E8]'
+                    }`}
+                  >
+                    <div>
+                      <div className="flex justify-between items-center">
+                        <span className="font-bold text-xs uppercase tracking-wider text-primary">{addr.label}</span>
+                        {addr.is_default && <span className="text-[10px] bg-[#FFC72C] text-[#1A1A1A] px-2 py-0.5 rounded-[8px] font-bold uppercase">{t('common.default')}</span>}
+                      </div>
+                      <p className="text-xs font-semibold text-[#1A1A1A] mt-3">{addr.recipient_name} - {addr.phone}</p>
+                      <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">
+                        {addr.street}, {addr.ward}, {addr.district}, {addr.province}
+                      </p>
                     </div>
-                    <p className="text-xs font-semibold text-[#1A1A1A] mt-3">{addr.recipient_name} - {addr.phone}</p>
-                    <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">
-                      {addr.street}, {addr.ward}, {addr.district}, {addr.province}
-                    </p>
-                  </div>
 
-                  <div className="mt-6 pt-4 border-t border-[#E8E8E8] flex justify-end">
-                    <button 
-                      onClick={() => handleDeleteAddress(addr.id)}
-                      className="text-primary hover:opacity-80 p-1.5 transition text-xs font-bold"
-                    >
-                      {t('profile.delete_address')}
-                    </button>
+                    <div className="mt-6 pt-4 border-t border-[#E8E8E8] flex justify-end">
+                      <button 
+                        type="button"
+                        onClick={(event) => handleDeleteAddress(event, addr.id)}
+                        className="rounded-[8px] border border-primary/15 bg-primary/5 p-2 text-primary transition hover:bg-primary hover:text-white"
+                        aria-label={t('profile.delete_address')}
+                        title={t('profile.delete_address')}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
+            {renderProfilePagination(addresses, 'addresses')}
           </div>
         )}
 
@@ -2610,7 +4255,7 @@ function Profile() {
               {loyalty.transactions.length === 0 ? (
                 <p className="text-xs text-gray-400">{t('profile.no_loyalty_transactions')}</p>
               ) : (
-                loyalty.transactions.map((tr) => (
+                getProfilePageItems(loyalty.transactions, 'loyalty').map((tr) => (
                   <div key={tr.id} className="p-4 rounded-xl border border-[#E8E8E8] bg-[#F8F8F8] flex justify-between items-center text-xs">
                     <div>
                       <p className="font-bold text-[#1A1A1A] leading-tight">{tr.description}</p>
@@ -2622,6 +4267,7 @@ function Profile() {
                   </div>
                 ))
               )}
+              {renderProfilePagination(loyalty.transactions, 'loyalty')}
             </div>
           </div>
         )}
@@ -2634,12 +4280,21 @@ function Profile() {
               {notifications.length === 0 ? (
                 <p className="text-xs text-gray-400">{t('profile.no_notifications')}</p>
               ) : (
-                notifications.map((n) => {
+                getProfilePageItems(notifications, 'notifications').map((n) => {
                   const unread = !n.read_at
                   return (
                     <div 
                       key={n.id} 
-                      className={`p-4 rounded-xl border flex justify-between items-start gap-4 transition ${
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => openNotification(n)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault()
+                          openNotification(n)
+                        }
+                      }}
+                      className={`p-4 rounded-xl border flex justify-between items-start gap-4 transition cursor-pointer hover:-translate-y-0.5 hover:shadow-glass ${
                         unread ? 'bg-primary/5 border-primary/20' : 'bg-white border-[#E8E8E8] opacity-70'
                       }`}
                     >
@@ -2654,7 +4309,10 @@ function Profile() {
 
                       {unread && (
                         <button 
-                          onClick={() => handleMarkNotificationRead(n.id)}
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            handleMarkNotificationRead(n.id)
+                          }}
                           className="text-[10px] text-primary hover:opacity-80 transition font-bold"
                         >
                           {t('profile.mark_read')}
@@ -2664,6 +4322,7 @@ function Profile() {
                   )
                 })
               )}
+              {renderProfilePagination(notifications, 'notifications')}
             </div>
           </div>
         )}
@@ -2675,8 +4334,20 @@ function Profile() {
               <p className="text-xs text-gray-400">{t('profile.wishlist_empty')}</p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {wishlist.map((w) => (
-                  <div key={w.id} className="flex gap-4 p-3 rounded-xl border border-[#E8E8E8] bg-white shadow-glass">
+                {getProfilePageItems(wishlist, 'wishlist').map((w) => (
+                  <div
+                    key={w.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => w.product && onSelectProduct?.(w.product)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        if (w.product) onSelectProduct?.(w.product)
+                      }
+                    }}
+                    className="flex gap-4 p-3 rounded-xl border border-[#E8E8E8] bg-white shadow-glass cursor-pointer transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-premium"
+                  >
                     <img 
                       src={w.product?.thumbnail} 
                       alt={w.product?.name} 
@@ -2689,15 +4360,26 @@ function Profile() {
                       </div>
                       <Link 
                         to="/menu" 
+                        onClick={(event) => event.stopPropagation()}
                         className="text-[10px] text-primary hover:underline font-bold"
                       >
                         {t('product.order_now').toUpperCase()}
                       </Link>
                     </div>
+                    <button
+                      type="button"
+                      onClick={(event) => handleRemoveWishlist(event, w)}
+                      className="self-start rounded-[8px] border border-primary/15 bg-primary/5 p-2 text-primary transition hover:bg-primary hover:text-white"
+                      aria-label={t('profile.remove_wishlist')}
+                      title={t('profile.remove_wishlist')}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
                   </div>
                 ))}
               </div>
             )}
+            {renderProfilePagination(wishlist, 'wishlist')}
           </div>
         )}
       </main>
@@ -2711,6 +4393,9 @@ function PublicSettingsLoader() {
   const location = useLocation()
   const isAdminRoute = location.pathname.startsWith('/admin')
   const [maintenance, setMaintenance] = useState(null)
+  const setPublicSettings = useUiStore(state => state.setPublicSettings)
+  const { i18n } = useTranslation()
+  const currentLang = i18n.language
 
   useEffect(() => {
     let ignore = false
@@ -2718,6 +4403,7 @@ function PublicSettingsLoader() {
       .then(({ data }) => {
         if (ignore) return
         const settings = data.data || {}
+        setPublicSettings(settings)
         const root = document.documentElement
 
         if (settings['appearance.primary_color']) root.style.setProperty('--color-primary', settings['appearance.primary_color'])
@@ -2745,7 +4431,7 @@ function PublicSettingsLoader() {
     return () => {
       ignore = true
     }
-  }, [])
+  }, [setPublicSettings, currentLang])
 
   if (!maintenance || isAdminRoute) return null
 
@@ -2756,6 +4442,125 @@ function PublicSettingsLoader() {
   )
 }
 
+const playNotificationSound = () => {
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext
+    if (!AudioContext) return
+    const audioCtx = new AudioContext()
+    
+    const playTone = (freq, startTime, duration) => {
+      const osc = audioCtx.createOscillator()
+      const gainNode = audioCtx.createGain()
+      
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(freq, startTime)
+      
+      gainNode.gain.setValueAtTime(0, startTime)
+      gainNode.gain.linearRampToValueAtTime(0.15, startTime + 0.05)
+      gainNode.gain.exponentialRampToValueAtTime(0.0001, startTime + duration)
+      
+      osc.connect(gainNode)
+      gainNode.connect(audioCtx.destination)
+      
+      osc.start(startTime)
+      osc.stop(startTime + duration)
+    }
+    
+    const now = audioCtx.currentTime
+    playTone(523.25, now, 0.4) // C5
+    playTone(783.99, now + 0.1, 0.5) // G5
+  } catch (e) {
+    console.error('Failed to play audio notification', e)
+  }
+}
+
+function RealTimeNotificationLoader() {
+  const { user, isAuthenticated } = useAuthStore()
+  const { t } = useTranslation()
+  const navigate = useNavigate()
+  const loadedIdsRef = useRef(new Set())
+  const isInitializedRef = useRef(false)
+
+  useEffect(() => {
+    isInitializedRef.current = false
+    loadedIdsRef.current.clear()
+
+    if (!isAuthenticated) return undefined
+
+    const fetchNotifications = async () => {
+      try {
+        const { data } = await apiClient.get('/notifications')
+        const list = Array.isArray(data) ? data : data?.data || []
+        
+        if (!isInitializedRef.current) {
+          list.forEach(item => {
+            if (item?.id) loadedIdsRef.current.add(item.id)
+          })
+          isInitializedRef.current = true
+        } else {
+          let hasNew = false
+          list.forEach(item => {
+            if (item?.id && !loadedIdsRef.current.has(item.id)) {
+              loadedIdsRef.current.add(item.id)
+              if (!item.read_at) {
+                hasNew = true
+                
+                const nData = item.data || {}
+                const title = item.title || nData.title || nData.message || item.message || t('profile.notifications')
+                const body = nData.body || nData.content || ''
+                const orderCode = nData.order_code || ''
+
+                toast.custom((toastItem) => (
+                  <div
+                    onClick={() => {
+                      toast.dismiss(toastItem.id)
+                      if (orderCode) {
+                        navigate(`/orders/tracking/${orderCode}`)
+                      } else {
+                        navigate('/profile?tab=notifications')
+                      }
+                    }}
+                    className={`${
+                      toastItem.visible ? 'animate-enter' : 'animate-leave'
+                    } max-w-md w-full bg-white dark:bg-gray-800 shadow-lg rounded-lg pointer-events-auto flex ring-1 ring-black ring-opacity-5 border-l-4 border-red-600 cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-xl p-4`}
+                  >
+                    <div className="flex items-start w-full">
+                      <div className="flex-shrink-0 pt-0.5">
+                        <Bell className="h-6 w-6 text-red-600 animate-bounce" />
+                      </div>
+                      <div className="ml-3 flex-1">
+                        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                          {title}
+                        </p>
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                          {body}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ), { duration: 6000 })
+              }
+            }
+          })
+
+          if (hasNew) {
+            playNotificationSound()
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch user notifications for realtime', err)
+      }
+    }
+
+    fetchNotifications()
+
+    const interval = setInterval(fetchNotifications, 5000)
+    return () => clearInterval(interval)
+  }, [isAuthenticated, user, navigate, t])
+
+  return null
+}
+
 function AppShell({ selectedProduct, setSelectedProduct }) {
   const location = useLocation()
   const isAdminRoute = location.pathname.startsWith('/admin')
@@ -2763,6 +4568,7 @@ function AppShell({ selectedProduct, setSelectedProduct }) {
   return (
     <div className={`min-h-screen text-[#1A1A1A] flex flex-col antialiased selection:bg-primary selection:text-white ${isAdminRoute ? 'bg-[#F4F6F8]' : 'bg-[#FFFAF5] pb-16 md:pb-0'}`}>
         <AosRefresh />
+        <SessionGuard />
         <PublicSettingsLoader />
         <Toaster
           position="top-right"
@@ -2771,6 +4577,8 @@ function AppShell({ selectedProduct, setSelectedProduct }) {
             style: { fontSize: '14px' },
           }}
         />
+        
+        {!isAdminRoute && <RealTimeNotificationLoader />}
         
         {/* Global Toast Alerts */}
         {!isAdminRoute && <Toast />}
@@ -2802,7 +4610,7 @@ function AppShell({ selectedProduct, setSelectedProduct }) {
             <Route path="/orders/tracking/:code" element={<OrderDetailTracking />} />
             
             {/* Customer & Admin panels */}
-            <Route path="/profile" element={<Profile />} />
+            <Route path="/profile" element={<Profile onSelectProduct={setSelectedProduct} />} />
           </Routes>
         </div>
 

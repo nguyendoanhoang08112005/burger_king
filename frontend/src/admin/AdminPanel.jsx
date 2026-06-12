@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Navigate, NavLink, useLocation, useNavigate, useParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import {
+  AlertCircle,
   BarChart2,
   Bell,
   Building2,
@@ -20,6 +21,7 @@ import {
   Layers,
   LayoutDashboard,
   Loader2,
+  Lock,
   LogOut,
   Moon,
   Package,
@@ -36,6 +38,7 @@ import {
   Target,
   Trash2,
   Truck,
+  Unlock,
   Upload,
   Users,
   Utensils,
@@ -68,8 +71,10 @@ import AdminPagination from '../components/admin/AdminPagination'
 import StatusBadge from '../components/admin/StatusBadge'
 import LanguageSwitcher from '../components/LanguageSwitcher'
 import { useRefLang } from '../hooks/useRefLang'
+import VietnamAddressSelector from '../components/VietnamAddressSelector'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '../store/authStore'
+import { useUiStore } from '../store/uiStore'
 import { formatDate, formatVND } from '../utils/format'
 import { initDarkMode, toggleDarkMode } from '../utils/darkMode'
 
@@ -79,6 +84,43 @@ const assetUrl = value => {
   if (!value) return ''
   if (/^(https?:)?\/\//.test(value) || value.startsWith('data:') || value.startsWith('blob:')) return value
   return `${apiOrigin}${value.startsWith('/') ? value : `/${value}`}`
+}
+
+const logoSizeValue = (value, fallback) => {
+  const numeric = Number(value)
+  return Number.isFinite(numeric) && numeric > 0 ? `${numeric}px` : fallback
+}
+
+const playNotificationSound = () => {
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext
+    if (!AudioContext) return
+    const audioCtx = new AudioContext()
+
+    const playTone = (freq, startTime, duration) => {
+      const osc = audioCtx.createOscillator()
+      const gainNode = audioCtx.createGain()
+
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(freq, startTime)
+
+      gainNode.gain.setValueAtTime(0, startTime)
+      gainNode.gain.linearRampToValueAtTime(0.15, startTime + 0.05)
+      gainNode.gain.exponentialRampToValueAtTime(0.0001, startTime + duration)
+
+      osc.connect(gainNode)
+      gainNode.connect(audioCtx.destination)
+
+      osc.start(startTime)
+      osc.stop(startTime + duration)
+    }
+
+    const now = audioCtx.currentTime
+    playTone(523.25, now, 0.4) // C5
+    playTone(783.99, now + 0.1, 0.5) // G5
+  } catch (e) {
+    console.error('Failed to play audio notification', e)
+  }
 }
 
 function useAdminText() {
@@ -96,7 +138,7 @@ const statusTabs = [
   { key: 'confirmed' },
   { key: 'preparing' },
   { key: 'delivering' },
-  { key: 'delivered' },
+  { key: 'completed' },
   { key: 'cancelled' },
 ]
 
@@ -105,19 +147,19 @@ const statusClasses = {
   confirmed: 'bg-blue-100 text-blue-700 dark:bg-blue-400/15 dark:text-blue-300',
   preparing: 'bg-orange-100 text-orange-700 dark:bg-orange-400/15 dark:text-orange-300',
   delivering: 'bg-purple-100 text-purple-700 dark:bg-purple-400/15 dark:text-purple-300',
-  delivered: 'bg-green-100 text-green-700 dark:bg-green-400/15 dark:text-green-300',
+  completed: 'bg-green-100 text-green-700 dark:bg-green-400/15 dark:text-green-300',
   cancelled: 'bg-red-100 text-red-700 dark:bg-red-400/15 dark:text-red-300',
 }
 
-const orderStatusFlow = ['pending', 'confirmed', 'preparing', 'delivering', 'delivered']
+const orderStatusFlow = ['pending', 'confirmed', 'preparing', 'delivering', 'completed']
 
 const getAllowedOrderStatuses = status => {
   const transitions = {
     pending: ['confirmed', 'cancelled'],
     confirmed: ['preparing', 'cancelled'],
     preparing: ['delivering', 'cancelled'],
-    delivering: ['delivered'],
-    delivered: [],
+    delivering: ['completed'],
+    completed: [],
     cancelled: [],
   }
 
@@ -134,6 +176,26 @@ const formatBadgeCount = value => {
   if (!Number.isFinite(count) || count <= 0) return null
   return count > 99 ? '99+' : String(count)
 }
+
+const bannerPositionOptions = [
+  { value: 'hero', labelKey: 'banner_position_home_hero' },
+  { value: 'blog_hero', labelKey: 'banner_position_blog_hero' },
+  { value: 'popup', labelKey: 'banner_position_popup' },
+  { value: 'sidebar', labelKey: 'banner_position_sidebar' },
+]
+
+const adminPermissionModules = [
+  'dashboard', 'reports', 'orders', 'products', 'categories', 'combos', 'toppings',
+  'coupons', 'payments', 'users', 'reviews', 'loyalty', 'complaints', 'posts', 'banners',
+  'branches', 'settings', 'languages', 'notifications',
+]
+
+const adminPathModule = path => {
+  const segment = path.split('/').filter(Boolean)[1] || 'dashboard'
+  return segment === 'translations' ? 'languages' : segment
+}
+
+const canAccessAdminModule = (user, module) => user?.role === 'admin' || user?.permissions?.includes(`access.${module}`)
 
 const menuGroups = [
   {
@@ -156,6 +218,7 @@ const menuGroups = [
     labelKey: 'group_sales',
     items: [
       { icon: Package, labelKey: 'orders', path: '/admin/orders', badgeKey: 'pendingOrders' },
+      { icon: AlertCircle, labelKey: 'complaints', path: '/admin/complaints', badgeKey: 'pendingComplaints' },
       { icon: Percent, labelKey: 'coupons', path: '/admin/coupons' },
       { icon: CreditCard, labelKey: 'payments', path: '/admin/payments' },
     ],
@@ -266,6 +329,15 @@ function EmptyTableRow({ colSpan, message }) {
   )
 }
 
+function EmptyState({ message, className = 'h-[220px]' }) {
+  return (
+    <div className={`${className} flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-gray-200 dark:border-gray-700 bg-gray-50/60 dark:bg-[#161825]/60 text-center px-4`}>
+      <Info size={22} className="text-gray-300" />
+      <p className="text-sm font-medium text-gray-400">{message}</p>
+    </div>
+  )
+}
+
 function Pagination({ page, totalPages, onChange }) {
   if (totalPages <= 1) return null
 
@@ -287,9 +359,8 @@ function Pagination({ page, totalPages, onChange }) {
           key={p}
           type="button"
           onClick={() => onChange(p)}
-          className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
-            p === page ? 'bg-[#D62300] text-white' : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300'
-          }`}
+          className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${p === page ? 'bg-[#D62300] text-white' : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300'
+            }`}
         >
           {p}
         </button>
@@ -345,13 +416,28 @@ function ConfirmDialog({ open, title, message, onConfirm, onCancel, loading }) {
 
 function AdminSidebar({ collapsed, onToggle, badges }) {
   const tAdmin = useAdminText()
+  const { user } = useAuthStore()
+  const logo = useUiStore(state => state.publicSettings['general.logo'])
+  const logoWidth = useUiStore(state => state.publicSettings['general.logo_width'])
+  const logoHeight = useUiStore(state => state.publicSettings['general.logo_height'])
+  const storeName = useUiStore(state => state.publicSettings['general.store_name'])
 
   return (
     <aside className={`fixed left-0 top-0 z-40 h-screen bg-white dark:bg-[#1E2130] border-r border-[#F0F0F0] dark:border-gray-700 shadow-[2px_0_8px_rgba(0,0,0,0.04)] transition-all duration-300 ${collapsed ? 'w-[70px]' : 'w-[260px]'}`}>
       <div className="h-[60px] flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-700">
         {!collapsed && (
-          <Link to="/admin" className="text-[#D62300] font-bold text-lg tracking-wide">
-            HAMBURGER KING
+          <Link to="/admin" className="inline-flex h-10 w-[190px] min-w-0 items-center overflow-hidden text-[#D62300] font-bold text-lg tracking-wide">
+            {logo ? (
+              <img
+                src={assetUrl(logo)}
+                alt={storeName || 'Hamburger King'}
+                style={{
+                  width: logoSizeValue(logoWidth, '190px'),
+                  height: logoSizeValue(logoHeight, '40px'),
+                }}
+                className="max-h-full max-w-full object-contain"
+              />
+            ) : 'HAMBURGER KING'}
           </Link>
         )}
         <button
@@ -365,7 +451,7 @@ function AdminSidebar({ collapsed, onToggle, badges }) {
       </div>
 
       <div className="h-[calc(100vh-60px)] overflow-y-auto py-3">
-        {menuGroups.map(group => (
+        {menuGroups.filter(group => group.items.some(item => canAccessAdminModule(user, adminPathModule(item.path)))).map(group => (
           <div key={group.labelKey} className="mb-2">
             {!collapsed && (
               <p className="text-[10px] text-gray-400 uppercase tracking-[1px] px-5 pt-4 pb-1.5 font-semibold">
@@ -373,7 +459,7 @@ function AdminSidebar({ collapsed, onToggle, badges }) {
               </p>
             )}
             <div className="space-y-0.5">
-              {group.items.map(item => {
+              {group.items.filter(item => canAccessAdminModule(user, adminPathModule(item.path))).map(item => {
                 const Icon = item.icon
                 const badge = item.badgeKey ? formatBadgeCount(badges[item.badgeKey]) : null
 
@@ -608,21 +694,20 @@ function AdminPageShell({ title, eyebrow, action, onAction, children }) {
   )
 }
 
-function AdminDashboard({ stats, orders, chartData }) {
+function AdminDashboard({ stats, orders, chartData, activityLogs = [], activityMeta, onActivityPageChange }) {
   const tAdmin = useAdminText()
+  const navigate = useNavigate()
   const cards = [
-    { label: tAdmin('orders'), value: stats?.metrics?.pending_orders ?? 0, icon: ShoppingBag, gradient: 'from-[#00C9A7] to-[#00A67C]', badge: tAdmin('status_pending') },
-    { label: tAdmin('products'), value: stats?.metrics?.total_products ?? 0, icon: Layers, gradient: 'from-[#4E9FFF] to-[#2979FF]' },
-    { label: tAdmin('customers'), value: stats?.metrics?.active_customers ?? 0, icon: Users, gradient: 'from-[#FF6B9D] to-[#E91E8C]' },
-    { label: tAdmin('revenue'), value: formatVND(stats?.metrics?.total_sales ?? 0), icon: BarChart2, gradient: 'from-[#FFB347] to-[#FF9500]' },
+    { label: tAdmin('orders'), value: stats?.metrics?.total_orders ?? 0, icon: ShoppingBag, gradient: 'from-[#00C9A7] to-[#00A67C]', path: '/admin/orders' },
+    { label: tAdmin('products'), value: stats?.metrics?.total_products ?? 0, icon: Layers, gradient: 'from-[#4E9FFF] to-[#2979FF]', path: '/admin/products' },
+    { label: tAdmin('customers'), value: stats?.metrics?.active_customers ?? 0, icon: Users, gradient: 'from-[#FF6B9D] to-[#E91E8C]', path: '/admin/users' },
+    { label: tAdmin('reviews'), value: stats?.metrics?.total_reviews ?? 0, icon: Star, gradient: 'from-[#FFB347] to-[#FF9500]', path: '/admin/reviews' },
   ]
 
-  const activities = orders.slice(0, 5).map(order => ({
-    name: order.user?.name || tAdmin('customer_walkin'),
-    role: order.user?.role === 'admin' ? tAdmin('admin_role') : tAdmin('customer'),
-    action: tAdmin('activity_created_order', { code: order.order_code }),
-    time: formatDate(order.created_at),
-    ip: '127.0.0.1',
+  const activities = activityLogs.map(activity => ({
+    ...activity,
+    role: activity.role === 'admin' ? tAdmin('admin_role') : tAdmin('customer'),
+    time: formatDate(activity.time),
   }))
 
   return (
@@ -631,12 +716,17 @@ function AdminDashboard({ stats, orders, chartData }) {
         {cards.map(card => {
           const Icon = card.icon
           return (
-            <div key={card.label} className={`bg-gradient-to-br ${card.gradient} rounded-2xl p-6 text-white relative overflow-hidden`}>
+            <button
+              key={card.label}
+              type="button"
+              onClick={() => navigate(card.path)}
+              className={`bg-gradient-to-br ${card.gradient} rounded-2xl p-6 text-left text-white relative overflow-hidden transition hover:-translate-y-0.5 hover:shadow-lg focus:outline-none focus:ring-4 focus:ring-red-200`}
+            >
               <div className="absolute right-4 top-4 opacity-20"><Icon size={48} /></div>
               <p className="text-sm font-medium opacity-80">{card.label}</p>
               <p className="text-3xl font-bold mt-1">{card.value}</p>
               {card.badge && <span className="mt-3 inline-block text-xs bg-white/20 rounded-full px-3 py-1">{card.badge}</span>}
-            </div>
+            </button>
           )
         })}
       </div>
@@ -645,18 +735,22 @@ function AdminDashboard({ stats, orders, chartData }) {
         <div className="flex justify-between items-center mb-6">
           <h3 className="font-bold text-gray-800 dark:text-gray-100">{tAdmin('last_7_days_revenue')}</h3>
         </div>
-        <ResponsiveContainer width="100%" height={280}>
-          <LineChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#F0F0F0" />
-            <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-            <YAxis yAxisId="revenue" tick={{ fontSize: 12 }} tickFormatter={value => `${value / 1000}k`} />
-            <YAxis yAxisId="orders" orientation="right" tick={{ fontSize: 12 }} />
-            <Tooltip formatter={(value, name) => [name === 'revenue' ? formatVND(value) : `${value} ${tAdmin('orders').toLowerCase()}`, name === 'revenue' ? tAdmin('revenue') : tAdmin('orders')]} />
-            <Legend />
-            <Line yAxisId="revenue" type="monotone" dataKey="revenue" stroke="#D62300" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} name="revenue" />
-            <Line yAxisId="orders" type="monotone" dataKey="orders" stroke="#3B82F6" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} name="orders" />
-          </LineChart>
-        </ResponsiveContainer>
+        {chartData.length ? (
+          <ResponsiveContainer width="100%" height={280}>
+            <LineChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#F0F0F0" />
+              <XAxis dataKey="date" tick={{ fontSize: 12 }} />
+              <YAxis yAxisId="revenue" tick={{ fontSize: 12 }} tickFormatter={value => `${value / 1000}k`} />
+              <YAxis yAxisId="orders" orientation="right" tick={{ fontSize: 12 }} />
+              <Tooltip formatter={(value, name) => [name === 'revenue' ? formatVND(value) : `${value} ${tAdmin('orders').toLowerCase()}`, name === 'revenue' ? tAdmin('revenue') : tAdmin('orders')]} />
+              <Legend />
+              <Line yAxisId="revenue" type="monotone" dataKey="revenue" stroke="#D62300" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} name="revenue" />
+              <Line yAxisId="orders" type="monotone" dataKey="orders" stroke="#3B82F6" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} name="orders" />
+            </LineChart>
+          </ResponsiveContainer>
+        ) : (
+          <EmptyState message={tAdmin('no_chart_data')} className="h-[280px]" />
+        )}
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.5fr)_minmax(320px,0.8fr)] gap-6">
@@ -684,6 +778,14 @@ function AdminDashboard({ stats, orders, chartData }) {
                 </div>
               </div>
             ))}
+            {!activities.length && <EmptyState message={tAdmin('no_activity_logs')} className="h-[180px]" />}
+          </div>
+          <div className="mt-5 flex justify-end">
+            <Pagination
+              page={activityMeta?.current_page || 1}
+              totalPages={activityMeta?.last_page || 1}
+              onChange={onActivityPageChange}
+            />
           </div>
         </div>
       </div>
@@ -693,6 +795,7 @@ function AdminDashboard({ stats, orders, chartData }) {
 
 function OrdersTable({ orders, compact = false, onStatusChange, onView }) {
   const tAdmin = useAdminText()
+  const deliveryTypeLabel = order => order.delivery_type === 'pickup' ? tAdmin('delivery_type_pickup') : tAdmin('delivery_type_delivery')
 
   return (
     <div className="overflow-x-auto">
@@ -710,7 +813,15 @@ function OrdersTable({ orders, compact = false, onStatusChange, onView }) {
         <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
           {orders.map(order => (
             <tr key={order.id} className="text-gray-700 dark:text-gray-200">
-              <td className="py-3 font-semibold text-gray-900 dark:text-gray-100">{order.order_code}</td>
+              <td className="py-3">
+                <p className="font-semibold text-gray-900 dark:text-gray-100">{order.order_code}</p>
+                <p className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${order.delivery_type === 'pickup'
+                    ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300'
+                    : 'bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300'
+                  }`}>
+                  {deliveryTypeLabel(order)}
+                </p>
+              </td>
               <td className="py-3">{order.user?.name || tAdmin('customer_walkin')}</td>
               <td className="py-3 text-gray-500 dark:text-gray-400">{formatDate(order.created_at)}</td>
               <td className="py-3 font-semibold">{formatVND(order.total)}</td>
@@ -731,7 +842,7 @@ function OrdersTable({ orders, compact = false, onStatusChange, onView }) {
               )}
             </tr>
           ))}
-          {!orders.length && <EmptyTableRow colSpan={compact ? 5 : 6} />}
+          {!orders.length && <EmptyTableRow colSpan={compact ? 5 : 6} message={tAdmin('no_orders')} />}
         </tbody>
       </table>
     </div>
@@ -768,7 +879,7 @@ function OrderStatusTimeline({ status }) {
       <div className="flex flex-wrap gap-2">
         <OrderStatusBadge status={status} />
         {isCancelled && <span className="text-xs text-gray-400">{tAdmin('order_cancelled_terminal')}</span>}
-        {status === 'delivered' && <span className="text-xs text-gray-400">{tAdmin('order_completed_terminal')}</span>}
+        {status === 'completed' && <span className="text-xs text-gray-400">{tAdmin('order_completed_terminal')}</span>}
       </div>
     </div>
   )
@@ -783,7 +894,7 @@ function OrderStatusControl({ order, onChange }) {
     return (
       <div className="space-y-1.5">
         <OrderStatusBadge status={order.status} />
-        <p className="text-[11px] text-gray-400">{order.status === 'delivered' ? tAdmin('order_completed_terminal') : tAdmin('order_cancelled_terminal')}</p>
+        <p className="text-[11px] text-gray-400">{order.status === 'completed' ? tAdmin('order_completed_terminal') : tAdmin('order_cancelled_terminal')}</p>
       </div>
     )
   }
@@ -797,11 +908,10 @@ function OrderStatusControl({ order, onChange }) {
           key={status}
           type="button"
           onClick={() => onChange?.(order.id, status)}
-          className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border transition-colors ${
-            status === 'cancelled'
+          className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border transition-colors ${status === 'cancelled'
               ? 'border-red-200 text-red-600 hover:bg-red-50 dark:border-red-500/30 dark:hover:bg-red-500/10'
               : 'border-[#D62300]/20 text-[#D62300] hover:bg-red-50 dark:hover:bg-red-500/10'
-          }`}
+            }`}
         >
           {tAdmin(`status_${status}`)}
         </button>
@@ -813,6 +923,7 @@ function OrderStatusControl({ order, onChange }) {
 function OrderDetailModal({ order, onClose, onStatusChange }) {
   const tAdmin = useAdminText()
   if (!order) return null
+  const isPickup = order.delivery_type === 'pickup'
 
   return (
     <div
@@ -827,6 +938,9 @@ function OrderDetailModal({ order, onClose, onStatusChange }) {
             <p className="text-xs text-gray-400">{tAdmin('order_detail')}</p>
             <div className="mt-1 flex flex-wrap items-center gap-3">
               <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">{order.order_code}</h2>
+              <span className="text-xs text-gray-500 bg-gray-100 dark:bg-slate-800 px-2.5 py-1 rounded-md font-medium">
+                {formatDate(order.created_at)}
+              </span>
               <OrderStatusBadge status={order.status} />
             </div>
           </div>
@@ -863,12 +977,57 @@ function OrderDetailModal({ order, onClose, onStatusChange }) {
           <div className="space-y-5">
             <div>
               <h3 className="font-bold mb-3">{tAdmin('delivery')}</h3>
+              <div className={`mb-3 rounded-xl border p-4 ${isPickup
+                  ? 'border-amber-100 bg-amber-50 dark:border-amber-500/20 dark:bg-amber-500/10'
+                  : 'border-blue-100 bg-blue-50 dark:border-blue-500/20 dark:bg-blue-500/10'
+                }`}>
+                <p className={`text-xs uppercase font-semibold ${isPickup ? 'text-amber-700 dark:text-amber-300' : 'text-blue-700 dark:text-blue-300'}`}>
+                  {tAdmin('delivery_type')}
+                </p>
+                <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-100">
+                  {isPickup ? tAdmin('delivery_type_pickup') : tAdmin('delivery_type_delivery')}
+                </p>
+                {isPickup && (
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{tAdmin('pickup_admin_hint')}</p>
+                )}
+              </div>
               <div className="text-sm text-gray-600 dark:text-gray-300 space-y-1">
-                <p>{order.address?.name || order.user?.name}</p>
-                <p>{order.address?.phone}</p>
-                <p>{order.address?.full_address || order.address?.address}</p>
+                <p>{order.address?.recipient_name || order.address?.name || order.user?.name}</p>
+                <p>{order.address?.phone || order.user?.phone || '-'}</p>
+                {isPickup ? (
+                  order.address ? (
+                    <p className="font-semibold text-amber-700 dark:text-amber-300">
+                      🏪 {order.address.province} - {order.address.district}
+                    </p>
+                  ) : (
+                    <p>{tAdmin('pickup_branch_address')}</p>
+                  )
+                ) : (
+                  <p>
+                    {order.address
+                      ? [order.address.street, order.address.ward, order.address.district, order.address.province].filter(Boolean).join(', ')
+                      : (order.address?.full_address || order.address?.address || '-')
+                    }
+                  </p>
+                )}
               </div>
             </div>
+            {(order.scheduled_at || order.note) && (
+              <div className="space-y-3">
+                {order.scheduled_at && (
+                  <div className="rounded-xl bg-gray-50 dark:bg-[#161825] p-4">
+                    <p className="text-xs uppercase font-semibold text-gray-400">{tAdmin('scheduled_at')}</p>
+                    <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-100">{formatDate(order.scheduled_at)}</p>
+                  </div>
+                )}
+                {order.note && (
+                  <div className="rounded-xl bg-amber-50 dark:bg-amber-500/10 border border-amber-100 dark:border-amber-500/20 p-4">
+                    <p className="text-xs uppercase font-semibold text-amber-700 dark:text-amber-300">{tAdmin('note')}</p>
+                    <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-gray-800 dark:text-gray-100">{order.note}</p>
+                  </div>
+                )}
+              </div>
+            )}
             <div>
               <h3 className="font-bold mb-3">{tAdmin('payment')}</h3>
               <div className="space-y-2 text-sm">
@@ -913,9 +1072,8 @@ function AdminOrdersPage({ orders, counts, loading, meta, filters, setFilters, o
               key={tab.key || 'all'}
               type="button"
               onClick={() => setFilters(prev => ({ ...prev, status: tab.key, page: 1 }))}
-              className={`px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
-                filters.status === tab.key ? 'bg-[#D62300] text-white' : 'bg-gray-50 dark:bg-[#161825] text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-              }`}
+              className={`px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${filters.status === tab.key ? 'bg-[#D62300] text-white' : 'bg-gray-50 dark:bg-[#161825] text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
             >
               {tab.key ? tAdmin(`status_${tab.key}`) : tAdmin('all')} <span className="opacity-70">({formatCount(tab.key ? counts[tab.key] : counts.total)})</span>
             </button>
@@ -1098,23 +1256,39 @@ function AdminProductsPage({ products, categories, loading, meta, filters, setFi
   )
 }
 
-function AdminImageInput({ label, value, onChange }) {
+function AdminImageInput({ label, value, onChange, uploadType, width, height, onWidthChange, onHeightChange }) {
   const fileInput = useRef(null)
   const tAdmin = useAdminText()
+  const [uploading, setUploading] = useState(false)
+  const hasSizeControls = typeof onWidthChange === 'function' && typeof onHeightChange === 'function'
+  const previewWidth = logoSizeValue(width, uploadType === 'favicon' ? '56px' : '260px')
+  const previewHeight = logoSizeValue(height, uploadType === 'favicon' ? '56px' : '64px')
 
   const handleUpload = async file => {
     if (!file) return
-    const formData = new FormData()
-    formData.append('image', file)
-    const { data } = await apiClient.post('/admin/upload', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
-    onChange(assetUrl(data?.data?.url || data?.url))
-    toast.success(tAdmin('upload_success'))
+    setUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('image', file)
+      if (uploadType) formData.append('type', uploadType)
+
+      const endpoint = uploadType ? '/admin/settings/upload' : '/admin/upload'
+      const { data } = await apiClient.post(endpoint, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      const url = data?.data?.url || data?.url
+      onChange(assetUrl(url))
+      toast.success(tAdmin('upload_success'))
+    } catch (error) {
+      toast.error(error.response?.data?.message || tAdmin('upload_error'))
+    } finally {
+      setUploading(false)
+      if (fileInput.current) fileInput.current.value = ''
+    }
   }
 
   return (
-    <div className="bg-white dark:bg-[#1E2130] rounded-2xl border border-gray-100 dark:border-gray-700 p-6 shadow-sm space-y-4">
+    <div className="flex h-full flex-col space-y-4 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-[#1E2130]">
       <h3 className="font-bold text-xl text-gray-900 dark:text-gray-100">{label || tAdmin('image')}</h3>
       <input
         value={value || ''}
@@ -1122,6 +1296,25 @@ function AdminImageInput({ label, value, onChange }) {
         placeholder={tAdmin('image_url_placeholder')}
         className={fieldInputClass}
       />
+      <p className="text-xs text-gray-400">{tAdmin('image_format_hint')}</p>
+      {hasSizeControls && (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <SettingInput
+            label={tAdmin('image_width')}
+            type="number"
+            suffix="px"
+            value={width}
+            onChange={onWidthChange}
+          />
+          <SettingInput
+            label={tAdmin('image_height')}
+            type="number"
+            suffix="px"
+            value={height}
+            onChange={onHeightChange}
+          />
+        </div>
+      )}
       <div
         onDragOver={event => event.preventDefault()}
         onDrop={event => {
@@ -1129,10 +1322,20 @@ function AdminImageInput({ label, value, onChange }) {
           handleUpload(event.dataTransfer.files[0])
         }}
         onClick={() => fileInput.current?.click()}
-        className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-xl min-h-[170px] p-8 text-center hover:border-red-400 hover:bg-red-50/50 dark:hover:bg-red-500/10 transition-all cursor-pointer flex items-center justify-center"
+        className="flex h-[260px] items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-gray-300 p-8 text-center transition-all hover:border-red-400 hover:bg-red-50/50 dark:border-gray-700 dark:hover:bg-red-500/10 cursor-pointer"
       >
-        {value ? (
-          <img src={assetUrl(value)} alt="" className="max-h-44 mx-auto rounded-lg object-cover" />
+        {uploading ? (
+          <div>
+            <Loader2 className="mx-auto text-gray-400 mb-3 animate-spin" size={36} />
+            <p className="text-sm text-gray-500">{tAdmin('uploading')}</p>
+          </div>
+        ) : value ? (
+          <img
+            src={assetUrl(value)}
+            alt=""
+            style={hasSizeControls ? { width: previewWidth, height: previewHeight } : undefined}
+            className="mx-auto max-h-full max-w-full rounded-lg object-contain"
+          />
         ) : (
           <div>
             <Upload className="mx-auto text-gray-400 mb-3" size={40} />
@@ -1258,7 +1461,7 @@ function AdminProductFormPage({ categories, itemId }) {
     try {
       const payload = { ...fields, translations }
       let savedId = id
-      
+
       if (isCreate) {
         const res = await apiClient.post('/admin/products', payload)
         savedId = res.data.data.id
@@ -1543,11 +1746,10 @@ function AdminProductFormPage({ categories, itemId }) {
                   <Link
                     key={locale.code}
                     to={editUrl}
-                    className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all ${
-                      isActive
+                    className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all ${isActive
                         ? 'bg-red-50 dark:bg-red-500/10 text-[#D62300] font-semibold scale-[1.02]'
                         : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center gap-2">
                       <span className="text-base">{locale.flag}</span>
@@ -1621,12 +1823,17 @@ function AdminCouponsPage({ coupons, loading, onRefresh }) {
   const [statusFilter, setStatusFilter] = useState('')
   const [confirm, setConfirm] = useState({ open: false })
   const [confirmLoading, setConfirmLoading] = useState(false)
+  const [page, setPage] = useState(1)
 
   const filteredCoupons = coupons.filter(coupon => {
     const matchSearch = [coupon.code, coupon.type].join(' ').toLowerCase().includes(search.toLowerCase())
     const matchStatus = !statusFilter || (statusFilter === 'active' ? coupon.is_active : !coupon.is_active)
     return matchSearch && matchStatus
   })
+  const pageSize = 10
+  const totalPages = Math.max(1, Math.ceil(filteredCoupons.length / pageSize))
+  const currentPage = Math.min(page, totalPages)
+  const paginatedCoupons = filteredCoupons.slice((currentPage - 1) * pageSize, currentPage * pageSize)
 
   const dateInput = value => value ? String(value).slice(0, 10) : ''
   const resetForm = () => {
@@ -1751,8 +1958,8 @@ function AdminCouponsPage({ coupons, loading, onRefresh }) {
         </form>
         <div className="bg-white dark:bg-[#1E2130] rounded-2xl p-6 shadow-sm overflow-x-auto">
           <div className="flex flex-col md:flex-row gap-3 mb-5">
-            <input value={search} onChange={event => setSearch(event.target.value)} placeholder={tAdmin('search_coupons')} className={inputClass} />
-            <select value={statusFilter} onChange={event => setStatusFilter(event.target.value)} className={inputClass}>
+            <input value={search} onChange={event => { setSearch(event.target.value); setPage(1) }} placeholder={tAdmin('search_coupons')} className={inputClass} />
+            <select value={statusFilter} onChange={event => { setStatusFilter(event.target.value); setPage(1) }} className={inputClass}>
               <option value="">{tAdmin('all_statuses')}</option>
               <option value="active">{tAdmin('active')}</option>
               <option value="inactive">{tAdmin('inactive')}</option>
@@ -1764,10 +1971,10 @@ function AdminCouponsPage({ coupons, loading, onRefresh }) {
                 <th className="py-3">Code</th><th>{tAdmin('type')}</th><th>{tAdmin('value')}</th><th>{tAdmin('min_order')}</th><th>{tAdmin('used_limit')}</th><th>{tAdmin('expires')}</th><th>{tAdmin('status')}</th><th>{tAdmin('actions')}</th>
               </tr></thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                {filteredCoupons.map(coupon => (
+                {paginatedCoupons.map(coupon => (
                   <tr key={coupon.id}>
                     <td className="py-3 font-bold text-[#D62300]">{coupon.code}</td>
-                    <td>{coupon.type}</td>
+                    <td>{tAdmin(coupon.type)}</td>
                     <td>{coupon.type === 'percent' ? `${Number(coupon.value).toFixed(2)}%` : formatVND(coupon.value)}</td>
                     <td>{formatVND(coupon.min_order)}</td>
                     <td>{coupon.used_count || 0}/{coupon.usage_limit || '∞'}</td>
@@ -1789,6 +1996,9 @@ function AdminCouponsPage({ coupons, loading, onRefresh }) {
               </tbody>
             </table>
           )}
+          <div className="mt-5 flex justify-end">
+            <Pagination page={currentPage} totalPages={totalPages} onChange={setPage} />
+          </div>
         </div>
       </div>
       <ConfirmDialog open={confirm.open} title={confirm.title} message={confirm.message} onCancel={() => setConfirm({ open: false })} onConfirm={confirm.onConfirm} loading={confirmLoading} />
@@ -1796,64 +2006,309 @@ function AdminCouponsPage({ coupons, loading, onRefresh }) {
   )
 }
 
-function AdminUsersPage({ users, loading }) {
+function UserFormModal({ user, onClose, onSaved }) {
   const tAdmin = useAdminText()
-  const [role, setRole] = useState('')
-  const [search, setSearch] = useState('')
-  const filtered = users.filter(user => (!role || user.role === role) && [user.name, user.email, user.phone].join(' ').toLowerCase().includes(search.toLowerCase()))
+  const [saving, setSaving] = useState(false)
+  const isCreate = !user
+  const managesPermissions = isCreate || user.role === 'staff'
+  const [form, setForm] = useState({
+    name: user?.name || '',
+    email: user?.email || '',
+    phone: user?.phone || '',
+    password: '',
+    password_confirmation: '',
+    permissions: (user?.permissions || []).map(permission => permission.name?.replace('access.', '') || permission.replace?.('access.', '')).filter(Boolean),
+  })
+
+  const togglePermission = module => setForm(prev => ({
+    ...prev,
+    permissions: prev.permissions.includes(module)
+      ? prev.permissions.filter(item => item !== module)
+      : [...prev.permissions, module],
+  }))
+
+  const save = async event => {
+    event.preventDefault()
+    setSaving(true)
+    try {
+      if (isCreate) {
+        await apiClient.post('/admin/users/staff', form)
+      } else if (user.role === 'staff') {
+        await apiClient.put(`/admin/users/${user.id}/staff`, {
+          name: form.name,
+          email: form.email,
+          phone: form.phone,
+          permissions: form.permissions,
+        })
+      } else {
+        await apiClient.put(`/admin/users/${user.id}`, {
+          name: form.name,
+          email: form.email,
+          phone: form.phone,
+        })
+      }
+      toast.success(tAdmin(isCreate ? 'staff_created' : 'user_updated'))
+      await onSaved()
+      onClose()
+    } catch (error) {
+      toast.error(error.response?.data?.message || tAdmin('generic_error'))
+    } finally {
+      setSaving(false)
+    }
+  }
 
   return (
-    <AdminPageShell title={tAdmin('users_title')}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <form onSubmit={save} className="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white dark:bg-[#1E2130] shadow-xl">
+        <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-700 p-5">
+          <div>
+            <h3 className="text-lg font-bold">{tAdmin(isCreate ? 'add_staff' : 'edit_user')}</h3>
+            <p className="text-xs text-gray-400 mt-1">{tAdmin(managesPermissions ? 'staff_permissions_hint' : 'user_edit_hint')}</p>
+          </div>
+          <button type="button" onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100"><X size={18} /></button>
+        </div>
+        <div className="p-5 space-y-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <input required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder={tAdmin('name')} className={fieldInputClass} />
+            <input required type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder={tAdmin('email')} className={fieldInputClass} />
+            <input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder={tAdmin('phone')} className={fieldInputClass} />
+            <div />
+            {isCreate ? (
+              <>
+                <input required type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} placeholder={tAdmin('password')} className={fieldInputClass} />
+                <input required type="password" value={form.password_confirmation} onChange={e => setForm({ ...form, password_confirmation: e.target.value })} placeholder={tAdmin('password_confirmation')} className={fieldInputClass} />
+              </>
+            ) : (
+              <input disabled value="********" aria-label={tAdmin('password')} title={tAdmin('password_managed_separately')} className={`${fieldInputClass} bg-gray-50 text-gray-400 cursor-not-allowed`} />
+            )}
+          </div>
+          {managesPermissions && <div>
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="font-bold">{tAdmin('permissions')}</h4>
+              <button type="button" onClick={() => setForm(prev => ({ ...prev, permissions: prev.permissions.length === adminPermissionModules.length ? [] : [...adminPermissionModules] }))} className="text-xs font-semibold text-[#D62300]">{tAdmin('select_all')}</button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+              {adminPermissionModules.map(module => (
+                <label key={module} className="flex items-center gap-2 rounded-xl border border-gray-100 dark:border-gray-700 p-3 text-sm cursor-pointer">
+                  <input type="checkbox" checked={form.permissions.includes(module)} onChange={() => togglePermission(module)} />
+                  {tAdmin(module)}
+                </label>
+              ))}
+            </div>
+          </div>}
+        </div>
+        <div className="flex justify-end gap-3 border-t border-gray-100 dark:border-gray-700 p-5">
+          <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg border border-gray-200 text-sm font-semibold">{tAdmin('cancel')}</button>
+          <button disabled={saving} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#D62300] text-white text-sm font-semibold disabled:opacity-50">{saving && <Loader2 size={15} className="animate-spin" />}{tAdmin('save')}</button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+function AdminUsersPage({ users, loading, onRefresh }) {
+  const tAdmin = useAdminText()
+  const { user: currentUser } = useAuthStore()
+  const [role, setRole] = useState('')
+  const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
+  const [userModal, setUserModal] = useState(null)
+  const [confirm, setConfirm] = useState({ open: false })
+  const [confirmLoading, setConfirmLoading] = useState(false)
+  const filtered = users.filter(user => (!role || user.role === role) && [user.name, user.email, user.phone].join(' ').toLowerCase().includes(search.toLowerCase()))
+  const pageSize = 10
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
+  const currentPage = Math.min(page, totalPages)
+  const paginatedUsers = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+
+  const runConfirmedAction = (title, message, action, successKey) => {
+    setConfirm({
+      open: true,
+      title,
+      message,
+      onConfirm: async () => {
+        setConfirmLoading(true)
+        try {
+          await action()
+          toast.success(tAdmin(successKey))
+          await onRefresh()
+          setConfirm({ open: false })
+        } catch (error) {
+          toast.error(error.response?.data?.message || tAdmin('generic_error'))
+        } finally {
+          setConfirmLoading(false)
+        }
+      },
+    })
+  }
+
+  const toggleStatus = user => runConfirmedAction(
+    tAdmin(user.deleted_at ? 'unlock_user' : 'lock_user'),
+    tAdmin(user.deleted_at ? 'confirm_unlock_user' : 'confirm_lock_user', { name: user.name }),
+    () => apiClient.patch(`/admin/users/${user.id}/toggle-status`),
+    user.deleted_at ? 'user_unlocked' : 'user_locked'
+  )
+
+  const deleteUser = user => runConfirmedAction(
+    tAdmin('delete_user'),
+    tAdmin('confirm_delete_user', { name: user.name }),
+    () => apiClient.delete(`/admin/users/${user.id}`),
+    'user_deleted'
+  )
+
+  return (
+    <AdminPageShell title={tAdmin('users_title')} action={currentUser?.role === 'admin' ? tAdmin('add_staff') : undefined} onAction={currentUser?.role === 'admin' ? () => setUserModal({ create: true }) : undefined}>
       <div className="bg-white dark:bg-[#1E2130] rounded-2xl p-6 shadow-sm space-y-5">
         <div className="flex flex-col md:flex-row gap-3">
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder={tAdmin('search_users')} className="border border-gray-200 dark:border-gray-700 dark:bg-[#161825] rounded-lg px-3 py-2 text-sm" />
-          <select value={role} onChange={e => setRole(e.target.value)} className="border border-gray-200 dark:border-gray-700 dark:bg-[#161825] rounded-lg px-3 py-2 text-sm">
+          <input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} placeholder={tAdmin('search_users')} className="border border-gray-200 dark:border-gray-700 dark:bg-[#161825] rounded-lg px-3 py-2 text-sm" />
+          <select value={role} onChange={e => { setRole(e.target.value); setPage(1) }} className="border border-gray-200 dark:border-gray-700 dark:bg-[#161825] rounded-lg px-3 py-2 text-sm">
             <option value="">{tAdmin('all_roles')}</option><option value="customer">{tAdmin('customer')}</option><option value="admin">Admin</option><option value="staff">{tAdmin('staff')}</option>
           </select>
         </div>
         {loading ? <TableSkeleton rows={6} cols={8} /> : (
           <div className="overflow-x-auto"><table className="w-full text-left text-sm">
-            <thead><tr className="text-xs uppercase text-gray-400 border-b border-gray-100 dark:border-gray-700"><th className="py-3">{tAdmin('avatar')}</th><th>{tAdmin('name')}</th><th>{tAdmin('email')}</th><th>{tAdmin('phone')}</th><th>{tAdmin('role')}</th><th>{tAdmin('orders_count')}</th><th>{tAdmin('points')}</th><th>{tAdmin('created_at')}</th></tr></thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-gray-700">{filtered.map(user => (
-              <tr key={user.id}><td className="py-3"><div className="w-9 h-9 rounded-full bg-[#D62300] text-white flex items-center justify-center font-bold">{user.name?.charAt(0)}</div></td><td className="font-semibold">{user.name}</td><td>{user.email}</td><td>{user.phone || '-'}</td><td><span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700">{user.role}</span></td><td>{user.orders_count || 0}</td><td>{user.loyalty_balance || 0}</td><td>{formatDate(user.created_at)}</td></tr>
+            <thead><tr className="text-xs uppercase text-gray-400 border-b border-gray-100 dark:border-gray-700"><th className="py-3">{tAdmin('avatar')}</th><th>{tAdmin('name')}</th><th>{tAdmin('email')}</th><th>{tAdmin('phone')}</th><th>{tAdmin('role')}</th><th>{tAdmin('status')}</th><th>{tAdmin('orders_count')}</th><th>{tAdmin('points')}</th><th>{tAdmin('created_at')}</th><th className="text-right">{tAdmin('actions')}</th></tr></thead>
+            <tbody className="divide-y divide-gray-100 dark:divide-gray-700">{paginatedUsers.map(user => (
+              <tr key={user.id} className={user.deleted_at ? 'opacity-60' : ''}>
+                <td className="py-3"><div className="w-9 h-9 rounded-full bg-[#D62300] text-white flex items-center justify-center font-bold">{user.name?.charAt(0)}</div></td>
+                <td className="font-semibold">{user.name}</td><td>{user.email}</td><td>{user.phone || '-'}</td>
+                <td><span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700">{user.role}</span></td>
+                <td><span className={`text-xs px-2 py-1 rounded-full ${user.deleted_at ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>{tAdmin(user.deleted_at ? 'locked' : 'active')}</span></td>
+                <td>{user.orders_count || 0}</td><td>{user.loyalty_balance || 0}</td><td>{formatDate(user.created_at)}</td>
+                <td className="text-right">
+                  {currentUser?.role === 'admin' && <div className="flex items-center justify-end gap-1">
+                    <button type="button" onClick={() => setUserModal(user)} className="p-2 rounded-lg text-blue-600 hover:bg-blue-50" title={tAdmin('edit_user')}><Pencil size={15} /></button>
+                    {user.role !== 'admin' && user.id !== currentUser.id && <>
+                      <button type="button" onClick={() => toggleStatus(user)} className={`p-2 rounded-lg ${user.deleted_at ? 'text-green-600 hover:bg-green-50' : 'text-orange-600 hover:bg-orange-50'}`} title={tAdmin(user.deleted_at ? 'unlock_user' : 'lock_user')}>{user.deleted_at ? <Unlock size={15} /> : <Lock size={15} />}</button>
+                      <button type="button" onClick={() => deleteUser(user)} className="p-2 rounded-lg text-red-600 hover:bg-red-50" title={tAdmin('delete_user')}><Trash2 size={15} /></button>
+                    </>}
+                  </div>}
+                </td>
+              </tr>
             ))}
-            {!filtered.length && <EmptyTableRow colSpan={8} />}
+              {!filtered.length && <EmptyTableRow colSpan={10} />}
             </tbody>
           </table></div>
         )}
+        <div className="flex justify-end">
+          <Pagination page={currentPage} totalPages={totalPages} onChange={setPage} />
+        </div>
       </div>
+      {userModal && <UserFormModal user={userModal.create ? null : userModal} onClose={() => setUserModal(null)} onSaved={onRefresh} />}
+      <ConfirmDialog open={confirm.open} title={confirm.title} message={confirm.message} onCancel={() => setConfirm({ open: false })} onConfirm={confirm.onConfirm} loading={confirmLoading} />
     </AdminPageShell>
   )
 }
 
 function AdminReviewsPage({ reviews, loading, onModerate }) {
   const tAdmin = useAdminText()
-  const [filter, setFilter] = useState('')
-  const filtered = reviews.filter(review => filter === '' || (filter === 'approved' ? review.is_approved : !review.is_approved))
+  const [selectedReview, setSelectedReview] = useState(null)
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [page, setPage] = useState(1)
+  const pageSize = 10
+  const totalPages = Math.max(1, Math.ceil(reviews.length / pageSize))
+  const currentPage = Math.min(page, totalPages)
+  const paginatedReviews = reviews.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+
+  const openReview = async (review) => {
+    setDetailLoading(true)
+    try {
+      const res = await apiClient.get(`/admin/reviews/${review.id}`)
+      setSelectedReview(res.data.data || res.data)
+    } catch (error) {
+      toast.error(error.response?.data?.message || tAdmin('review_load_error'))
+    } finally {
+      setDetailLoading(false)
+    }
+  }
+
+  const closeModal = () => {
+    setSelectedReview(null)
+  }
+
+  const deleteReview = async (review) => {
+    if (!window.confirm(tAdmin('delete_review_confirm'))) return
+    await onModerate(review.id, 'delete')
+    if (selectedReview?.id === review.id) closeModal()
+  }
+
+  const reviewImages = Array.isArray(selectedReview?.images) ? selectedReview.images : []
+  const orderItems = Array.isArray(selectedReview?.order?.items) ? selectedReview.order.items : []
 
   return (
     <AdminPageShell title={tAdmin('reviews_title')}>
       <div className="bg-white dark:bg-[#1E2130] rounded-2xl p-6 shadow-sm space-y-5">
-        <div className="flex gap-2">
-          {[['', 'all'], ['pending', 'pending_review'], ['approved', 'approved']].map(([key, label]) => (
-            <button key={key} type="button" onClick={() => setFilter(key)} className={`px-3 py-2 rounded-lg text-xs font-semibold ${filter === key ? 'bg-[#D62300] text-white' : 'bg-gray-50 dark:bg-[#161825]'}`}>{tAdmin(label)}</button>
-          ))}
-        </div>
-        {loading ? <TableSkeleton rows={6} cols={7} /> : (
+        {loading ? <TableSkeleton rows={6} cols={6} /> : (
           <div className="overflow-x-auto"><table className="w-full text-left text-sm">
-            <thead><tr className="text-xs uppercase text-gray-400 border-b border-gray-100 dark:border-gray-700"><th className="py-3">{tAdmin('product')}</th><th>{tAdmin('customer')}</th><th>{tAdmin('rating')}</th><th>{tAdmin('content')}</th><th>{tAdmin('status')}</th><th>{tAdmin('date')}</th><th>{tAdmin('actions')}</th></tr></thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-gray-700">{filtered.map(review => (
-              <tr key={review.id}><td className="py-3 font-semibold">{review.product?.name}</td><td>{review.user?.name}</td><td className="text-yellow-500">{'★'.repeat(review.rating)}</td><td className="max-w-xs truncate">{review.comment}</td><td>{review.is_approved ? tAdmin('approved') : tAdmin('pending_review')}</td><td>{formatDate(review.created_at)}</td><td><div className="flex gap-2"><button onClick={() => onModerate(review.id, 'approve')} className="text-green-600 text-xs">{tAdmin('approve')}</button><button onClick={() => onModerate(review.id, 'hide')} className="text-orange-600 text-xs">{tAdmin('hide')}</button><button onClick={() => onModerate(review.id, 'delete')} className="text-red-600 text-xs">{tAdmin('delete')}</button></div></td></tr>
+            <thead><tr className="text-xs uppercase text-gray-400 border-b border-gray-100 dark:border-gray-700"><th className="py-3">{tAdmin('product')}</th><th>{tAdmin('customer')}</th><th>{tAdmin('rating')}</th><th>{tAdmin('content')}</th><th>{tAdmin('date')}</th><th>{tAdmin('actions')}</th></tr></thead>
+            <tbody className="divide-y divide-gray-100 dark:divide-gray-700">{paginatedReviews.map(review => (
+              <tr key={review.id}>
+                <td className="py-3">
+                  <p className="font-semibold">{review.product?.name || '-'}</p>
+                  <p className="mt-1 text-xs text-gray-400">{tAdmin('sku')}: {review.product?.sku || '-'}</p>
+                </td>
+                <td>{review.user?.name || '-'}</td>
+                <td className="text-yellow-500">{'★'.repeat(Number(review.rating || 0))}</td>
+                <td className="max-w-xs truncate">{review.comment || '-'}</td>
+                <td>{formatDate(review.created_at)}</td>
+                <td><div className="flex items-center gap-1">
+                  <button type="button" onClick={() => openReview(review)} className="rounded-lg p-2 text-[#D62300] hover:bg-[#D62300]/10" title={tAdmin('view_details')}><Eye size={15} /></button>
+                  <button type="button" onClick={() => deleteReview(review)} className="rounded-lg p-2 text-red-600 hover:bg-red-50" title={tAdmin('delete')}><Trash2 size={15} /></button>
+                </div></td>
+              </tr>
             ))}
-            {!filtered.length && <EmptyTableRow colSpan={7} />}
+              {!reviews.length && <EmptyTableRow colSpan={6} />}
             </tbody>
           </table></div>
         )}
+        <div className="flex justify-end">
+          <Pagination page={currentPage} totalPages={totalPages} onChange={setPage} />
+        </div>
       </div>
+      {(selectedReview || detailLoading) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm">
+          <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl bg-white shadow-2xl dark:bg-[#1E2130]">
+            <div className="flex items-start justify-between gap-4 border-b border-gray-100 p-6 dark:border-gray-700">
+              <div>
+                <p className="text-xs uppercase text-gray-400">{tAdmin('review_detail')}</p>
+                <h3 className="mt-1 text-2xl font-bold text-gray-900 dark:text-white">{selectedReview?.product?.name || tAdmin('reviews_title')}</h3>
+              </div>
+              <button type="button" onClick={closeModal} className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-[#161825]"><X size={18} /></button>
+            </div>
+
+            {detailLoading ? (
+              <div className="flex h-64 items-center justify-center text-gray-400"><Loader2 className="mr-2 animate-spin" size={18} /> {tAdmin('loading')}</div>
+            ) : (
+              <div className="space-y-6 p-6">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+                  <div className="rounded-xl bg-gray-50 p-4 dark:bg-[#161825]"><p className="text-xs uppercase text-gray-400">{tAdmin('order_code')}</p><p className="mt-1 font-bold">{selectedReview?.order?.order_code || '-'}</p></div>
+                  <div className="rounded-xl bg-gray-50 p-4 dark:bg-[#161825]"><p className="text-xs uppercase text-gray-400">{tAdmin('customer')}</p><p className="mt-1 font-bold">{selectedReview?.user?.name || '-'}</p></div>
+                  <div className="rounded-xl bg-gray-50 p-4 dark:bg-[#161825]"><p className="text-xs uppercase text-gray-400">{tAdmin('rating')}</p><p className="mt-1 font-bold text-yellow-500">{'★'.repeat(Number(selectedReview?.rating || 0))}</p></div>
+                  <div className="rounded-xl bg-gray-50 p-4 dark:bg-[#161825]"><p className="text-xs uppercase text-gray-400">{tAdmin('created_at')}</p><p className="mt-1 font-bold">{formatDate(selectedReview?.created_at)}</p></div>
+                </div>
+                <div className="rounded-xl border border-gray-100 p-4 dark:border-gray-700"><p className="text-xs uppercase text-gray-400">{tAdmin('content')}</p><p className="mt-2 whitespace-pre-line text-sm text-gray-700 dark:text-gray-200">{selectedReview?.comment || '-'}</p></div>
+                <div>
+                  <p className="mb-3 text-xs font-bold uppercase text-gray-400">{tAdmin('images')}</p>
+                  {reviewImages.length ? <div className="grid grid-cols-2 gap-3 md:grid-cols-4">{reviewImages.map((image, index) => <a key={`${image}-${index}`} href={assetUrl(image)} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-xl border border-gray-100"><img src={assetUrl(image)} alt={`${tAdmin('review_image')} ${index + 1}`} className="h-32 w-full object-cover" /></a>)}</div> : <p className="rounded-xl bg-gray-50 p-4 text-sm text-gray-400 dark:bg-[#161825]">{tAdmin('no_images')}</p>}
+                </div>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <div className="rounded-xl bg-gray-50 p-4 dark:bg-[#161825]"><p className="text-xs uppercase text-gray-400">{tAdmin('email')}</p><p className="mt-1 font-semibold">{selectedReview?.user?.email || '-'}</p></div>
+                  <div className="rounded-xl bg-gray-50 p-4 dark:bg-[#161825]"><p className="text-xs uppercase text-gray-400">{tAdmin('phone')}</p><p className="mt-1 font-semibold">{selectedReview?.user?.phone || '-'}</p></div>
+                  <div className="rounded-xl bg-gray-50 p-4 dark:bg-[#161825]"><p className="text-xs uppercase text-gray-400">{tAdmin('order_status')}</p><p className="mt-1 font-semibold">{selectedReview?.order?.status || '-'}</p></div>
+                  <div className="rounded-xl bg-gray-50 p-4 dark:bg-[#161825]"><p className="text-xs uppercase text-gray-400">{tAdmin('total_amount')}</p><p className="mt-1 font-semibold">{selectedReview?.order ? formatVND(selectedReview.order.total) : '-'}</p></div>
+                </div>
+                <div className="rounded-xl border border-gray-100 p-4 dark:border-gray-700">
+                  <p className="mb-3 text-xs font-bold uppercase text-gray-400">{tAdmin('order_items')}</p>
+                  {orderItems.length ? orderItems.map(item => <div key={item.id || `${item.product_id}-${item.product_name}`} className="flex justify-between gap-4 border-b border-gray-100 py-2 last:border-0 dark:border-gray-700"><div><p className="font-semibold">{item.product_name || item.name || '-'}</p><p className="mt-1 text-xs text-gray-400">{tAdmin('sku')}: {item.product_sku || '-'}{item.size_sku ? ` / ${item.size_sku}` : ''}</p></div><span className="shrink-0 text-gray-500">x{item.quantity || 1}</span></div>) : <p className="text-sm text-gray-400">{tAdmin('no_order_items')}</p>}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </AdminPageShell>
   )
 }
-
 function AdminReportsPage({ stats, chartData, reportData }) {
   const tAdmin = useAdminText()
   const topProducts = reportData.topProducts || stats?.top_products || []
@@ -1863,10 +2318,15 @@ function AdminReportsPage({ stats, chartData, reportData }) {
     .map(tab => ({ key: tab.key, name: tAdmin(`status_${tab.key}`), value: Number(reportData.counts?.[tab.key] || 0) }))
     .filter(item => item.value > 0)
   const colors = ['#D62300', '#2563EB', '#F59E0B', '#8B5CF6', '#10B981', '#EC4899', '#0891B2', '#84CC16', '#F97316', '#6366F1']
-  const monthRevenue = chartData.reduce((sum, item) => sum + Number(item.revenue || 0), 0)
-  const monthOrders = chartData.reduce((sum, item) => sum + Number(item.orders || 0), 0)
-  const delivered = reportData.counts?.delivered || 0
-  const total = reportData.counts?.total || 0
+  const completedOrdersInChart = chartData.reduce((sum, item) => sum + Number(item.orders || 0), 0)
+  const delivered = Number(reportData.counts?.completed || 0)
+  const total = Number(reportData.counts?.total || statusTabs.reduce((sum, tab) => tab.key ? sum + Number(reportData.counts?.[tab.key] || 0) : sum, 0))
+  const summaryCards = [
+    [tAdmin('total_revenue'), formatVND(reportData.total_revenue || 0)],
+    [tAdmin('average_order_value'), formatVND(reportData.average_order_value || 0)],
+    [tAdmin('completed_orders_30_days'), reportData.completed_orders_30_days ?? completedOrdersInChart],
+    [tAdmin('completion_rate'), `${total ? Math.round((delivered / total) * 100) : 0}%`],
+  ]
 
   const exportCSV = () => {
     const headers = [tAdmin('date'), tAdmin('revenue_label'), tAdmin('orders')]
@@ -1883,29 +2343,28 @@ function AdminReportsPage({ stats, chartData, reportData }) {
 
   return (
     <AdminPageShell title={tAdmin('reports')} action={<><Download size={15} /> {tAdmin('export_csv')}</>} onAction={exportCSV}>
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {[
-          [tAdmin('month_revenue_total'), formatVND(monthRevenue)],
-          [tAdmin('month_orders_total'), monthOrders],
-          [tAdmin('new_customers_month'), reportData.newCustomers || 0],
-          [tAdmin('completion_rate'), `${total ? Math.round((delivered / total) * 100) : 0}%`],
-        ].map(([label, value]) => <div key={label} className="bg-white dark:bg-[#1E2130] rounded-2xl p-5 shadow-sm"><p className="text-sm text-gray-500">{label}</p><p className="text-2xl font-bold mt-1">{value}</p></div>)}
+      <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-4">
+        {summaryCards.map(([label, value]) => <div key={label} className="bg-white dark:bg-[#1E2130] rounded-2xl p-5 shadow-sm"><p className="text-sm text-gray-500">{label}</p><p className="text-2xl font-bold mt-1">{value}</p></div>)}
       </div>
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.5fr)_minmax(320px,1fr)] gap-6">
         <div className="bg-white dark:bg-[#1E2130] rounded-2xl p-6 shadow-sm">
           <h3 className="font-bold text-gray-800 dark:text-gray-100 mb-4">{tAdmin('report_revenue_30_days')}</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#F5F5F5" />
-              <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-              <YAxis yAxisId="revenue" tick={{ fontSize: 11 }} tickFormatter={value => value >= 1000 ? `${(value / 1000).toFixed(0)}k` : value} />
-              <YAxis yAxisId="orders" orientation="right" tick={{ fontSize: 11 }} />
-              <Tooltip formatter={(value, name) => [name === 'revenue' ? formatVND(value) : `${value} ${tAdmin('orders').toLowerCase()}`, name === 'revenue' ? tAdmin('revenue_label') : tAdmin('orders')]} />
-              <Legend />
-              <Line yAxisId="revenue" type="monotone" dataKey="revenue" stroke="#D62300" strokeWidth={2} dot={false} name="revenue" />
-              <Line yAxisId="orders" type="monotone" dataKey="orders" stroke="#3B82F6" strokeWidth={2} dot={false} name="orders" />
-            </LineChart>
-          </ResponsiveContainer>
+          {chartData.length ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#F5F5F5" />
+                <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                <YAxis yAxisId="revenue" tick={{ fontSize: 11 }} tickFormatter={value => value >= 1000 ? `${(value / 1000).toFixed(0)}k` : value} />
+                <YAxis yAxisId="orders" orientation="right" tick={{ fontSize: 11 }} />
+                <Tooltip formatter={(value, name) => [name === 'revenue' ? formatVND(value) : `${value} ${tAdmin('orders').toLowerCase()}`, name === 'revenue' ? tAdmin('revenue_label') : tAdmin('orders')]} />
+                <Legend />
+                <Line yAxisId="revenue" type="monotone" dataKey="revenue" stroke="#D62300" strokeWidth={2} dot={false} name="revenue" />
+                <Line yAxisId="orders" type="monotone" dataKey="orders" stroke="#3B82F6" strokeWidth={2} dot={false} name="orders" />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <EmptyState message={tAdmin('no_chart_data')} className="h-[300px]" />
+          )}
         </div>
         <div className="bg-white dark:bg-[#1E2130] rounded-2xl p-6 shadow-sm">
           <h3 className="font-bold text-gray-800 dark:text-gray-100">{tAdmin('orders_by_status')}</h3>
@@ -1927,13 +2386,17 @@ function AdminReportsPage({ stats, chartData, reportData }) {
       </div>
       <div className="bg-white dark:bg-[#1E2130] rounded-2xl p-6 shadow-sm">
         <h3 className="font-bold text-gray-800 dark:text-gray-100 mb-4">{tAdmin('top_products')}</h3>
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={topProducts}><CartesianGrid strokeDasharray="3 3" stroke="#F0F0F0" /><XAxis dataKey="name" tick={{ fontSize: 11 }} /><YAxis /><Tooltip /><Bar dataKey="quantity" radius={[8, 8, 0, 0]}>{topProducts.map((product, index) => <Cell key={product.sku || product.name} fill={colors[index % colors.length]} />)}</Bar></BarChart>
-        </ResponsiveContainer>
+        {topProducts.length ? (
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={topProducts}><CartesianGrid strokeDasharray="3 3" stroke="#F0F0F0" /><XAxis dataKey="name" tick={{ fontSize: 11 }} /><YAxis /><Tooltip /><Bar dataKey="quantity" radius={[8, 8, 0, 0]}>{topProducts.map((product, index) => <Cell key={product.sku || product.name} fill={colors[index % colors.length]} />)}</Bar></BarChart>
+          </ResponsiveContainer>
+        ) : (
+          <EmptyState message={tAdmin('no_top_products')} className="h-[300px]" />
+        )}
       </div>
       <div className="bg-white dark:bg-[#1E2130] rounded-2xl p-6 shadow-sm overflow-x-auto">
         <h3 className="font-bold text-gray-800 dark:text-gray-100 mb-4">{tAdmin('top_customers')}</h3>
-        <table className="w-full text-left text-sm"><thead><tr className="text-xs uppercase text-gray-400 border-b border-gray-100 dark:border-gray-700"><th className="py-3">{tAdmin('customer')}</th><th>{tAdmin('email')}</th><th>{tAdmin('orders_count')}</th><th>{tAdmin('total_spent')}</th></tr></thead><tbody>{topCustomers.map(customer => <tr key={customer.id} className="border-b border-gray-100 dark:border-gray-700"><td className="py-3 font-semibold">{customer.name}</td><td>{customer.email}</td><td>{customer.orders_count}</td><td>{formatVND(customer.total_spent)}</td></tr>)}</tbody></table>
+        <table className="w-full text-left text-sm"><thead><tr className="text-xs uppercase text-gray-400 border-b border-gray-100 dark:border-gray-700"><th className="py-3">{tAdmin('customer')}</th><th>{tAdmin('email')}</th><th>{tAdmin('orders_count')}</th><th>{tAdmin('total_spent')}</th></tr></thead><tbody>{topCustomers.map(customer => <tr key={customer.id} className="border-b border-gray-100 dark:border-gray-700"><td className="py-3 font-semibold">{customer.name}</td><td>{customer.email}</td><td>{customer.orders_count}</td><td>{formatVND(customer.total_spent)}</td></tr>)}{!topCustomers.length && <EmptyTableRow colSpan={4} message={tAdmin('no_top_customers')} />}</tbody></table>
       </div>
     </AdminPageShell>
   )
@@ -2079,6 +2542,8 @@ function PluginConfigModal({ plugin, onClose, onSave }) {
 
 function AdminPaymentsPage() {
   const tAdmin = useAdminText()
+  const { i18n } = useTranslation()
+  const currentLang = i18n.language
   const [plugins, setPlugins] = useState([])
   const [loading, setLoading] = useState(true)
   const [configModal, setConfigModal] = useState(null)
@@ -2106,7 +2571,7 @@ function AdminPaymentsPage() {
     return () => {
       ignore = true
     }
-  }, [])
+  }, [currentLang])
 
   const handleToggle = async plugin => {
     if (plugin.is_default) return
@@ -2168,6 +2633,7 @@ function AdminPaymentsPage() {
               </div>
             )
           })}
+          {!plugins.length && <div className="md:col-span-2"><EmptyState message={tAdmin('no_payment_plugins')} /></div>}
         </div>
       )}
       {configModal && <PluginConfigModal plugin={configModal} onClose={() => setConfigModal(null)} onSave={saveConfig} />}
@@ -2179,7 +2645,12 @@ function AdminLoyaltyPage({ users, loading }) {
   const tAdmin = useAdminText()
   const customers = users.filter(user => user.role === 'customer')
   const totalPoints = customers.reduce((sum, user) => sum + Number(user.loyalty_balance || 0), 0)
-  const topCustomers = [...customers].sort((a, b) => Number(b.loyalty_balance || 0) - Number(a.loyalty_balance || 0)).slice(0, 10)
+  const [page, setPage] = useState(1)
+  const pageSize = 10
+  const topCustomers = [...customers].sort((a, b) => Number(b.loyalty_balance || 0) - Number(a.loyalty_balance || 0))
+  const totalPages = Math.max(1, Math.ceil(topCustomers.length / pageSize))
+  const currentPage = Math.min(page, totalPages)
+  const paginatedCustomers = topCustomers.slice((currentPage - 1) * pageSize, currentPage * pageSize)
 
   return (
     <AdminPageShell title={tAdmin('loyalty_title')}>
@@ -2203,11 +2674,14 @@ function AdminLoyaltyPage({ users, loading }) {
           <table className="w-full text-left text-sm">
             <thead><tr className="text-xs uppercase text-gray-400 border-b border-gray-100 dark:border-gray-700"><th className="py-3">{tAdmin('customer')}</th><th>{tAdmin('email')}</th><th>{tAdmin('phone')}</th><th>{tAdmin('orders_count')}</th><th>{tAdmin('points')}</th></tr></thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-              {topCustomers.map(user => <tr key={user.id}><td className="py-3 font-semibold">{user.name}</td><td>{user.email}</td><td>{user.phone || '-'}</td><td>{user.orders_count || 0}</td><td className="font-bold text-[#D62300]">{user.loyalty_balance || 0}</td></tr>)}
+              {paginatedCustomers.map(user => <tr key={user.id}><td className="py-3 font-semibold">{user.name}</td><td>{user.email}</td><td>{user.phone || '-'}</td><td>{user.orders_count || 0}</td><td className="font-bold text-[#D62300]">{user.loyalty_balance || 0}</td></tr>)}
               {!topCustomers.length && <EmptyTableRow colSpan={5} />}
             </tbody>
           </table>
         )}
+        <div className="mt-5 flex justify-end">
+          <Pagination page={currentPage} totalPages={totalPages} onChange={setPage} />
+        </div>
       </div>
     </AdminPageShell>
   )
@@ -2221,9 +2695,10 @@ const settingTabs = [
   { key: 'localization', labelKey: 'localization', icon: Globe },
   { key: 'seo', labelKey: 'seo', icon: Search },
   { key: 'loyalty', labelKey: 'loyalty', icon: Gift },
+  { key: 'review_complaint', labelKey: 'review_complaint', icon: Star },
 ]
 
-function SettingInput({ label, type = 'text', value, onChange, placeholder, suffix, hint }) {
+function SettingInput({ label, type = 'text', value, onChange, placeholder, suffix, hint, disabled }) {
   return (
     <label className="block">
       <span className="text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wide">{label}</span>
@@ -2232,8 +2707,9 @@ function SettingInput({ label, type = 'text', value, onChange, placeholder, suff
           type={type}
           value={value ?? ''}
           placeholder={placeholder}
+          disabled={disabled}
           onChange={event => onChange(type === 'number' ? Number(event.target.value) : event.target.value)}
-          className={`${fieldInputClass} ${suffix ? 'pr-12' : ''}`}
+          className={`${fieldInputClass} ${suffix ? 'pr-12' : ''} ${disabled ? 'bg-gray-100 dark:bg-[#161825]/50 text-gray-500 cursor-not-allowed opacity-70' : ''}`}
         />
         {suffix && <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-400">{suffix}</span>}
       </div>
@@ -2251,13 +2727,19 @@ function SettingTextarea({ label, value, onChange, rows = 3, placeholder }) {
   )
 }
 
-function SettingSelect({ label, value, onChange, options }) {
+function SettingSelect({ label, value, onChange, options, hint, disabled }) {
   return (
     <label className="block">
       <span className="text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wide">{label}</span>
-      <select value={value ?? ''} onChange={event => onChange(event.target.value)} className={`${fieldInputClass} mt-2`}>
+      <select
+        value={value ?? ''}
+        disabled={disabled}
+        onChange={event => onChange?.(event.target.value)}
+        className={`${fieldInputClass} mt-2 ${disabled ? 'bg-gray-100 dark:bg-[#161825]/50 text-gray-500 cursor-not-allowed opacity-70' : ''}`}
+      >
         {options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
       </select>
+      {hint && <span className="mt-1 block text-xs text-gray-400 dark:text-gray-500">{hint}</span>}
     </label>
   )
 }
@@ -2508,13 +2990,105 @@ function AdminLanguageLocalesPage() {
 
 function AdminSettingsDatabasePage() {
   const tAdmin = useAdminText()
+  const { refLang, switchLang, LOCALES } = useRefLang()
   const [activeTab, setActiveTab] = useState('general')
   const [settings, setSettings] = useState({})
+  const [branches, setBranches] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [dirty, setDirty] = useState(false)
   const [testAddress, setTestAddress] = useState({ lat: 10.781232, lng: 106.685324, order_amount: 178000 })
   const [testResult, setTestResult] = useState(null)
+  const setPublicSetting = useUiStore(state => state.setPublicSetting)
+
+  const updateTransSetting = (key, text) => {
+    const val = settings[key]
+    const current = typeof val === 'object' && val !== null ? val : { vi: typeof val === 'string' ? val : '', en: '' }
+    const next = { ...current, [refLang]: text }
+    updateSetting(key, next)
+  }
+
+  const getTransValue = val => {
+    if (typeof val === 'object' && val !== null) {
+      return val[refLang] || ''
+    }
+    return val || ''
+  }
+
+  const getLocalizedField = (item, key, locale = refLang) => {
+    const value = item?.[key]
+    if (typeof value === 'object' && value !== null) {
+      return value[locale] || value.vi || value.en || ''
+    }
+    const translated = item?.translations?.[key]
+    if (typeof translated === 'object' && translated !== null) {
+      return translated[locale] || translated.vi || translated.en || ''
+    }
+    return value || ''
+  }
+
+  const getBranchAddress = (branch, locale = refLang) => getLocalizedField(branch, 'address', locale)
+  const getBranchLat = branch => branch?.lat ?? branch?.latitude ?? ''
+  const getBranchLng = branch => branch?.lng ?? branch?.longitude ?? ''
+
+  const normalizeListResponse = payload => {
+    if (Array.isArray(payload)) return payload
+    if (Array.isArray(payload?.data?.data)) return payload.data.data
+    if (Array.isArray(payload?.data)) return payload.data
+    return []
+  }
+
+  const savedBranchId = settings['general.branch_id'] ? String(settings['general.branch_id']) : ''
+  const savedBranchAddress = getTransValue(settings['general.address']) || settings['shipping.store_address'] || ''
+  const savedBranchLat = settings['shipping.store_lat'] ?? ''
+  const savedBranchLng = settings['shipping.store_lng'] ?? ''
+  const inferredBranch = savedBranchId ? null : branches.find(branch => {
+    const branchAddresses = [getBranchAddress(branch, 'vi'), getBranchAddress(branch, 'en'), getBranchAddress(branch)]
+      .filter(Boolean)
+      .map(address => String(address).trim())
+    const branchLat = getBranchLat(branch)
+    const branchLng = getBranchLng(branch)
+
+    return (
+      (savedBranchAddress && branchAddresses.includes(String(savedBranchAddress).trim())) ||
+      (savedBranchLat !== '' && savedBranchLng !== '' && String(branchLat) === String(savedBranchLat) && String(branchLng) === String(savedBranchLng))
+    )
+  })
+  const selectedBranchId = savedBranchId || (inferredBranch ? String(inferredBranch.id) : '')
+  const selectedBranch = branches.find(branch => String(branch.id) === selectedBranchId)
+  const selectedBranchAddress = selectedBranch ? getBranchAddress(selectedBranch) : getTransValue(settings['general.address'])
+  const selectedBranchLat = selectedBranch ? getBranchLat(selectedBranch) : (settings['shipping.store_lat'] ?? '')
+  const selectedBranchLng = selectedBranch ? getBranchLng(selectedBranch) : (settings['shipping.store_lng'] ?? '')
+  const branchOptions = [
+    { value: '', label: branches.length ? tAdmin('select_branch') : tAdmin('no_branch_available') },
+    ...branches.map(branch => {
+      const name = getLocalizedField(branch, 'name') || `#${branch.id}`
+      const address = getBranchAddress(branch)
+      return { value: String(branch.id), label: address ? `${name} - ${address}` : name }
+    }),
+  ]
+
+  const buildBranchSyncedSettings = (baseSettings, branchId) => {
+    const normalizedBranchId = branchId ? String(branchId) : ''
+    const branch = branches.find(item => String(item.id) === normalizedBranchId)
+    if (!branch) return { ...baseSettings, 'general.branch_id': normalizedBranchId }
+
+    const fallbackAddress = getBranchAddress(branch)
+    const addressValue = {
+      ...(typeof baseSettings['general.address'] === 'object' && baseSettings['general.address'] !== null ? baseSettings['general.address'] : {}),
+      vi: getBranchAddress(branch, 'vi') || fallbackAddress,
+      en: getBranchAddress(branch, 'en') || fallbackAddress,
+    }
+
+    return {
+      ...baseSettings,
+      'general.branch_id': normalizedBranchId,
+      'general.address': addressValue,
+      'shipping.store_address': fallbackAddress,
+      'shipping.store_lat': getBranchLat(branch),
+      'shipping.store_lng': getBranchLng(branch),
+    }
+  }
 
   const flattenSettings = groups => {
     const flat = {}
@@ -2529,8 +3103,12 @@ function AdminSettingsDatabasePage() {
   const loadSettings = async () => {
     setLoading(true)
     try {
-      const { data } = await apiClient.get('/admin/settings')
-      setSettings(flattenSettings(data.data || {}))
+      const [settingsRes, branchesRes] = await Promise.all([
+        apiClient.get('/admin/settings'),
+        apiClient.get('/admin/branches', { params: { per_page: 100 } }).catch(() => ({ data: { data: [] } })),
+      ])
+      setSettings(flattenSettings(settingsRes.data.data || {}))
+      setBranches(normalizeListResponse(branchesRes.data))
       setDirty(false)
     } catch {
       toast.error(tAdmin('settings_load_error'))
@@ -2541,9 +3119,15 @@ function AdminSettingsDatabasePage() {
 
   useEffect(() => {
     let ignore = false
-    apiClient.get('/admin/settings')
-      .then(({ data }) => {
-        if (!ignore) setSettings(flattenSettings(data.data || {}))
+    Promise.all([
+      apiClient.get('/admin/settings'),
+      apiClient.get('/admin/branches', { params: { per_page: 100 } }).catch(() => ({ data: { data: [] } })),
+    ])
+      .then(([settingsRes, branchesRes]) => {
+        if (ignore) return
+        setSettings(flattenSettings(settingsRes.data.data || {}))
+        setBranches(normalizeListResponse(branchesRes.data))
+        setDirty(false)
       })
       .catch(() => toast.error(tAdmin('settings_load_error')))
       .finally(() => {
@@ -2556,13 +3140,24 @@ function AdminSettingsDatabasePage() {
 
   const updateSetting = (key, value) => {
     setSettings(prev => ({ ...prev, [key]: value }))
+    setPublicSetting(key, value)
+    setDirty(true)
+  }
+
+  const handleBranchChange = branchId => {
+    const nextSettings = buildBranchSyncedSettings(settings, branchId)
+    setSettings(nextSettings)
+      ;['general.branch_id', 'general.address', 'shipping.store_address', 'shipping.store_lat', 'shipping.store_lng'].forEach(key => {
+        setPublicSetting(key, nextSettings[key])
+      })
     setDirty(true)
   }
 
   const saveSettings = async () => {
     setSaving(true)
     try {
-      await apiClient.put('/admin/settings', { settings })
+      const payloadSettings = selectedBranchId ? buildBranchSyncedSettings(settings, selectedBranchId) : settings
+      await apiClient.put('/admin/settings', { settings: payloadSettings })
       toast.success(tAdmin('settings_saved'))
       await loadSettings()
     } catch (error) {
@@ -2592,16 +3187,41 @@ function AdminSettingsDatabasePage() {
   const renderGeneral = () => (
     <div className="space-y-5">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <SettingInput label={tAdmin('store_name')} value={settings['general.store_name']} onChange={value => updateSetting('general.store_name', value)} />
-        <SettingInput label={tAdmin('slogan')} value={settings['general.store_tagline']} onChange={value => updateSetting('general.store_tagline', value)} />
+        <SettingInput label={tAdmin('store_name')} value={getTransValue(settings['general.store_name'])} onChange={value => updateTransSetting('general.store_name', value)} />
+        <SettingInput label={tAdmin('slogan')} value={getTransValue(settings['general.store_tagline'])} onChange={value => updateTransSetting('general.store_tagline', value)} />
         <SettingInput label={tAdmin('hotline')} value={settings['general.hotline']} onChange={value => updateSetting('general.hotline', value)} />
         <SettingInput label={tAdmin('support_email')} value={settings['general.email']} onChange={value => updateSetting('general.email', value)} />
       </div>
-      <SettingTextarea label={tAdmin('store_description')} value={settings['general.store_description']} onChange={value => updateSetting('general.store_description', value)} />
-      <SettingInput label={tAdmin('address')} value={settings['general.address']} onChange={value => updateSetting('general.address', value)} />
+      <SettingTextarea label={tAdmin('store_description')} value={getTransValue(settings['general.store_description'])} onChange={value => updateTransSetting('general.store_description', value)} />
+      <SettingSelect
+        label={tAdmin('address')}
+        value={selectedBranchId}
+        onChange={handleBranchChange}
+        options={branchOptions}
+        disabled={!branches.length}
+        hint={selectedBranch ? `${tAdmin('branch_address_source')}: ${selectedBranchAddress}` : tAdmin('select_branch_hint')}
+      />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <AdminImageInput label={tAdmin('logo')} value={settings['general.logo']} onChange={value => updateSetting('general.logo', value)} />
-        <AdminImageInput label={tAdmin('favicon')} value={settings['general.favicon']} onChange={value => updateSetting('general.favicon', value)} />
+        <AdminImageInput
+          label={tAdmin('logo')}
+          value={settings['general.logo']}
+          uploadType="logo"
+          width={settings['general.logo_width'] ?? 260}
+          height={settings['general.logo_height'] ?? 64}
+          onChange={value => updateSetting('general.logo', value)}
+          onWidthChange={value => updateSetting('general.logo_width', value)}
+          onHeightChange={value => updateSetting('general.logo_height', value)}
+        />
+        <AdminImageInput
+          label={tAdmin('favicon')}
+          value={settings['general.favicon']}
+          uploadType="favicon"
+          width={settings['general.favicon_width'] ?? 56}
+          height={settings['general.favicon_height'] ?? 56}
+          onChange={value => updateSetting('general.favicon', value)}
+          onWidthChange={value => updateSetting('general.favicon_width', value)}
+          onHeightChange={value => updateSetting('general.favicon_height', value)}
+        />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {['facebook_url', 'instagram_url', 'youtube_url', 'tiktok_url', 'zalo_url', 'google_maps_key'].map(key => (
@@ -2609,7 +3229,7 @@ function AdminSettingsDatabasePage() {
         ))}
       </div>
       <SettingToggle label={tAdmin('maintenance_mode')} description={tAdmin('maintenance_desc')} checked={!!settings['general.maintenance_mode']} onChange={value => updateSetting('general.maintenance_mode', value)} />
-      <SettingTextarea label={tAdmin('maintenance_message')} value={settings['general.maintenance_message']} onChange={value => updateSetting('general.maintenance_message', value)} />
+      <SettingTextarea label={tAdmin('maintenance_message')} value={getTransValue(settings['general.maintenance_message'])} onChange={value => updateTransSetting('general.maintenance_message', value)} />
     </div>
   )
 
@@ -2625,11 +3245,11 @@ function AdminSettingsDatabasePage() {
           <SettingInput label={tAdmin('per_km_fee')} type="number" suffix={settings['localization.currency_symbol'] || 'VND'} value={settings['shipping.per_km_fee']} onChange={value => updateSetting('shipping.per_km_fee', value)} />
           <SettingInput label={tAdmin('max_distance')} type="number" suffix="km" value={settings['shipping.max_distance_km']} onChange={value => updateSetting('shipping.max_distance_km', value)} />
         </div>
-        <SettingInput label={tAdmin('main_store_address')} value={settings['shipping.store_address']} onChange={value => updateSetting('shipping.store_address', value)} />
+        <SettingInput label={tAdmin('main_store_address')} value={selectedBranchAddress} onChange={() => { }} disabled hint={tAdmin('managed_from_overview')} />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <SettingInput label={tAdmin('latitude')} type="number" value={settings['shipping.store_lat']} onChange={value => updateSetting('shipping.store_lat', value)} />
-          <SettingInput label={tAdmin('longitude')} type="number" value={settings['shipping.store_lng']} onChange={value => updateSetting('shipping.store_lng', value)} />
-          <SettingInput label={tAdmin('estimated_time')} value={settings['shipping.estimated_time']} onChange={value => updateSetting('shipping.estimated_time', value)} />
+          <SettingInput label={tAdmin('latitude')} type="number" value={selectedBranchLat} onChange={() => { }} disabled />
+          <SettingInput label={tAdmin('longitude')} type="number" value={selectedBranchLng} onChange={() => { }} disabled />
+          <SettingInput label={tAdmin('estimated_time')} value={typeof settings['shipping.estimated_time'] === 'object' ? settings['shipping.estimated_time']?.vi || '' : settings['shipping.estimated_time'] || ''} onChange={value => updateSetting('shipping.estimated_time', value)} />
         </div>
         <div className="rounded-2xl border border-gray-100 dark:border-gray-700 p-4">
           <div className="flex items-center justify-between mb-3">
@@ -2671,10 +3291,6 @@ function AdminSettingsDatabasePage() {
         <SettingInput label={tAdmin('primary_color')} type="color" value={settings['appearance.primary_color']} onChange={value => updateSetting('appearance.primary_color', value)} />
         <SettingInput label={tAdmin('secondary_color')} type="color" value={settings['appearance.secondary_color']} onChange={value => updateSetting('appearance.secondary_color', value)} />
         <SettingSelect label={tAdmin('font')} value={settings['appearance.font_family']} onChange={value => updateSetting('appearance.font_family', value)} options={[{ value: 'DM Sans', label: 'DM Sans' }, { value: 'Inter', label: 'Inter' }, { value: 'Arial', label: 'Arial' }]} />
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <AdminImageInput label={tAdmin('hero_image')} value={settings['appearance.hero_image']} onChange={value => updateSetting('appearance.hero_image', value)} />
-        <AdminImageInput label={tAdmin('social_share_image')} value={settings['appearance.og_image']} onChange={value => updateSetting('appearance.og_image', value)} />
       </div>
     </div>
   )
@@ -2755,9 +3371,9 @@ function AdminSettingsDatabasePage() {
 
   const renderSeo = () => (
     <div className="space-y-5">
-      <SettingInput label="Meta title" value={settings['seo.meta_title']} onChange={value => updateSetting('seo.meta_title', value)} />
-      <SettingTextarea label="Meta description" value={settings['seo.meta_description']} onChange={value => updateSetting('seo.meta_description', value)} />
-      <SettingInput label="Meta keywords" value={settings['seo.meta_keywords']} onChange={value => updateSetting('seo.meta_keywords', value)} />
+      <SettingInput label="Meta title" value={getTransValue(settings['seo.meta_title'])} onChange={value => updateTransSetting('seo.meta_title', value)} />
+      <SettingTextarea label="Meta description" value={getTransValue(settings['seo.meta_description'])} onChange={value => updateTransSetting('seo.meta_description', value)} />
+      <SettingInput label="Meta keywords" value={getTransValue(settings['seo.meta_keywords'])} onChange={value => updateTransSetting('seo.meta_keywords', value)} />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <SettingInput label="Google Analytics" value={settings['seo.google_analytics']} onChange={value => updateSetting('seo.google_analytics', value)} />
         <SettingInput label="Facebook Pixel" value={settings['seo.facebook_pixel']} onChange={value => updateSetting('seo.facebook_pixel', value)} />
@@ -2778,6 +3394,50 @@ function AdminSettingsDatabasePage() {
     </div>
   )
 
+  const renderReviewComplaint = () => (
+    <div className="space-y-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <SettingInput
+          label={tAdmin('review_expiry_days')}
+          type="number"
+          suffix={tAdmin('days')}
+          value={settings['review.expiry_days']}
+          onChange={value => updateSetting('review.expiry_days', value)}
+        />
+        <SettingInput
+          label={tAdmin('complaint_expiry_hours')}
+          type="number"
+          suffix={tAdmin('hours_unit') || 'giờ'}
+          value={settings['complaint.expiry_hours']}
+          onChange={value => updateSetting('complaint.expiry_hours', value)}
+        />
+        <SettingInput
+          label={tAdmin('review_bonus_points')}
+          type="number"
+          suffix={tAdmin('points_unit') || 'điểm'}
+          value={settings['review.bonus_points']}
+          onChange={value => updateSetting('review.bonus_points', value)}
+        />
+        <SettingInput
+          label={tAdmin('complaint_notification_email')}
+          type="text"
+          value={settings['complaint.notification_email']}
+          onChange={value => updateSetting('complaint.notification_email', value)}
+        />
+      </div>
+      <SettingToggle
+        label={tAdmin('review_auto_approve_stars')}
+        checked={!!settings['review.auto_approve_stars']}
+        onChange={value => updateSetting('review.auto_approve_stars', value)}
+      />
+      <SettingToggle
+        label={tAdmin('review_email_reminder')}
+        checked={!!settings['review.email_reminder']}
+        onChange={value => updateSetting('review.email_reminder', value)}
+      />
+    </div>
+  )
+
   const tabContent = {
     general: renderGeneral,
     shipping: renderShipping,
@@ -2786,6 +3446,7 @@ function AdminSettingsDatabasePage() {
     localization: renderLocalization,
     seo: renderSeo,
     loyalty: renderLoyalty,
+    review_complaint: renderReviewComplaint,
   }
 
   if (loading) {
@@ -2818,7 +3479,30 @@ function AdminSettingsDatabasePage() {
           })}
         </div>
         <div className="bg-white dark:bg-[#1E2130] rounded-2xl p-6 shadow-sm">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-5">{tAdmin(settingTabs.find(tab => tab.key === activeTab)?.labelKey)}</h2>
+          <div className="flex items-center justify-between mb-5 border-b border-gray-100 dark:border-gray-700 pb-4">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">{tAdmin(settingTabs.find(tab => tab.key === activeTab)?.labelKey)}</h2>
+            {['general', 'seo'].includes(activeTab) && (
+              <div className="flex items-center gap-1 bg-gray-100 dark:bg-slate-800 p-0.5 rounded-lg border border-gray-200/50 dark:border-slate-700/50">
+                {LOCALES.map(locale => {
+                  const isActive = locale.code === refLang
+                  return (
+                    <button
+                      type="button"
+                      key={locale.code}
+                      onClick={() => switchLang(locale.code)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-bold transition-all duration-200 cursor-pointer ${isActive
+                          ? 'bg-white dark:bg-slate-700 text-[#D62300] shadow-sm'
+                          : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                        }`}
+                    >
+                      <img src={locale.flagImg} alt={locale.label} className="w-4 h-2.5 object-cover rounded-sm shadow-sm" />
+                      <span>{locale.short}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
           {tabContent[activeTab]?.()}
         </div>
       </div>
@@ -2826,7 +3510,7 @@ function AdminSettingsDatabasePage() {
   )
 }
 
-function NotificationDetailModal({ notification, order, loading, onClose }) {
+function NotificationDetailModal({ notification, order, loading, onClose, onProcessOrder }) {
   const tAdmin = useAdminText()
   if (!notification) return null
 
@@ -2851,25 +3535,20 @@ function NotificationDetailModal({ notification, order, loading, onClose }) {
   }
   const hasValue = value => value !== undefined && value !== null && value !== ''
   const money = value => hasValue(value) ? formatVND(value) : null
-  const eventTime = data.event_at || notification.created_at
-  const eventLabel = data.status ? tAdmin('status_event_time', { status: tAdmin(`status_${data.status}`).toLowerCase() }) : tAdmin('notification_time')
   const detailRows = [
+    { label: tAdmin('rating'), value: data.rating ? `${data.rating} ★` : null },
     { label: tAdmin('order_code'), value: data.order_code },
     { label: tAdmin('customer'), value: data.customer_name },
     { label: tAdmin('phone'), value: data.customer_phone },
     { label: tAdmin('items_count'), value: data.items_count },
     { label: tAdmin('total_amount'), value: money(data.total) },
-    { label: tAdmin('subtotal'), value: money(data.subtotal) },
-    { label: tAdmin('discount'), value: money(data.discount) },
-    { label: tAdmin('shipping_fee'), value: money(data.shipping_fee) },
     { label: tAdmin('payment_method'), value: data.payment_method?.toUpperCase?.() || data.payment_method },
-    { label: tAdmin('payment_status'), value: data.payment_status },
     { label: tAdmin('delivery_type'), value: data.delivery_type },
   ].filter(row => hasValue(row.value))
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="w-full max-w-3xl bg-white dark:bg-[#1E2130] rounded-2xl shadow-xl overflow-hidden">
+    <div onClick={onClose} className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 cursor-pointer">
+      <div onClick={e => e.stopPropagation()} className="w-full max-w-lg bg-white dark:bg-[#1E2130] rounded-2xl shadow-xl overflow-hidden cursor-default">
         <div className="flex items-start justify-between gap-4 border-b border-gray-100 dark:border-gray-700 p-5">
           <div>
             <div className="flex flex-wrap items-center gap-2 text-xs text-gray-400">
@@ -2878,7 +3557,7 @@ function NotificationDetailModal({ notification, order, loading, onClose }) {
               <span>{notification.read_at ? tAdmin('read') : tAdmin('unread')}</span>
             </div>
             <div className="mt-1 flex flex-wrap items-center gap-3">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">{title}</h3>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">{title}</h3>
               {data.status && <OrderStatusBadge status={data.status} />}
             </div>
           </div>
@@ -2886,69 +3565,87 @@ function NotificationDetailModal({ notification, order, loading, onClose }) {
             <X size={16} /> {tAdmin('close')}
           </button>
         </div>
-        <div className="p-5 space-y-4">
+        <div className="p-5 space-y-4 max-h-[75vh] overflow-y-auto">
           {body && (
             <div className="rounded-xl border border-red-100 bg-red-50/60 dark:border-red-500/20 dark:bg-red-500/10 p-4">
               <p className="text-sm leading-6 text-gray-700 dark:text-gray-200">{body}</p>
             </div>
           )}
-          <div className="rounded-xl border border-gray-100 dark:border-gray-700 p-4">
-            <p className="text-xs uppercase font-semibold text-gray-400">{tAdmin('event_timeline')}</p>
-            <div className="mt-3 space-y-3">
-              {data.order_created_at && (
-                <div className="flex items-start gap-3">
-                  <span className="mt-1.5 h-2.5 w-2.5 rounded-full bg-blue-500 ring-4 ring-blue-50 dark:ring-blue-500/10" />
-                  <div><p className="text-sm font-semibold">{tAdmin('order_created_time')}</p><p className="text-xs text-gray-400">{formatDate(data.order_created_at)}</p></div>
-                </div>
-              )}
-              <div className="flex items-start gap-3">
-                <span className="mt-1.5 h-2.5 w-2.5 rounded-full bg-[#D62300] ring-4 ring-red-50 dark:ring-red-500/10" />
-                <div><p className="text-sm font-semibold">{eventLabel}</p><p className="text-xs text-gray-400">{formatDate(eventTime)}</p></div>
-              </div>
-              {notification.read_at && (
-                <div className="flex items-start gap-3">
-                  <span className="mt-1.5 h-2.5 w-2.5 rounded-full bg-green-500 ring-4 ring-green-50 dark:ring-green-500/10" />
-                  <div><p className="text-sm font-semibold">{tAdmin('notification_read_time')}</p><p className="text-xs text-gray-400">{formatDate(notification.read_at)}</p></div>
-                </div>
-              )}
-            </div>
-          </div>
           {!!detailRows.length && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               {detailRows.map(row => (
                 <div key={row.label} className="rounded-xl bg-gray-50 dark:bg-[#161825] p-3">
-                  <p className="text-xs uppercase font-semibold text-gray-400">{row.label}</p>
-                  <p className="mt-1 font-semibold text-gray-900 dark:text-gray-100 break-words">{row.value}</p>
+                  <p className="text-[10px] uppercase font-semibold text-gray-400">{row.label}</p>
+                  <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-100 break-words">{row.value}</p>
                 </div>
               ))}
             </div>
           )}
+          {order?.items?.length > 0 && (
+            <div className="rounded-xl border border-gray-100 dark:border-gray-700 p-3">
+              <p className="text-[10px] uppercase font-semibold text-gray-400">{tAdmin('products') || 'Sản phẩm'}</p>
+              <div className="mt-2 divide-y divide-gray-50 dark:divide-gray-800">
+                {order.items.map(item => (
+                  <div key={item.id} className="py-2 flex justify-between text-xs">
+                    <div>
+                      <span className="font-semibold text-gray-800 dark:text-gray-200">{item.product_name}</span>
+                      <span className="text-gray-400 ml-1">x{item.quantity}</span>
+                      {item.toppings?.length > 0 && (
+                        <p className="text-[10px] text-gray-400 mt-0.5">
+                          + {item.toppings.map(t => t.name).join(', ')}
+                        </p>
+                      )}
+                    </div>
+                    <span className="font-semibold text-gray-900 dark:text-gray-100">{formatVND(item.subtotal)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           {data.delivery_address && (
             <div className="rounded-xl bg-gray-50 dark:bg-[#161825] p-3">
-              <p className="text-xs uppercase font-semibold text-gray-400">{tAdmin('delivery_address')}</p>
-              <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-100">{data.delivery_address}</p>
+              <p className="text-[10px] uppercase font-semibold text-gray-400">{tAdmin('delivery_address')}</p>
+              <p className="mt-1 text-xs font-semibold text-gray-900 dark:text-gray-100">{data.delivery_address}</p>
             </div>
           )}
           {data.note && (
             <div className="rounded-xl bg-amber-50 dark:bg-amber-500/10 p-3">
-              <p className="text-xs uppercase font-semibold text-amber-600">{tAdmin('note')}</p>
-              <p className="mt-1 text-sm text-gray-800 dark:text-gray-100">{data.note}</p>
+              <p className="text-[10px] uppercase font-semibold text-amber-600">{tAdmin('note')}</p>
+              <p className="mt-1 text-xs text-gray-800 dark:text-gray-100">{data.note}</p>
             </div>
           )}
           {loading && <div className="flex justify-center py-8"><Loader2 className="animate-spin text-[#D62300]" size={24} /></div>}
+
+          {order && (
+            <div className="flex justify-end pt-2">
+              <button
+                type="button"
+                onClick={onProcessOrder}
+                className="w-full sm:w-auto inline-flex justify-center items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold bg-[#D62300] hover:bg-[#B51E00] text-white transition-colors shadow-sm cursor-pointer"
+              >
+                <Eye size={16} /> {tAdmin('process_order') || 'Xử lý đơn hàng'}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
   )
 }
 
-function AdminNotificationsPage({ notifications = [], loading = false, onMarkRead }) {
+function AdminNotificationsPage({ notifications = [], loading = false, onMarkRead, onStatusChange }) {
   const tAdmin = useAdminText()
   const location = useLocation()
+  const navigate = useNavigate()
   const [selectedNotification, setSelectedNotification] = useState(null)
   const [selectedOrder, setSelectedOrder] = useState(null)
+  const [isViewingFullOrder, setIsViewingFullOrder] = useState(false)
   const [detailLoading, setDetailLoading] = useState(false)
-  const autoOpenedNotificationRef = useRef(null)
+  const [page, setPage] = useState(1)
+  const pageSize = 10
+  const totalPages = Math.max(1, Math.ceil(notifications.length / pageSize))
+  const currentPage = Math.min(page, totalPages)
+  const paginatedNotifications = notifications.slice((currentPage - 1) * pageSize, currentPage * pageSize)
 
   const openDetail = useCallback(async item => {
     const data = notificationData(item)
@@ -2970,17 +3667,25 @@ function AdminNotificationsPage({ notifications = [], loading = false, onMarkRea
     }
   }, [onMarkRead, tAdmin])
 
+  const handleStatusChange = async (orderId, status) => {
+    if (!onStatusChange) return
+    const updatedOrder = await onStatusChange(orderId, status)
+    if (updatedOrder && selectedOrder?.id === orderId) {
+      setSelectedOrder(updatedOrder)
+    }
+  }
+
   useEffect(() => {
     const notificationId = location.state?.notificationId
-    if (!notificationId || loading || selectedNotification || selectedOrder) return
-    if (String(autoOpenedNotificationRef.current) === String(notificationId)) return
+    if (!notificationId || loading) return
 
     const target = notifications.find(item => String(item.id) === String(notificationId))
     if (target) {
-      autoOpenedNotificationRef.current = notificationId
+      // Clear the router state immediately so clicking the same notification again registers as a change
+      navigate(location.pathname, { replace: true, state: null })
       setTimeout(() => openDetail(target), 0)
     }
-  }, [location.state, loading, notifications, openDetail, selectedNotification, selectedOrder])
+  }, [location.state, loading, notifications, openDetail, navigate, location.pathname])
 
   return (
     <AdminPageShell title={tAdmin('notifications_title')}>
@@ -2989,7 +3694,7 @@ function AdminNotificationsPage({ notifications = [], loading = false, onMarkRea
           <table className="w-full text-left text-sm">
             <thead><tr className="text-xs uppercase text-gray-400 border-b border-gray-100 dark:border-gray-700"><th className="py-3">{tAdmin('notification_content')}</th><th>{tAdmin('time')}</th><th>{tAdmin('status')}</th><th className="text-right">{tAdmin('actions')}</th></tr></thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-              {notifications.map(item => {
+              {paginatedNotifications.map(item => {
                 const title = notificationTitle(item)
                 const body = notificationBody(item)
                 return (
@@ -3001,7 +3706,7 @@ function AdminNotificationsPage({ notifications = [], loading = false, onMarkRea
                     <td>{formatDate(item.created_at)}</td>
                     <td>{item.read_at ? tAdmin('read') : tAdmin('unread')}</td>
                     <td className="text-right">
-                      <button type="button" onClick={() => openDetail(item)} className="inline-flex items-center gap-1 text-xs font-semibold text-[#D62300] hover:underline">
+                      <button type="button" onClick={() => openDetail(item)} className="inline-flex items-center gap-1 text-xs font-semibold text-[#D62300] hover:underline cursor-pointer">
                         <Eye size={14} /> {tAdmin('view_details')}
                       </button>
                     </td>
@@ -3012,6 +3717,9 @@ function AdminNotificationsPage({ notifications = [], loading = false, onMarkRea
             </tbody>
           </table>
         )}
+        <div className="mt-5 flex justify-end">
+          <Pagination page={currentPage} totalPages={totalPages} onChange={setPage} />
+        </div>
       </div>
       <NotificationDetailModal
         notification={selectedNotification}
@@ -3021,7 +3729,17 @@ function AdminNotificationsPage({ notifications = [], loading = false, onMarkRea
           setSelectedNotification(null)
           setSelectedOrder(null)
         }}
+        onProcessOrder={() => {
+          setIsViewingFullOrder(true)
+        }}
       />
+      {isViewingFullOrder && selectedOrder && (
+        <OrderDetailModal
+          order={selectedOrder}
+          onClose={() => setIsViewingFullOrder(false)}
+          onStatusChange={handleStatusChange}
+        />
+      )}
     </AdminPageShell>
   )
 }
@@ -3141,12 +3859,23 @@ function GenericCrudPage({ title, endpoint, columns, fields, filters = [], produ
             translatedItem[key] = translatedItem[key][tableLocale] || translatedItem[key]['vi'] || '';
           }
         });
+        if (column.valueOptions) {
+          const rawValue = item[column.key]
+          const option = column.valueOptions.find(entry => entry.value === rawValue)
+          if (option?.labelKey) translatedItem[column.key] = tAdmin(option.labelKey)
+          else if (option?.label) translatedItem[column.key] = option.label
+        }
         return baseRender(translatedItem);
       }
 
       const rawValue = item[column.key];
       if (rawValue && typeof rawValue === 'object') {
         return rawValue[tableLocale] || rawValue['vi'] || '';
+      }
+      if (column.valueOptions) {
+        const option = column.valueOptions.find(entry => entry.value === rawValue)
+        if (option?.labelKey) return tAdmin(option.labelKey)
+        if (option?.label) return option.label
       }
       return rawValue;
     };
@@ -3272,7 +4001,7 @@ function GenericCrudFormPage({ config, products = [], categories = [], postCateg
     if (option.label) return option.label
     return option.value || ''
   }
-  
+
   const [form, setForm] = useState(config.defaults)
 
   useEffect(() => {
@@ -3369,7 +4098,7 @@ function GenericCrudFormPage({ config, products = [], categories = [], postCateg
     try {
       const transPayload = {}
       const fieldsPayload = {}
-      
+
       Object.keys(form).forEach(key => {
         if (translatableKeys.includes(key)) {
           transPayload[key] = form[key]
@@ -3377,7 +4106,7 @@ function GenericCrudFormPage({ config, products = [], categories = [], postCateg
           fieldsPayload[key] = form[key]
         }
       })
-      
+
       const payload = {
         ...fieldsPayload,
         translations: transPayload
@@ -3385,7 +4114,7 @@ function GenericCrudFormPage({ config, products = [], categories = [], postCateg
 
       let savedId = id
       const resource = config.endpoint.replace(/^\/admin\//, '')
-      
+
       if (isCreate) {
         const res = await apiClient.post(config.endpoint, payload)
         savedId = res.data.data.id
@@ -3417,7 +4146,7 @@ function GenericCrudFormPage({ config, products = [], categories = [], postCateg
 
   const imageField = config.fields.find(f => f.type === 'image' || f.key === 'image' || f.key === 'thumbnail')
   const toggleFields = config.fields.filter(f => f.type === 'checkbox' && (f.key.startsWith('is_') || f.key === 'active' || f.key === 'published'))
-  
+
   const leftFields = config.fields.filter(field => {
     if (field.type === 'image' || field.key === 'image' || field.key === 'thumbnail') return false
     if (field.type === 'checkbox' && (field.key.startsWith('is_') || field.key === 'active' || field.key === 'published')) return false
@@ -3426,11 +4155,56 @@ function GenericCrudFormPage({ config, products = [], categories = [], postCateg
 
   const renderField = field => {
     if (field.translatable) {
+      if (field.type === 'branchAddress') {
+        const val = form[field.key]?.[refLang] || ''
+        const origVi = form[field.key]?.vi || ''
+
+        const parseAddressString = (addrStr) => {
+          if (!addrStr) return { province: '', district: '', ward: '', street: '' }
+          const parts = addrStr.split(',').map(p => p.trim())
+          const province = parts.pop() || ''
+          const district = parts.pop() || ''
+          const ward = parts.pop() || ''
+          const street = parts.join(', ')
+          return { province, district, ward, street }
+        }
+
+        const { province, district, ward, street } = parseAddressString(val)
+
+        return (
+          <div key={field.key} className="space-y-3 p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-slate-800/30">
+            <label className="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
+              {fieldLabel(field)} {field.required && isDefault && <span className="text-red-500">*</span>}
+            </label>
+            <VietnamAddressSelector
+              province={province}
+              district={district}
+              ward={ward}
+              street={street}
+              required={field.required && isDefault}
+              onChange={({ province: p, district: d, ward: w, street: s }) => {
+                const parts = [s, w, d, p].filter(x => !!x && x.trim() !== '')
+                const combined = parts.join(', ')
+                updateTranslation(field.key, combined)
+              }}
+              asGridContainer={true}
+              theme="admin"
+            />
+            {!isDefault && origVi && (
+              <p className="text-xs text-gray-400 mt-1 flex items-start gap-1.5 border-t border-gray-100 dark:border-gray-700 pt-2">
+                <span className="flex-shrink-0">🇻🇳 {tAdmin('original_vi')}</span>
+                <span>{origVi}</span>
+              </p>
+            )}
+          </div>
+        )
+      }
+
       const isLongText = field.type === 'textarea'
       const showDetails = isLongText && (field.rows >= 5 || field.key === 'content')
       const val = form[field.key]?.[refLang] || ''
       const origVi = form[field.key]?.vi || ''
-      
+
       return (
         <div key={field.key} className="space-y-1.5">
           <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
@@ -3714,11 +4488,10 @@ function GenericCrudFormPage({ config, products = [], categories = [], postCateg
                   <Link
                     key={locale.code}
                     to={editUrl}
-                    className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all ${
-                      isActive
+                    className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all ${isActive
                         ? 'bg-red-50 dark:bg-red-500/10 text-[#D62300] font-semibold scale-[1.02]'
                         : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center gap-2">
                       <span className="text-base">{locale.flag}</span>
@@ -3840,9 +4613,11 @@ const crudPages = {
     endpoint: '/admin/toppings',
     defaults: { name: { vi: '', en: '' }, sku: '', category: 'sauce', category_ids: [], price: '', image: '', is_available: true },
     filters: [
-      { key: 'category', labelKey: 'all_types', options: [
-        { value: 'sauce', labelKey: 'sauce' }, { value: 'cheese', labelKey: 'cheese' }, { value: 'veggie', labelKey: 'veggie' }, { value: 'meat', labelKey: 'meat' },
-      ] },
+      {
+        key: 'category', labelKey: 'all_types', options: [
+          { value: 'sauce', labelKey: 'sauce' }, { value: 'cheese', labelKey: 'cheese' }, { value: 'veggie', labelKey: 'veggie' }, { value: 'meat', labelKey: 'meat' },
+        ]
+      },
       { key: 'category_id', labelKey: 'all_applied_categories', options: ({ categories }) => categories.map(category => ({ value: category.id, label: category.name })) },
     ],
     columns: [
@@ -3857,9 +4632,11 @@ const crudPages = {
     fields: [
       { key: 'name', labelKey: 'name', required: true, translatable: true },
       { key: 'sku', labelKey: 'sku' },
-      { key: 'category', labelKey: 'type', type: 'select', required: true, options: [
-        { value: 'sauce', labelKey: 'sauce' }, { value: 'cheese', labelKey: 'cheese' }, { value: 'veggie', labelKey: 'veggie' }, { value: 'meat', labelKey: 'meat' },
-      ] },
+      {
+        key: 'category', labelKey: 'type', type: 'select', required: true, options: [
+          { value: 'sauce', labelKey: 'sauce' }, { value: 'cheese', labelKey: 'cheese' }, { value: 'veggie', labelKey: 'veggie' }, { value: 'meat', labelKey: 'meat' },
+        ]
+      },
       { key: 'category_ids', labelKey: 'all_applied_categories', type: 'categoryMultiSelect' },
       { key: 'price', labelKey: 'price', type: 'number', required: true },
       { key: 'image', labelKey: 'image', type: 'image' },
@@ -3869,13 +4646,12 @@ const crudPages = {
   banners: {
     endpoint: '/admin/banners',
     defaults: { title: { vi: '', en: '' }, subtitle: { vi: '', en: '' }, image: '', link: '', position: 'hero', sort_order: 0, starts_at: '', expires_at: '', is_active: true },
-    filters: [{ key: 'position', labelKey: 'all_positions', options: [{ value: 'hero', label: 'Hero' }, { value: 'popup', label: 'Popup' }, { value: 'sidebar', label: 'Sidebar' }] }],
+    filters: [{ key: 'position', labelKey: 'all_positions', options: bannerPositionOptions }],
     columns: [
       { key: 'image', labelKey: 'preview', render: item => imageThumb(item.image, 'w-20 h-12') },
       { key: 'title', labelKey: 'title' },
-      { key: 'position', labelKey: 'position', render: item => <span className="px-2 py-1 rounded-full bg-purple-100 text-purple-700 text-xs">{item.position}</span> },
+      { key: 'position', labelKey: 'position', valueOptions: bannerPositionOptions, render: item => <span className="px-2 py-1 rounded-full bg-purple-100 text-purple-700 text-xs">{item.position}</span> },
       { key: 'sort_order', labelKey: 'sort_order' },
-      { key: 'expires_at', labelKey: 'effect_time', render: item => `${item.starts_at ? formatDate(item.starts_at) : '-'} - ${item.expires_at ? formatDate(item.expires_at) : '-'}` },
       { key: 'is_active', labelKey: 'active', toggleKey: 'is_active' },
     ],
     fields: [
@@ -3883,10 +4659,8 @@ const crudPages = {
       { key: 'subtitle', labelKey: 'subtitle', translatable: true },
       { key: 'image', labelKey: 'image', type: 'image', required: true },
       { key: 'link', labelKey: 'link_target' },
-      { key: 'position', labelKey: 'position', type: 'select', required: true, options: [{ value: 'hero', label: 'Hero' }, { value: 'popup', label: 'Popup' }, { value: 'sidebar', label: 'Sidebar' }] },
+      { key: 'position', labelKey: 'position', type: 'select', required: true, options: bannerPositionOptions },
       { key: 'sort_order', labelKey: 'sort_order', type: 'number' },
-      { key: 'starts_at', labelKey: 'start_date', type: 'date' },
-      { key: 'expires_at', labelKey: 'end_date', type: 'date' },
       { key: 'is_active', labelKey: 'active', type: 'checkbox' },
     ],
   },
@@ -3902,7 +4676,7 @@ const crudPages = {
     ],
     fields: [
       { key: 'name', labelKey: 'name', required: true, translatable: true },
-      { key: 'address', labelKey: 'address', required: true, translatable: true },
+      { key: 'address', labelKey: 'address', type: 'branchAddress', required: true, translatable: true },
       { key: 'phone', labelKey: 'phone', required: true },
       { key: 'open_time', labelKey: 'open_time', type: 'time', required: true },
       { key: 'close_time', labelKey: 'close_time', type: 'time', required: true },
@@ -3965,10 +4739,18 @@ function AdminPanel() {
   const [coupons, setCoupons] = useState([])
   const [users, setUsers] = useState([])
   const [reviews, setReviews] = useState([])
+  const [pendingComplaintsCount, setPendingComplaintsCount] = useState(0)
+  const [complaintCounts, setComplaintCounts] = useState({})
+  const [complaints, setComplaints] = useState([])
+  const [complaintsMeta, setComplaintsMeta] = useState({ current_page: 1, last_page: 1 })
+  const [complaintFilters, setComplaintFilters] = useState({ status: '', search: '', page: 1 })
   const [postCategories, setPostCategories] = useState([])
+  const [activityLogs, setActivityLogs] = useState([])
   const [notifications, setNotifications] = useState([])
   const [notificationLoading, setNotificationLoading] = useState(false)
-  const [reportData, setReportData] = useState({ counts: {}, topProducts: [], topCustomers: [], newCustomers: 0 })
+  const loadedIdsRef = useRef(new Set())
+  const isInitializedRef = useRef(false)
+  const [reportData, setReportData] = useState({ counts: {}, topProducts: [], topCustomers: [], newCustomers: 0, total_revenue: 0, total_orders: 0, completed_orders_30_days: 0, average_order_value: 0, total_customers: 0, total_products: 0, total_reviews: 0, average_rating: 0 })
   const [editProduct, setEditProduct] = useState(null)
   const [loading, setLoading] = useState(true)
   const [tableLoading, setTableLoading] = useState(false)
@@ -3978,18 +4760,53 @@ function AdminPanel() {
   const [productFilters, setProductFilters] = useState({ search: '', categoryId: '', available: '', page: 1 })
   const [orderMeta, setOrderMeta] = useState({ current_page: 1, last_page: 1 })
   const [productMeta, setProductMeta] = useState({ current_page: 1, last_page: 1 })
+  const [activityMeta, setActivityMeta] = useState({ current_page: 1, last_page: 1 })
   const debouncedOrderSearch = useDebounce(orderFilters.search)
   const debouncedProductSearch = useDebounce(productFilters.search)
+  const debouncedComplaintSearch = useDebounce(complaintFilters.search)
 
   const fetchDashboard = async () => {
-    const [statsRes, chartRes, countsRes] = await Promise.all([
+    const [statsRes, chartRes, countsRes, complaintsCountsRes] = await Promise.all([
       apiClient.get('/admin/dashboard/stats').catch(() => apiClient.get('/admin/dashboard')),
       apiClient.get('/admin/dashboard/revenue-chart', { params: { period: '7days' } }),
       apiClient.get('/admin/orders/counts'),
+      apiClient.get('/admin/complaints/counts').catch(() => ({ data: { counts: { pending: 0 } } })),
     ])
     setStats(unwrap(statsRes))
     setChartData(unwrap(chartRes))
     setOrderCounts(unwrap(countsRes))
+    setComplaintCounts(complaintsCountsRes?.data?.counts || {})
+    setPendingComplaintsCount(complaintsCountsRes?.data?.counts?.pending || 0)
+  }
+
+  const fetchComplaintsCount = async () => {
+    if (!['admin', 'staff'].includes(user?.role)) return
+    try {
+      const res = await apiClient.get('/admin/complaints/counts')
+      setComplaintCounts(res.data.counts || {})
+      setPendingComplaintsCount(res.data.counts?.pending || 0)
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const fetchComplaints = async (next = complaintFilters) => {
+    setTableLoading(true)
+    try {
+      const res = await apiClient.get('/admin/complaints', { params: { status: next.status || undefined, search: debouncedComplaintSearch || undefined, page: next.page } })
+      const data = unwrap(res)
+      setComplaints(Array.isArray(data) ? data : data.data || [])
+      setComplaintsMeta(getMeta(res) || { current_page: 1, last_page: 1 })
+    } finally {
+      setTableLoading(false)
+    }
+  }
+
+  const fetchActivityLogs = async (page = 1) => {
+    const res = await apiClient.get('/admin/dashboard/activity-log', { params: { page, per_page: 5 } })
+    const data = unwrap(res)
+    setActivityLogs(Array.isArray(data) ? data : data.data || [])
+    setActivityMeta(getMeta(res) || { current_page: 1, last_page: 1 })
   }
 
   const fetchOrders = async (next = orderFilters) => {
@@ -4045,34 +4862,112 @@ function AdminPanel() {
     if (!silent) setNotificationLoading(true)
     try {
       const { data } = await apiClient.get('/notifications')
-      setNotifications(unwrapNotifications(data))
+      const fetchedList = unwrapNotifications(data)
+
+      if (!isInitializedRef.current) {
+        fetchedList.forEach(item => {
+          if (item?.id) {
+            loadedIdsRef.current.add(item.id)
+          }
+        })
+        isInitializedRef.current = true
+        setNotifications(fetchedList)
+      } else {
+        let hasNewNotification = false
+        let hasNewOrder = false
+        let hasNewReview = false
+
+        fetchedList.forEach(item => {
+          if (item?.id && !loadedIdsRef.current.has(item.id)) {
+            loadedIdsRef.current.add(item.id)
+            if (!item.read_at) {
+              hasNewNotification = true
+
+              const nType = item.type || ''
+              const nData = notificationData(item)
+
+              if (nType.includes('NewOrder') || nData.order_id || nData.order_code) {
+                hasNewOrder = true
+              }
+              if (nType.includes('NewReview') || nData.review_id || nData.rating) {
+                hasNewReview = true
+              }
+
+              const title = notificationTitle(item) || tAdmin('notifications')
+              const body = notificationBody(item)
+
+              toast.custom((t) => (
+                <div
+                  onClick={() => {
+                    toast.dismiss(t.id)
+                    navigate('/admin/notifications', { state: { notificationId: item.id } })
+                  }}
+                  className={`${t.visible ? 'animate-enter' : 'animate-leave'
+                    } max-w-md w-full bg-white dark:bg-gray-800 shadow-lg rounded-lg pointer-events-auto flex ring-1 ring-black ring-opacity-5 border-l-4 border-red-600 cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-xl p-4`}
+                >
+                  <div className="flex items-start w-full">
+                    <div className="flex-shrink-0 pt-0.5">
+                      <Bell className="h-6 w-6 text-red-600 animate-bounce" />
+                    </div>
+                    <div className="ml-3 flex-1">
+                      <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                        {title}
+                      </p>
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        {body}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ), { duration: 6000 })
+            }
+          }
+        })
+
+        if (hasNewNotification) {
+          playNotificationSound()
+        }
+
+        if (hasNewOrder) {
+          fetchOrders().catch(console.error)
+          fetchDashboard().catch(console.error)
+        }
+        if (hasNewReview) {
+          fetchReviews().catch(console.error)
+        }
+
+        setNotifications(fetchedList)
+      }
     } finally {
       if (!silent) setNotificationLoading(false)
     }
   }
 
   const fetchReports = async () => {
-    const [reportsRes, topProductsRes, topCustomersRes, countsRes, chartRes] = await Promise.all([
+    const [reportsRes, topProductsRes, topCustomersRes, chartRes] = await Promise.all([
       apiClient.get('/admin/reports/summary'),
       apiClient.get('/admin/reports/top-products'),
       apiClient.get('/admin/reports/top-customers'),
-      apiClient.get('/admin/orders/counts'),
       apiClient.get('/admin/dashboard/revenue-chart', { params: { period: '30days' } }),
     ])
-    setOrderCounts(unwrap(countsRes))
     setChartData(unwrap(chartRes))
     setReportData(prev => ({ ...prev, ...unwrap(reportsRes), topProducts: unwrap(topProductsRes), topCustomers: unwrap(topCustomersRes) }))
   }
 
   useEffect(() => {
-    if (user?.role !== 'admin') return
+    if (!['admin', 'staff'].includes(user?.role)) return
     let ignore = false
     const loadRouteData = async () => {
       setLoading(true)
       const path = location.pathname
+      if (!canAccessAdminModule(user, adminPathModule(path))) {
+        if (!ignore) setLoading(false)
+        return
+      }
       if (path === '/admin') {
         await fetchDashboard()
         await fetchOrders()
+        await fetchActivityLogs()
       } else if (path === '/admin/orders') {
         const countsRes = await apiClient.get('/admin/orders/counts')
         setOrderCounts(unwrap(countsRes))
@@ -4087,7 +4982,6 @@ function AdminPanel() {
       } else if (path === '/admin/reviews') {
         await fetchReviews()
       } else if (path === '/admin/reports') {
-        await fetchDashboard()
         await fetchReports()
       } else if (path.startsWith('/admin/combos')) {
         await fetchProducts({ search: '', categoryId: '', available: '', page: 1 })
@@ -4095,6 +4989,9 @@ function AdminPanel() {
         await fetchCategories()
       } else if (path.startsWith('/admin/posts')) {
         await fetchPostCategories()
+      } else if (path === '/admin/complaints') {
+        await fetchComplaintsCount()
+        await fetchComplaints()
       } else if (path === '/admin/loyalty') {
         await fetchUsers()
       }
@@ -4114,10 +5011,17 @@ function AdminPanel() {
   }, [user?.role, location.pathname, tAdmin])
 
   useEffect(() => {
-    if (user?.role !== 'admin') return undefined
+    isInitializedRef.current = false
+    loadedIdsRef.current.clear()
+
+    if (!canAccessAdminModule(user, 'notifications')) return undefined
 
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchNotifications().catch(error => {
+      console.error(error)
+    })
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchComplaintsCount().catch(error => {
       console.error(error)
     })
 
@@ -4125,20 +5029,30 @@ function AdminPanel() {
       fetchNotifications({ silent: true }).catch(error => {
         console.error(error)
       })
-    }, 60000)
+      fetchComplaintsCount().catch(error => {
+        console.error(error)
+      })
+    }, 5000)
 
     return () => window.clearInterval(intervalId)
-  }, [user?.role])
+  }, [user])
 
   useEffect(() => {
-    if (!user || loading) return
+    if (!user || loading || !canAccessAdminModule(user, 'complaints') || location.pathname !== '/admin/complaints') return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchComplaints({ ...complaintFilters, page: 1 })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedComplaintSearch, complaintFilters.status])
+
+  useEffect(() => {
+    if (!user || loading || !canAccessAdminModule(user, 'orders')) return
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchOrders({ ...orderFilters, page: 1 })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedOrderSearch, orderFilters.status])
 
   useEffect(() => {
-    if (!user || loading) return
+    if (!user || loading || !canAccessAdminModule(user, 'products')) return
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchProducts({ ...productFilters, page: 1 })
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -4229,9 +5143,9 @@ function AdminPanel() {
   }
 
   const moderateReview = async (id, action) => {
-    if (action === 'delete') await apiClient.delete(`/admin/reviews/${id}`)
-    else await apiClient.patch(`/admin/reviews/${id}/${action}`)
-    toast.success(tAdmin('review_updated'))
+    if (action !== 'delete') return
+    await apiClient.delete(`/admin/reviews/${id}`)
+    toast.success(tAdmin('deleted'))
     const res = await apiClient.get('/admin/reviews')
     setReviews(unwrap(res))
   }
@@ -4240,22 +5154,50 @@ function AdminPanel() {
   const badges = useMemo(() => ({
     pendingOrders: orderCounts.pending || stats?.metrics?.pending_orders || 0,
     notificationsUnread: unreadNotifications,
-  }), [orderCounts, stats, unreadNotifications])
+    pendingComplaints: pendingComplaintsCount,
+  }), [orderCounts, stats, unreadNotifications, pendingComplaintsCount])
 
-  if (!user || user.role !== 'admin') return <Navigate to="/login" replace />
+  if (!user || !['admin', 'staff'].includes(user.role)) return <Navigate to="/login" replace />
 
   if (loading) {
     return <div className="min-h-screen bg-[#F4F6F8] dark:bg-[#161825] flex items-center justify-center"><Loader2 className="animate-spin text-[#D62300]" size={34} /></div>
   }
 
-  let page = <AdminDashboard stats={stats} orders={orders} chartData={chartData} />
+  let page = (
+    <AdminDashboard
+      stats={stats}
+      orders={orders}
+      chartData={chartData}
+      activityLogs={activityLogs}
+      activityMeta={activityMeta}
+      onActivityPageChange={fetchActivityLogs}
+    />
+  )
   if (location.pathname === '/admin/orders') page = <AdminOrdersPage orders={orders} counts={orderCounts} loading={tableLoading} meta={orderMeta} filters={orderFilters} setFilters={setOrderFilters} onStatusChange={updateOrderStatus} onPageChange={pageNum => { setOrderFilters(prev => ({ ...prev, page: pageNum })); fetchOrders({ ...orderFilters, page: pageNum }) }} />
   else if (location.pathname === '/admin/products') page = <AdminProductsPage products={products} categories={categories} loading={tableLoading} meta={productMeta} filters={productFilters} setFilters={setProductFilters} onToggleFlag={toggleProductFlag} onDelete={deleteProduct} onPageChange={pageNum => { setProductFilters(prev => ({ ...prev, page: pageNum })); fetchProducts({ ...productFilters, page: pageNum }) }} />
   else if (location.pathname === '/admin/products/create' || editMatch) page = <AdminProductFormPage key={editMatch ? `edit-product-${editMatch[1]}` : 'create-product'} categories={categories} itemId={editMatch?.[1]} editProduct={editProduct} onSave={saveProduct} />
   else if (location.pathname === '/admin/coupons') page = <AdminCouponsPage coupons={coupons} loading={tableLoading} onRefresh={fetchCoupons} />
-  else if (location.pathname === '/admin/users') page = <AdminUsersPage users={users} loading={tableLoading} />
+  else if (location.pathname === '/admin/users') page = <AdminUsersPage users={users} loading={tableLoading} onRefresh={fetchUsers} />
   else if (location.pathname === '/admin/reviews') page = <AdminReviewsPage reviews={reviews} loading={tableLoading} onModerate={moderateReview} />
-  else if (location.pathname === '/admin/reports') page = <AdminReportsPage stats={stats} chartData={chartData} reportData={{ ...reportData, counts: orderCounts }} />
+  else if (location.pathname === '/admin/complaints') page = (
+    <AdminComplaintsPage 
+      complaints={complaints} 
+      loading={tableLoading} 
+      counts={complaintCounts}
+      meta={complaintsMeta} 
+      filters={complaintFilters} 
+      setFilters={setComplaintFilters} 
+      onPageChange={pageNum => {
+        setComplaintFilters(prev => ({ ...prev, page: pageNum }))
+        fetchComplaints({ ...complaintFilters, page: pageNum })
+      }}
+      onRefresh={() => {
+        fetchComplaints()
+        fetchComplaintsCount()
+      }}
+    />
+  )
+  else if (location.pathname === '/admin/reports') page = <AdminReportsPage stats={stats} chartData={chartData} reportData={reportData} />
   else if (location.pathname === '/admin/categories') page = <GenericCrudPage {...crudPages.categories} />
   else if (location.pathname === '/admin/combos') page = <GenericCrudPage {...crudPages.combos} products={products} />
   else if (location.pathname === '/admin/toppings') page = <GenericCrudPage {...crudPages.toppings} categories={categories} />
@@ -4275,14 +5217,419 @@ function AdminPanel() {
   }
   else if (location.pathname === '/admin/settings') page = <AdminSettingsDatabasePage />
   else if (location.pathname === '/admin/translations/locales') page = <AdminLanguageLocalesPage />
-  else if (location.pathname === '/admin/notifications') page = <AdminNotificationsPage notifications={notifications} loading={notificationLoading} onMarkRead={markNotificationRead} />
+  else if (location.pathname === '/admin/notifications') page = <AdminNotificationsPage notifications={notifications} loading={notificationLoading} onMarkRead={markNotificationRead} onStatusChange={updateOrderStatus} />
   else if (location.pathname !== '/admin' && !genericEditMatch && !genericCreateMatch) navigate('/admin')
+
+  const currentModule = adminPathModule(location.pathname)
+  if (!canAccessAdminModule(user, currentModule)) {
+    const firstAllowed = adminPermissionModules.find(module => canAccessAdminModule(user, module))
+    return <Navigate to={firstAllowed && firstAllowed !== 'dashboard' ? `/admin/${firstAllowed === 'languages' ? 'translations/locales' : firstAllowed}` : '/admin'} replace />
+  }
 
   return (
     <AdminLayout badges={badges} notifications={notifications} unreadNotifications={unreadNotifications}>
       {page}
       <ConfirmDialog open={confirm.open} title={confirm.title} message={confirm.message} onCancel={() => setConfirm({ open: false })} onConfirm={confirm.onConfirm} loading={confirmLoading} />
     </AdminLayout>
+  )
+}
+
+function AdminComplaintsPage({ complaints, loading, counts, meta, filters, setFilters, onPageChange, onRefresh }) {
+  const tAdmin = useAdminText()
+  const [selectedComplaint, setSelectedComplaint] = useState(null)
+  const [zoomImage, setZoomImage] = useState(null)
+
+  const [status, setStatus] = useState('reviewing')
+  const [resolutionType, setResolutionType] = useState('apology')
+  const [adminNote, setAdminNote] = useState('')
+  const [resolutionNote, setResolutionNote] = useState('')
+  const [refundAmount, setRefundAmount] = useState(0)
+  const [processing, setProcessing] = useState(false)
+
+  const formatCount = value => Number.parseInt(Number(value || 0), 10)
+
+  const handleViewDetails = async (complaintId) => {
+    try {
+      const { data } = await apiClient.get(`/admin/complaints/${complaintId}`)
+      setSelectedComplaint(data.data)
+      setStatus(data.data.status === 'pending' ? 'reviewing' : data.data.status)
+      setResolutionType(data.data.resolution_type || 'apology')
+      setAdminNote(data.data.admin_note || '')
+      setResolutionNote(data.data.resolution_note || '')
+      setRefundAmount(data.data.refund_amount || 0)
+    } catch (err) {
+      console.error(err)
+      toast.error(tAdmin('complaint_err_load'))
+    }
+  }
+
+  const handleProcessSubmit = async (e) => {
+    e.preventDefault()
+    setProcessing(true)
+    try {
+      const payload = {
+        status,
+        resolution_type: status !== 'reviewing' ? resolutionType : undefined,
+        resolution_note: status !== 'reviewing' ? resolutionNote : undefined,
+        admin_note: adminNote,
+        refund_amount: (status === 'resolved' && resolutionType === 'refund') ? Number(refundAmount) : undefined,
+      }
+      await apiClient.post(`/admin/complaints/${selectedComplaint.id}/process`, payload)
+      toast.success(tAdmin('complaint_success_process'))
+      setSelectedComplaint(null)
+      onRefresh()
+    } catch (err) {
+      console.error(err)
+      toast.error(err.response?.data?.message || tAdmin('complaint_err_process'))
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  const statusLabels = {
+    pending: tAdmin('status_pending_complaint'),
+    reviewing: tAdmin('status_reviewing_complaint'),
+    resolved: tAdmin('status_resolved_complaint'),
+    rejected: tAdmin('status_rejected_complaint'),
+  }
+
+  const typeLabels = {
+    wrong_item: tAdmin('issue_wrong_item'),
+    missing_item: tAdmin('issue_missing_item'),
+    bad_quality: tAdmin('issue_bad_quality'),
+    late_delivery: tAdmin('issue_late_delivery'),
+    shipper_attitude: tAdmin('issue_shipper_attitude'),
+    other: tAdmin('issue_other'),
+  }
+
+  const desiredLabels = {
+    redeliver: tAdmin('desired_redeliver'),
+    refund_partial: tAdmin('desired_refund_partial'),
+    refund_full: tAdmin('desired_refund_full'),
+    feedback_only: tAdmin('desired_feedback_only'),
+  }
+
+  const issueLabels = {
+    wrong: tAdmin('fault_wrong'),
+    missing: tAdmin('fault_missing'),
+    bad_quality: tAdmin('fault_bad_quality'),
+    other: tAdmin('fault_other'),
+  }
+
+  return (
+    <AdminPageShell title={tAdmin('complaints_management')}>
+      <div className="bg-white dark:bg-[#1E2130] rounded-2xl p-6 shadow-sm space-y-5">
+        <div className="flex flex-wrap gap-2">
+          {[
+            { key: '', label: tAdmin('all'), countKey: 'total' },
+            { key: 'pending', label: tAdmin('status_pending_complaint'), countKey: 'pending' },
+            { key: 'reviewing', label: tAdmin('status_reviewing_complaint'), countKey: 'reviewing' },
+            { key: 'resolved', label: tAdmin('status_resolved_complaint'), countKey: 'resolved' },
+            { key: 'rejected', label: tAdmin('status_rejected_complaint'), countKey: 'rejected' }
+          ].map(tab => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setFilters(prev => ({ ...prev, status: tab.key, page: 1 }))}
+              className={`px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                filters.status === tab.key
+                  ? 'bg-[#D62300] text-white'
+                  : 'bg-gray-50 dark:bg-[#161825] text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+              }`}
+            >
+              {tab.label} <span className="opacity-70">({formatCount(counts?.[tab.countKey])})</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="relative max-w-sm">
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            value={filters.search || ''}
+            onChange={event => setFilters(prev => ({ ...prev, search: event.target.value, page: 1 }))}
+            placeholder={tAdmin('search_complaints')}
+            className="w-full pl-9 pr-3 py-2 border border-gray-200 dark:border-gray-700 dark:bg-[#161825] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-100"
+          />
+        </div>
+
+        {loading ? (
+          <TableSkeleton rows={6} cols={7} />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="text-xs uppercase text-gray-400 border-b border-gray-100 dark:border-gray-700">
+                  <th className="py-3">{tAdmin('complaint_order_code')}</th>
+                  <th className="py-3">{tAdmin('complaint_customer')}</th>
+                  <th className="py-3">{tAdmin('complaint_issue_type')}</th>
+                  <th className="py-3">{tAdmin('complaint_desired_resolution')}</th>
+                  <th className="py-3">{tAdmin('complaint_sla')}</th>
+                  <th className="py-3">{tAdmin('complaint_status')}</th>
+                  <th className="py-3 text-right">{tAdmin('complaint_action')}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                {complaints.map(item => {
+                  let slaText = tAdmin('sla_resolved')
+                  let slaClass = 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
+                  if (['pending', 'reviewing'].includes(item.status)) {
+                    if (item.is_overdue) {
+                      slaText = tAdmin('sla_overdue')
+                      slaClass = 'bg-red-100 text-red-700 dark:bg-red-400/15 dark:text-red-300 animate-pulse font-bold'
+                    } else if (item.sla_hours_remaining <= 12) {
+                      slaText = tAdmin('sla_urgent', { hours: item.sla_hours_remaining })
+                      slaClass = 'bg-amber-100 text-amber-700 dark:bg-amber-400/15 dark:text-amber-300 font-bold'
+                    } else {
+                      slaText = tAdmin('sla_hours', { hours: item.sla_hours_remaining })
+                      slaClass = 'bg-green-100 text-green-700 dark:bg-green-400/15 dark:text-green-300'
+                    }
+                  }
+
+                  return (
+                    <tr key={item.id} className="text-gray-700 dark:text-gray-200">
+                      <td className="py-3 font-bold">{item.order?.order_code || `#${item.order_id}`}</td>
+                      <td className="py-3">
+                        <p className="font-semibold">{item.user?.name}</p>
+                        <p className="text-[10px] text-gray-400">{item.user?.email}</p>
+                      </td>
+                      <td className="py-3 font-medium">{typeLabels[item.type] || item.type}</td>
+                      <td className="py-3 font-medium">{desiredLabels[item.desired_resolution] || item.desired_resolution}</td>
+                      <td className="py-3">
+                        <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-semibold ${slaClass}`}>
+                          {slaText}
+                        </span>
+                      </td>
+                      <td className="py-3">
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                          item.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                          item.status === 'reviewing' ? 'bg-blue-100 text-blue-700' :
+                          item.status === 'resolved' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                        }`}>
+                          {statusLabels[item.status] || item.status}
+                        </span>
+                      </td>
+                      <td className="py-3 text-right">
+                        <button
+                          type="button"
+                          onClick={() => handleViewDetails(item.id)}
+                          className="inline-flex items-center gap-1 text-[#D62300] text-xs font-semibold hover:underline cursor-pointer"
+                        >
+                          <Eye size={14} />
+                          {tAdmin('view')}
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
+                {!complaints.length && <EmptyTableRow colSpan={7} message={tAdmin('no_complaints')} />}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {meta && meta.last_page > 1 && (
+          <div className="flex justify-end">
+            <Pagination page={meta.current_page} totalPages={meta.last_page} onChange={onPageChange} />
+          </div>
+        )}
+      </div>
+
+      {selectedComplaint && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="relative w-full max-w-2xl bg-white dark:bg-[#1E2130] rounded-2xl shadow-xl overflow-hidden z-10 flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 p-5">
+              <h3 className="font-bold text-lg text-gray-900 dark:text-gray-100">
+                {tAdmin('complaint_details_title', { code: selectedComplaint.order?.order_code })}
+              </h3>
+              <button 
+                type="button"
+                onClick={() => setSelectedComplaint(null)} 
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto p-6 space-y-6 text-xs text-gray-700 dark:text-gray-200">
+              <div className="grid grid-cols-2 gap-4 bg-gray-50 dark:bg-slate-800 p-4 rounded-xl">
+                <div>
+                  <span className="text-gray-400 font-semibold block uppercase text-[10px]">{tAdmin('complaint_customer')}</span>
+                  <span className="font-bold">{selectedComplaint.user?.name} ({selectedComplaint.user?.email})</span>
+                </div>
+                <div>
+                  <span className="text-gray-400 font-semibold block uppercase text-[10px]">{tAdmin('complaint_issue_type')}</span>
+                  <span className="font-bold">{typeLabels[selectedComplaint.type] || selectedComplaint.type}</span>
+                </div>
+                <div>
+                  <span className="text-gray-400 font-semibold block uppercase text-[10px]">{tAdmin('complaint_feedback')}</span>
+                  <span className="font-bold whitespace-pre-wrap">{selectedComplaint.description}</span>
+                </div>
+                <div>
+                  <span className="text-gray-400 font-semibold block uppercase text-[10px]">{tAdmin('complaint_desired')}</span>
+                  <span className="font-bold text-[#D62300]">{desiredLabels[selectedComplaint.desired_resolution]}</span>
+                </div>
+              </div>
+
+              {selectedComplaint.items && selectedComplaint.items.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="font-bold text-xs uppercase text-gray-400">{tAdmin('complaint_faulty_items')}</h4>
+                  <div className="border border-gray-100 dark:border-gray-700 rounded-xl overflow-hidden divide-y divide-gray-100 dark:divide-gray-700 bg-white dark:bg-[#1E2130]">
+                    {selectedComplaint.items.map(cItem => (
+                      <div key={cItem.id} className="p-3 flex justify-between items-center text-xs">
+                        <div>
+                          <p className="font-bold">{cItem.product_name}</p>
+                          {cItem.note && <p className="text-[10px] text-gray-400 italic">"{tAdmin('complaint_item_note', { note: cItem.note })}"</p>}
+                        </div>
+                        <span className="px-2 py-0.5 bg-amber-50 text-amber-800 border border-amber-100 rounded text-[10px] font-bold uppercase">
+                          {issueLabels[cItem.issue_type] || cItem.issue_type}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {selectedComplaint.images && selectedComplaint.images.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="font-bold text-xs uppercase text-gray-400">{tAdmin('complaint_evidence_images')}</h4>
+                  <div className="flex gap-2">
+                    {selectedComplaint.images.map((img, idx) => (
+                      <button
+                        type="button"
+                        key={idx}
+                        onClick={() => setZoomImage(img)}
+                        className="w-20 h-20 rounded-xl border border-gray-100 overflow-hidden cursor-pointer bg-gray-50 focus:outline-none"
+                      >
+                        <img src={img} alt="Evidence" className="w-full h-full object-cover hover:scale-105 transition" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <form onSubmit={handleProcessSubmit} className="border-t border-gray-100 dark:border-gray-700 pt-5 space-y-4">
+                <h4 className="font-bold text-xs uppercase text-gray-400">{tAdmin('complaint_process_title')}</h4>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="block">
+                    <span className="text-gray-400 font-semibold block uppercase text-[10px] mb-2">{tAdmin('complaint_process_status')}</span>
+                    <select
+                      value={status}
+                      onChange={e => setStatus(e.target.value)}
+                      className={`${fieldInputClass} mt-1`}
+                    >
+                      <option value="reviewing">{tAdmin('status_reviewing_complaint')}</option>
+                      <option value="resolved">{tAdmin('status_resolved_complaint')}</option>
+                      <option value="rejected">{tAdmin('status_rejected_complaint')}</option>
+                    </select>
+                  </div>
+
+                  {status === 'resolved' && (
+                    <div className="block">
+                      <span className="text-gray-400 font-semibold block uppercase text-[10px] mb-2">{tAdmin('complaint_process_resolution')}</span>
+                      <select
+                        value={resolutionType}
+                        onChange={e => setResolutionType(e.target.value)}
+                        className={`${fieldInputClass} mt-1`}
+                      >
+                        <option value="redeliver">{tAdmin('resolution_redeliver')}</option>
+                        <option value="refund">{tAdmin('resolution_refund')}</option>
+                        <option value="voucher">{tAdmin('resolution_voucher')}</option>
+                        <option value="apology">{tAdmin('resolution_apology')}</option>
+                      </select>
+                    </div>
+                  )}
+
+                  {status === 'rejected' && (
+                    <div className="block">
+                      <span className="text-gray-400 font-semibold block uppercase text-[10px] mb-2">{tAdmin('complaint_process_reject_reason')}</span>
+                      <select
+                        value={resolutionType}
+                        onChange={e => setResolutionType(e.target.value)}
+                        className={`${fieldInputClass} mt-1`}
+                      >
+                        <option value="rejected">{tAdmin('resolution_rejected')}</option>
+                      </select>
+                    </div>
+                  )}
+                </div>
+
+                {status === 'resolved' && resolutionType === 'refund' && (
+                  <div className="block animate-fade-in">
+                    <span className="text-gray-400 font-semibold block uppercase text-[10px] mb-2">{tAdmin('complaint_process_refund_amount')}</span>
+                    <input
+                      type="number"
+                      value={refundAmount}
+                      onChange={e => setRefundAmount(Number(e.target.value))}
+                      placeholder={tAdmin('complaint_process_refund_placeholder')}
+                      className={fieldInputClass}
+                      min="0"
+                      required
+                    />
+                    <p className="text-[10px] text-gray-400 mt-1">{tAdmin('complaint_process_refund_hint')}</p>
+                  </div>
+                )}
+
+                <div className="block">
+                  <span className="text-gray-400 font-semibold block uppercase text-[10px] mb-2">{tAdmin('complaint_process_admin_note')}</span>
+                  <textarea
+                    rows={2}
+                    value={adminNote}
+                    onChange={e => setAdminNote(e.target.value)}
+                    placeholder={tAdmin('complaint_process_admin_note_placeholder')}
+                    className={fieldInputClass}
+                  />
+                </div>
+
+                {status !== 'reviewing' && (
+                  <div className="block animate-fade-in">
+                    <span className="text-gray-400 font-semibold block uppercase text-[10px] mb-2">{tAdmin('complaint_process_reply')}</span>
+                    <textarea
+                      rows={3}
+                      value={resolutionNote}
+                      onChange={e => setResolutionNote(e.target.value)}
+                      placeholder={tAdmin('complaint_process_reply_placeholder')}
+                      className={fieldInputClass}
+                      required
+                    />
+                  </div>
+                )}
+
+                <div className="flex gap-3 justify-end pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedComplaint(null)}
+                    className="border border-gray-200 dark:border-gray-700 hover:bg-gray-50 text-gray-700 dark:text-gray-300 dark:hover:bg-slate-800 px-5 py-2.5 rounded-xl font-bold cursor-pointer"
+                  >
+                    {tAdmin('complaint_close')}
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={processing}
+                    className="bg-[#D62300] hover:bg-[#b51e00] text-white px-6 py-2.5 rounded-xl font-bold transition shadow-md disabled:opacity-50 cursor-pointer"
+                  >
+                    {processing ? tAdmin('complaint_updating') : tAdmin('complaint_update_btn')}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {zoomImage && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4">
+          <button 
+            type="button"
+            onClick={() => setZoomImage(null)}
+            className="absolute top-5 right-5 text-white hover:text-gray-300 bg-black/40 rounded-full p-2 z-10 cursor-pointer"
+          >
+            <X size={24} />
+          </button>
+          <img src={zoomImage} alt="Zoomed Evidence" className="max-w-full max-h-[90vh] object-contain rounded-lg animate-float-half shadow-2xl" />
+        </div>
+      )}
+    </AdminPageShell>
   )
 }
 

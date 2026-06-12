@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { useAuthStore } from '../store/authStore'
+import { useUiStore } from '../store/uiStore'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
 
@@ -28,12 +29,16 @@ apiClient.interceptors.request.use(
   }
 )
 
-// Intercept 401 Unauthorized responses to auto-logout
+// Auto-logout invalid sessions and surface the specific locked-account reason.
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response && error.response.status === 401) {
-      // Token is expired or invalid, log out user
+    if (error.response?.status === 423 && error.response?.data?.code === 'ACCOUNT_LOCKED') {
+      if (useAuthStore.getState().isAuthenticated) {
+        useAuthStore.getState().setLogout()
+        useUiStore.getState().showToast(error.response.data.message, 'error')
+      }
+    } else if (error.response?.status === 401) {
       useAuthStore.getState().setLogout()
     }
     return Promise.reject(error)
