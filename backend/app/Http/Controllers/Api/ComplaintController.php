@@ -52,12 +52,10 @@ class ComplaintController extends Controller
             return response()->json(['message' => "Đã quá thời hạn khiếu nại đơn hàng (tối đa {$expiryHours} giờ)."], 422);
         }
 
-        // 3. Check for any active complaint (pending or reviewing)
-        $hasActiveComplaint = Complaint::where('order_id', $order->id)
-            ->whereIn('status', ['pending', 'reviewing'])
-            ->exists();
-        if ($hasActiveComplaint) {
-            return response()->json(['message' => 'Đơn hàng này đang có khiếu nại đang được xử lý.'], 422);
+        // 3. Check for any existing complaint (only allow complaining once)
+        $hasComplaint = Complaint::where('order_id', $order->id)->exists();
+        if ($hasComplaint) {
+            return response()->json(['message' => 'Đơn hàng này đã được khiếu nại trước đó. Mỗi đơn hàng chỉ được khiếu nại tối đa một lần.'], 422);
         }
 
         // 4. Rate limit check: max 5 complaints per day per user
@@ -229,6 +227,10 @@ class ComplaintController extends Controller
             if ($request->resolution_type === 'redeliver') {
                 $this->createRedeliveryOrder($originalOrder, $complaint);
             } elseif ($request->resolution_type === 'refund') {
+                // Mark original order payment status as refunded
+                $originalOrder->payment_status = 'refunded';
+                $originalOrder->save();
+
                 // Revert loyalty points if user has earned points from original order
                 $refundAmount = (float) $request->refund_amount;
                 $pointsToReverse = (int) floor($refundAmount / 10000);

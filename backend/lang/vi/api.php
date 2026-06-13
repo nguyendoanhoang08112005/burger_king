@@ -119,6 +119,11 @@ return [
         'walk_in_customer' => 'Khách lẻ',
         'activity_created_order' => 'tạo đơn :code',
         'orders_metric' => 'Đơn hàng',
+        'forgot_password_sent' => 'Mã xác minh đã được gửi đến email của bạn.',
+        'reset_password_success' => 'Đặt lại mật khẩu thành công! Bạn có thể đăng nhập bằng mật khẩu mới.',
+        'otp_invalid_or_expired' => 'Mã xác minh không hợp lệ hoặc đã hết hạn.',
+        'otp_expired_new_required' => 'Mã xác minh đã hết hạn. Vui lòng yêu cầu mã mới.',
+        'otp_incorrect' => 'Mã xác minh không chính xác.',
     ],
     'payments' => [
         'cod_name' => 'Tiền mặt khi nhận hàng (COD)',

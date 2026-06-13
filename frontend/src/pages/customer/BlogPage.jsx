@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import apiClient from '../api/axios'
-import { formatDate } from '../utils/format'
+import apiClient from '../../api/axios'
+import { formatDate } from '../../utils/format'
 
 function BlogPage() {
   const { t, i18n } = useTranslation()
@@ -64,7 +64,7 @@ function BlogPage() {
         <div className="absolute inset-0 z-10 bg-gradient-to-r from-black/75 via-black/45 to-black/15" />
         <div className="absolute inset-0 z-10 bg-black/15" />
         <div className="relative z-20 max-w-7xl mx-auto px-6 md:px-12 w-full">
-          <p className="text-[#FFC72C] text-sm font-bold uppercase tracking-widest mb-3">Blog</p>
+          <p className="text-[#FFC72C] text-sm font-bold uppercase tracking-widest mb-3">{t('blog.title')}</p>
           <h1 style={{ color: '#fff' }} className="font-extrabold text-[clamp(36px,6vw,72px)] uppercase leading-none max-w-3xl drop-shadow-lg">
             {heroTitle}
           </h1>

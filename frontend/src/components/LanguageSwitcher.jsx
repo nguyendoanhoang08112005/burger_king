@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next'
 import { useState, useRef, useEffect } from 'react'
 
 const LANGUAGES = [
-  { code: 'vi', flagImg: '/flags/vn.svg', name: 'Vietnamese', short: 'VI' },
+  { code: 'vi', flagImg: '/flags/vn.svg', name: 'Tiếng Việt', short: 'VI' },
   { code: 'en', flagImg: '/flags/us.svg', name: 'English',    short: 'EN' },
 ]
 

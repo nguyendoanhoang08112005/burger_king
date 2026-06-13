@@ -1,4 +1,7 @@
 {
+  "common": {
+    "back": "Back"
+  },
   "nav": {
     "home": "Home",
     "menu": "Menu",
@@ -91,6 +94,7 @@
     "distance": "Distance",
     "fulfilled_by": "Delivered from branch",
     "estimated": "Estimated Time",
+    "fallback_estimated": "30-45 mins",
     "calculating": "Calculating shipping...",
     "not_available": "Delivery not available",
     "out_of_range_error": "Store does not deliver to this address (>20km)",
@@ -160,6 +164,7 @@
     "cancelled_title": "ORDER CANCELLED",
     "cancelled_desc": "This order has been cancelled successfully. Any earned points or deducted value has been fully returned to your account.",
     "item_details": "ITEM DETAILS",
+    "item_with_id": "Item #{{id}}",
     "delivery_info": "DELIVERY INFORMATION",
     "delivery_from_branch": "Delivered from District 1 branch",
     "pickup_customer": "Customer pickup",
@@ -217,7 +222,8 @@
     "back": "Back",
     "continue": "Continue",
     "evidence_label": "Evidence",
-    "already_reviewed": "You have already reviewed this order."
+    "already_reviewed": "You have already reviewed this order.",
+    "your_feedback": "Your feedback"
   },
   "auth": {
     "login": "Login",
@@ -248,7 +254,23 @@
     "password_min_placeholder": "At least 8 characters",
     "confirm_password_placeholder": "Enter password again",
     "registering": "REGISTERING...",
-    "register_new_account": "REGISTER NEW ACCOUNT"
+    "register_new_account": "REGISTER NEW ACCOUNT",
+    "forgot_password": "Forgot password?",
+    "forgot_password_title": "FORGOT PASSWORD",
+    "forgot_password_desc": "Enter your email address, and we will send you an OTP verification code to reset your password.",
+    "send_otp": "SEND VERIFICATION CODE",
+    "sending_otp": "SENDING...",
+    "otp_sent": "Verification code has been sent to your email!",
+    "reset_password_title": "RESET PASSWORD",
+    "reset_password_desc": "Please enter the 6-digit OTP code and your new password.",
+    "otp_code": "OTP Verification Code",
+    "new_password": "New Password",
+    "confirm_new_password": "Confirm New Password",
+    "reset_password_now": "RESET PASSWORD",
+    "resetting": "RESETTING...",
+    "reset_success": "Password reset successful! You can log in now.",
+    "forgot_password_error": "Unable to send verification code. Please check your email.",
+    "reset_password_error": "Unable to reset password. Please try again."
   },
   "profile": {
     "title": "Account",
@@ -342,6 +364,7 @@
     "home_subtitle": "A generous meal saving up to 35% for family & friends.",
     "page_subtitle": "Perfect menus for parties, pairs, or treating yourself with daily savings up to 35%!",
     "buy": "Buy combo",
+    "buy_now": "BUY NOW",
     "badge": "SAVING COMBO",
     "includes": "INCLUDES:"
   },
@@ -400,7 +423,9 @@
     "see_all": "See All",
     "actions": "Actions",
     "default": "Default",
-    "previous_arrow": "← Previous"
+    "previous": "Previous",
+    "previous_arrow": "← Previous",
+    "next_arrow": "Next →"
   },
   "status": {
     "active": "Active",
@@ -452,11 +477,15 @@
     "address": "120-122 Le Loi, Ben Nghe Ward, District 1, Ho Chi Minh City",
     "opening_hours": "Opening hours: {{time}}",
     "newsletter_desc": "Subscribe by email for an exclusive 20% offer today.",
+    "newsletter": "Newsletter",
     "newsletter_placeholder": "Enter your email...",
     "newsletter_button": "Subscribe",
     "credit": "Designed by Senior Full-stack Team."
   },
   "adminPanel": {
+    "access_denied_title": "Access Denied",
+    "access_denied_desc": "Your account does not have permission to access this page. Please contact the administrator if you need assistance.",
+    "back_to_dashboard": "Back to dashboard",
     "group_overview": "Overview",
     "group_menu": "Menu",
     "group_sales": "Sales",
@@ -1001,6 +1030,15 @@
     "evidence": "Evidence photos (Max 5 photos)",
     "type": "Issue type",
     "success": "Complaint submitted successfully! We will respond within 24h.",
-    "submit": "Submit complaint"
+    "submit": "Submit complaint",
+    "max_evidence_images": "Maximum 5 evidence images allowed.",
+    "select_faulty_product": "Please select at least one faulty product.",
+    "describe_issue_required": "Please enter a description of the issue."
+  },
+  "crud": {
+    "load_error": "Failed to load data.",
+    "created": "Created successfully!",
+    "updated": "Updated successfully!",
+    "deleted": "Deleted successfully!"
   }
 }

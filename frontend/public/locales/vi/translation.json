@@ -1,4 +1,7 @@
 {
+  "common": {
+    "back": "Quay lại"
+  },
   "nav": {
     "home": "Trang Chủ",
     "menu": "Thực Đơn",
@@ -91,6 +94,7 @@
     "distance": "Khoảng cách",
     "fulfilled_by": "Giao từ chi nhánh",
     "estimated": "Thời gian dự kiến",
+    "fallback_estimated": "30-45 phút",
     "calculating": "Đang tính phí giao hàng...",
     "not_available": "Không hỗ trợ giao hàng",
     "out_of_range_error": "Cửa hàng không giao tới địa chỉ này (>20km)",
@@ -160,6 +164,7 @@
     "cancelled_title": "ĐƠN HÀNG ĐÃ BỊ HỦY",
     "cancelled_desc": "Đơn hàng đã được hủy thành công. Bất kỳ điểm tích lũy hoặc giá trị khấu trừ nào đã được hoàn lại đầy đủ vào tài khoản của bạn.",
     "item_details": "CHI TIẾT MÓN ĂN",
+    "item_with_id": "Món #{{id}}",
     "delivery_info": "THÔNG TIN GIAO HÀNG",
     "delivery_from_branch": "Giao từ chi nhánh Quận 1",
     "pickup_customer": "Khách tự đến lấy bánh",
@@ -217,7 +222,8 @@
     "back": "Quay lại",
     "continue": "Tiếp tục",
     "evidence_label": "Bằng chứng",
-    "already_reviewed": "Bạn đã đánh giá đơn hàng này rồi."
+    "already_reviewed": "Bạn đã đánh giá đơn hàng này rồi.",
+    "your_feedback": "Ý kiến đóng góp của bạn"
   },
   "auth": {
     "login": "Đăng nhập",
@@ -248,7 +254,23 @@
     "password_min_placeholder": "Tối thiểu 8 ký tự",
     "confirm_password_placeholder": "Nhập lại mật khẩu",
     "registering": "ĐANG ĐĂNG KÝ...",
-    "register_new_account": "ĐĂNG KÝ TÀI KHOẢN MỚI"
+    "register_new_account": "ĐĂNG KÝ TÀI KHOẢN MỚI",
+    "forgot_password": "Quên mật khẩu?",
+    "forgot_password_title": "QUÊN MẬT KHẨU",
+    "forgot_password_desc": "Nhập địa chỉ email của bạn, chúng tôi sẽ gửi mã xác minh OTP để đặt lại mật khẩu.",
+    "send_otp": "GỬI MÃ XÁC MINH",
+    "sending_otp": "ĐANG GỬI...",
+    "otp_sent": "Mã xác minh đã được gửi đến email của bạn!",
+    "reset_password_title": "ĐẶT LẠI MẬT KHẨU",
+    "reset_password_desc": "Vui lòng nhập mã OTP 6 số và mật khẩu mới của bạn.",
+    "otp_code": "Mã xác minh OTP",
+    "new_password": "Mật khẩu mới",
+    "confirm_new_password": "Xác nhận mật khẩu mới",
+    "reset_password_now": "ĐẶT LẠI MẬT KHẨU",
+    "resetting": "ĐANG THIẾT LẬP LẠI...",
+    "reset_success": "Đặt lại mật khẩu thành công! Bạn có thể đăng nhập ngay.",
+    "forgot_password_error": "Không thể gửi mã xác minh. Vui lòng kiểm tra lại email.",
+    "reset_password_error": "Không thể đặt lại mật khẩu. Vui lòng thử lại."
   },
   "profile": {
     "title": "Tài khoản",
@@ -338,10 +360,11 @@
     "no_products_desc": "Vui lòng thử tìm kiếm với cụm từ khác."
   },
   "combo": {
-    "saving_title": "SAVING VALUE COMBOS",
+    "saving_title": "VALUE COMBOS TIẾT KIỆM",
     "home_subtitle": "Bữa ăn thịnh soạn tiết kiệm tới 35% cho gia đình & bạn bè.",
     "page_subtitle": "Các thực đơn hoàn hảo dành cho tiệc nhóm, ghép đôi, hoặc chiêu đãi bản thân với mức giá tiết kiệm lên tới 35% hàng ngày!",
     "buy": "Mua combo",
+    "buy_now": "MUA NGAY",
     "badge": "COMBO TIẾT KIỆM",
     "includes": "MÓN BAO GỒM:"
   },
@@ -400,7 +423,9 @@
     "see_all": "Xem tất cả",
     "actions": "Hành động",
     "default": "Mặc định",
-    "previous_arrow": "← Trước"
+    "previous": "Trước",
+    "previous_arrow": "← Trước",
+    "next_arrow": "Sau →"
   },
   "status": {
     "active": "Đang hoạt động",
@@ -452,11 +477,15 @@
     "address": "120-122 Lê Lợi, Bến Nghé, Quận 1, TP. HCM",
     "opening_hours": "Giờ mở cửa: {{time}}",
     "newsletter_desc": "Đăng ký email nhận ưu đãi đặc quyền 20% hôm nay.",
+    "newsletter": "Bản tin",
     "newsletter_placeholder": "Nhập email của bạn...",
     "newsletter_button": "Đăng ký",
     "credit": "Thiết kế bởi Đội ngũ Senior Full-stack."
   },
   "adminPanel": {
+    "access_denied_title": "Không có quyền truy cập",
+    "access_denied_desc": "Tài khoản của bạn không được phân quyền để truy cập trang này. Vui lòng liên hệ với quản trị viên nếu bạn cần hỗ trợ.",
+    "back_to_dashboard": "Quay lại trang chủ",
     "group_overview": "Tổng quan",
     "group_menu": "Thực đơn",
     "group_sales": "Bán hàng",
@@ -1003,6 +1032,15 @@
     "evidence": "Hình ảnh bằng chứng (Tối đa 5 ảnh)",
     "type": "Loại sự cố",
     "success": "Gửi khiếu nại thành công! Chúng tôi sẽ phản hồi trong 24h.",
-    "submit": "Gửi khiếu nại"
+    "submit": "Gửi khiếu nại",
+    "max_evidence_images": "Tối đa 5 ảnh bằng chứng.",
+    "select_faulty_product": "Vui lòng chọn ít nhất một sản phẩm bị lỗi.",
+    "describe_issue_required": "Vui lòng nhập mô tả sự cố."
+  },
+  "crud": {
+    "load_error": "Không thể tải dữ liệu.",
+    "created": "Tạo mới thành công!",
+    "updated": "Cập nhật thành công!",
+    "deleted": "Xóa thành công!"
   }
 }

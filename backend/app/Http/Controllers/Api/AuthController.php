@@ -143,4 +143,92 @@ class AuthController extends Controller
             'message' => __('api.messages.password_changed'),
         ]);
     }
+
+    public function forgotPassword(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|string|email|exists:users,email',
+        ]);
+
+        $otp = (string) mt_rand(100000, 999999);
+
+        // Save OTP
+        \Illuminate\Support\Facades\DB::table('password_reset_tokens')->updateOrInsert(
+            ['email' => $request->email],
+            [
+                'token' => \Illuminate\Support\Facades\Hash::make($otp),
+                'created_at' => now(),
+            ]
+        );
+
+        // Send Email
+        \Illuminate\Support\Facades\Mail::raw(
+            "Mã xác minh đặt lại mật khẩu Hamburger King của bạn là: {$otp}.\n" .
+            "Mã này có hiệu lực trong vòng 15 phút.\n\n" .
+            "Your Hamburger King password reset verification code is: {$otp}.\n" .
+            "This code is valid for 15 minutes.",
+            function ($message) use ($request) {
+                $message->to($request->email)
+                        ->subject('[Hamburger King] Mã xác minh đặt lại mật khẩu / Password Reset Code');
+            }
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => __('api.messages.forgot_password_sent'),
+        ]);
+    }
+
+    public function resetPassword(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|string|email|exists:users,email',
+            'code' => 'required|string|size:6',
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        $record = \Illuminate\Support\Facades\DB::table('password_reset_tokens')
+            ->where('email', $request->email)
+            ->first();
+
+        if (!$record) {
+            throw ValidationException::withMessages([
+                'code' => [__('api.messages.otp_invalid_or_expired')],
+            ]);
+        }
+
+        // Check expiry (15 mins)
+        $expiryTime = \Carbon\Carbon::parse($record->created_at)->addMinutes(15);
+        if ($expiryTime->isPast()) {
+            \Illuminate\Support\Facades\DB::table('password_reset_tokens')
+                ->where('email', $request->email)
+                ->delete();
+            throw ValidationException::withMessages([
+                'code' => [__('api.messages.otp_expired_new_required')],
+            ]);
+        }
+
+        // Verify OTP code
+        if (!\Illuminate\Support\Facades\Hash::check($request->code, $record->token)) {
+            throw ValidationException::withMessages([
+                'code' => [__('api.messages.otp_incorrect')],
+            ]);
+        }
+
+        // Update password
+        $user = User::where('email', $request->email)->firstOrFail();
+        $user->update([
+            'password' => \Illuminate\Support\Facades\Hash::make($request->password),
+        ]);
+
+        // Clean up token
+        \Illuminate\Support\Facades\DB::table('password_reset_tokens')
+            ->where('email', $request->email)
+            ->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => __('api.messages.reset_password_success'),
+        ]);
+    }
 }

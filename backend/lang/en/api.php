@@ -119,6 +119,11 @@ return [
         'walk_in_customer' => 'Walk-in customer',
         'activity_created_order' => 'created order :code',
         'orders_metric' => 'Orders',
+        'forgot_password_sent' => 'Verification code has been sent to your email.',
+        'reset_password_success' => 'Password reset successful! You can log in using your new password.',
+        'otp_invalid_or_expired' => 'Invalid or expired verification code.',
+        'otp_expired_new_required' => 'Verification code has expired. Please request a new one.',
+        'otp_incorrect' => 'Incorrect verification code.',
     ],
     'payments' => [
         'cod_name' => 'Cash on delivery (COD)',

@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import apiClient from '../api/axios'
-import { formatDate } from '../utils/format'
+import apiClient from '../../api/axios'
+import { formatDate } from '../../utils/format'
 
 function BlogDetailPage() {
   const { slug } = useParams()
@@ -55,7 +55,7 @@ function BlogDetailPage() {
         <nav className="text-xs text-[#666666] mb-8">
           <Link to="/" className="hover:text-primary">{t('nav.home')}</Link>
           <span className="mx-2">›</span>
-          <Link to="/blog" className="hover:text-primary">Blog</Link>
+          <Link to="/blog" className="hover:text-primary">{t('blog.title')}</Link>
           <span className="mx-2">›</span>
           <span className="text-[#1A1A1A]">{post.title}</span>
         </nav>
