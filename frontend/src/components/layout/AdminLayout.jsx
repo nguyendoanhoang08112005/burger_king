@@ -35,6 +35,7 @@ import {
   Building2,
   Settings,
   Globe,
+  Bot,
 } from 'lucide-react'
 import {
   assetUrl,
@@ -61,7 +62,7 @@ export function AdminRoute({ children }) {
 export const adminPermissionModules = [
   'dashboard', 'reports', 'orders', 'products', 'categories', 'combos', 'toppings',
   'coupons', 'payments', 'users', 'reviews', 'loyalty', 'complaints', 'posts', 'banners',
-  'branches', 'settings', 'languages', 'notifications',
+  'branches', 'settings', 'languages', 'notifications', 'chatbot',
 ]
 
 export const adminPathModule = path => {
@@ -119,6 +120,7 @@ export const menuGroups = [
       { icon: Settings, labelKey: 'settings', path: '/admin/settings' },
       { icon: Globe, labelKey: 'languages', path: '/admin/translations/locales' },
       { icon: Bell, labelKey: 'notifications', path: '/admin/notifications', badgeKey: 'notificationsUnread' },
+      { icon: Bot, labelKey: 'chatbot', path: '/admin/chat' },
     ],
   },
 ]

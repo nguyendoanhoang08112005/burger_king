@@ -569,6 +569,7 @@ class AdminController extends Controller
             'starts_at' => 'nullable|date',
             'expires_at' => 'nullable|date',
             'is_active' => 'nullable|boolean',
+            'show_at_checkout' => 'nullable|boolean',
         ]);
 
         $coupon = Coupon::create([
@@ -579,6 +580,7 @@ class AdminController extends Controller
             'max_discount' => $request->max_discount,
             'usage_limit' => $request->usage_limit,
             'is_active' => $request->boolean('is_active', true),
+            'show_at_checkout' => $request->boolean('show_at_checkout', false),
             'starts_at' => $request->starts_at ?? now(),
             'expires_at' => $request->expires_at ?? now()->addMonths(6)
         ]);
@@ -604,9 +606,11 @@ class AdminController extends Controller
             'starts_at' => 'nullable|date',
             'expires_at' => 'nullable|date',
             'is_active' => 'nullable|boolean',
+            'show_at_checkout' => 'nullable|boolean',
         ]);
 
         $data['code'] = strtoupper($data['code']);
+        $data['show_at_checkout'] = $request->boolean('show_at_checkout');
         $coupon->update($data);
 
         return $this->ok($coupon, __('api.messages.coupon_updated'));

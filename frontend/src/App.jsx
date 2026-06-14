@@ -39,6 +39,7 @@ import ScrollToTopButton from './components/ScrollToTopButton'
 import BlogPage from './pages/customer/BlogPage'
 import BlogDetailPage from './pages/customer/BlogDetailPage'
 import AdminPanel from './admin/AdminPanel'
+import ChatWidget from './components/chat/ChatWidget'
 
 // Utilities & Stores
 import { initDarkMode } from './utils/darkMode'
@@ -108,6 +109,7 @@ function AppShell({ selectedProduct, setSelectedProduct }) {
         {/* Floating Cart Drawer */}
         {!isAdminRoute && <CartDrawer />}
         {!isAdminRoute && <ScrollToTopButton />}
+        {!isAdminRoute && <ChatWidget onSelectProduct={setSelectedProduct} />}
 
         {/* Router Pages Switch */}
         <div className="flex-1">

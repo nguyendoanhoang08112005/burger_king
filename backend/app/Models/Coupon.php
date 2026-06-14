@@ -21,6 +21,7 @@ class Coupon extends Model
         'starts_at',
         'expires_at',
         'is_active',
+        'show_at_checkout',
     ];
 
     protected $casts = [
@@ -30,6 +31,7 @@ class Coupon extends Model
         'used_count' => 'integer',
         'usage_limit' => 'integer',
         'is_active' => 'boolean',
+        'show_at_checkout' => 'boolean',
         'starts_at' => 'datetime',
         'expires_at' => 'datetime',
     ];
@@ -83,5 +85,19 @@ class Coupon extends Model
         }
 
         return 0.0;
+    }
+
+    protected static function booted()
+    {
+        static::saved(function ($coupon) {
+            try {
+                \Illuminate\Support\Facades\DB::table('chat_caches')->truncate();
+            } catch (\Exception $e) {}
+        });
+        static::deleted(function ($coupon) {
+            try {
+                \Illuminate\Support\Facades\DB::table('chat_caches')->truncate();
+            } catch (\Exception $e) {}
+        });
     }
 }

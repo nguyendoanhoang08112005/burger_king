@@ -19,4 +19,5 @@ return [
     'settings',
     'languages',
     'notifications',
+    'chatbot',
 ];

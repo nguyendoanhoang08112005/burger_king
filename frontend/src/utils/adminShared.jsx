@@ -241,7 +241,12 @@ export const playNotificationSound = () => {
 export function useAdminText() {
   const { t } = useTranslation()
   return useCallback(
-    (key, values = {}) => t(`adminPanel.${key}`, { ...values, defaultValue: key }),
+    (key, values = {}) => {
+      const opts = typeof values === 'string'
+        ? { defaultValue: values }
+        : { defaultValue: key, ...values }
+      return t(`adminPanel.${key}`, opts)
+    },
     [t]
   )
 }

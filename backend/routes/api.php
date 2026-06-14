@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\PostController;
 use App\Http\Controllers\Api\SettingController;
 use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\ComplaintController;
+use App\Http\Controllers\Api\ChatController;
 
 /*
 |--------------------------------------------------------------------------
@@ -27,11 +28,18 @@ Route::get('/combos', [CustomerController::class, 'combos']);
 Route::get('/banners', [CustomerController::class, 'banners']);
 Route::get('/branches', [CustomerController::class, 'branches']);
 Route::get('/payment-methods', [PaymentPluginController::class, 'activePlugins']);
+Route::get('/coupons/active', [CustomerController::class, 'activeCoupons']);
 Route::get('/settings/public', [SettingController::class, 'publicSettings']);
 Route::post('/shipping/calculate', [SettingController::class, 'calculateShipping']);
 Route::get('/posts', [PostController::class, 'index']);
 Route::get('/posts/featured', [PostController::class, 'featured']);
 Route::get('/posts/{slug}', [PostController::class, 'show']);
+
+// --- PUBLIC CHATBOT ENDPOINTS ---
+Route::post('/chat/session', [ChatController::class, 'createSession']);
+Route::get('/chat/history/{sid}', [ChatController::class, 'getHistory']);
+Route::delete('/chat/session/{sid}', [ChatController::class, 'deleteSession']);
+Route::post('/chat/message', [ChatController::class, 'sendMessage']);
 
 // --- PUBLIC AUTH ENDPOINTS ---
 Route::post('/auth/register', [AuthController::class, 'register']);
@@ -200,4 +208,13 @@ Route::middleware(['auth:sanctum', 'role:admin|staff', 'admin.permission'])->pre
     Route::get('/branches/{id}', [AdminController::class, 'showBranch']);
     Route::put('/branches/{id}', [AdminController::class, 'updateBranch']);
     Route::delete('/branches/{id}', [AdminController::class, 'deleteBranch']);
+
+    // --- SECURE CHATBOT ADMIN ENDPOINTS ---
+    Route::get('/chat/stats', [ChatController::class, 'adminStats']);
+    Route::get('/chat/top-questions', [ChatController::class, 'adminTopQuestions']);
+    Route::get('/chat/sessions', [ChatController::class, 'adminSessions']);
+    Route::get('/chat/sessions/{sid}', [ChatController::class, 'adminSessionMessages']);
+    Route::get('/chat/caches', [ChatController::class, 'adminCaches']);
+    Route::delete('/chat/caches/{id}', [ChatController::class, 'adminDeleteCache']);
+    Route::post('/chat/caches/clear', [ChatController::class, 'adminClearCaches']);
 });

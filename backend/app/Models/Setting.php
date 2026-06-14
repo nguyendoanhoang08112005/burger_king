@@ -98,4 +98,18 @@ class Setting extends Model
             default => 'text',
         };
     }
+
+    protected static function booted()
+    {
+        static::saved(function ($setting) {
+            try {
+                \Illuminate\Support\Facades\DB::table('chat_caches')->truncate();
+            } catch (\Exception $e) {}
+        });
+        static::deleted(function ($setting) {
+            try {
+                \Illuminate\Support\Facades\DB::table('chat_caches')->truncate();
+            } catch (\Exception $e) {}
+        });
+    }
 }

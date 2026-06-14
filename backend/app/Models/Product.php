@@ -84,4 +84,18 @@ class Product extends Model
     {
         return $this->sale_price ?? $this->base_price;
     }
+
+    protected static function booted()
+    {
+        static::saved(function ($product) {
+            try {
+                \Illuminate\Support\Facades\DB::table('chat_caches')->truncate();
+            } catch (\Exception $e) {}
+        });
+        static::deleted(function ($product) {
+            try {
+                \Illuminate\Support\Facades\DB::table('chat_caches')->truncate();
+            } catch (\Exception $e) {}
+        });
+    }
 }

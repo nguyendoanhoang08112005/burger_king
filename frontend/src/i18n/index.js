@@ -12,7 +12,7 @@ i18n
     supportedLngs: ['vi', 'en'],
     defaultNS: 'translation',
     backend: {
-      loadPath: '/locales/{{lng}}/{{ns}}.json?v=1.0.2',
+      loadPath: '/locales/{{lng}}/{{ns}}.json?v=1.0.3',
     },
     detection: {
       // Priority: localStorage -> browser -> fallback.

@@ -294,6 +294,30 @@ class CustomerController extends Controller
         ]);
     }
 
+    // List Active Coupons for Checkout
+    public function activeCoupons()
+    {
+        $now = now();
+        $coupons = Coupon::where('is_active', true)
+            ->where('show_at_checkout', true)
+            ->where(function ($query) use ($now) {
+                $query->whereNull('starts_at')
+                      ->orWhere('starts_at', '<=', $now);
+            })
+            ->where(function ($query) use ($now) {
+                $query->whereNull('expires_at')
+                      ->orWhere('expires_at', '>=', $now);
+            })
+            ->where(function ($query) {
+                $query->whereNull('usage_limit')
+                      ->orWhereColumn('used_count', '<', 'usage_limit');
+            })
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return response()->json($coupons);
+    }
+
     // Checkout
     public function checkout(Request $request, OrderService $orderService, PaymentService $paymentService, NotificationService $notificationService)
     {

@@ -50,6 +50,7 @@ import AdminBannersPage from '../pages/admin/AdminBanners'
 import AdminBranchesPage from '../pages/admin/AdminBranches'
 import AdminSettingsDatabasePage, { AdminLanguageLocalesPage } from '../pages/admin/AdminSettings'
 import AdminNotificationsPage from '../pages/admin/AdminNotifications'
+import AdminChatPage from '../pages/admin/AdminChat'
 
 function useDebounce(value, delay = 400) {
   const [debounced, setDebounced] = useState(value)
@@ -559,6 +560,7 @@ function AdminPanel() {
   else if (location.pathname === '/admin/settings') page = <AdminSettingsDatabasePage />
   else if (location.pathname === '/admin/translations/locales') page = <AdminLanguageLocalesPage />
   else if (location.pathname === '/admin/notifications') page = <AdminNotificationsPage notifications={notifications} loading={notificationLoading} onMarkRead={markNotificationRead} onStatusChange={updateOrderStatus} />
+  else if (location.pathname === '/admin/chat') page = <AdminChatPage />
   else if (location.pathname !== '/admin' && !genericEditMatch && !genericCreateMatch) navigate('/admin')
 
   const currentModule = adminPathModule(location.pathname)

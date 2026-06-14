@@ -1,6 +1,7 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import toast from 'react-hot-toast'
-import { Pencil, Trash2, Loader2 } from 'lucide-react'
+import { Pencil, Trash2, Loader2, MoreVertical } from 'lucide-react'
 import apiClient from '../../api/axios'
 import { formatDate, formatVND } from '../../utils/format'
 import { useAdminText } from '../../utils/adminUtils'
@@ -13,8 +14,10 @@ import {
 } from '../../components/layout/AdminLayout'
 
 export function AdminCouponsPage({ coupons, loading, onRefresh }) {
+  const { i18n } = useTranslation()
+  const isEn = i18n.language === 'en'
   const tAdmin = useAdminText()
-  const emptyForm = { code: '', type: 'percent', value: '', min_order: 0, max_discount: '', usage_limit: '', starts_at: '', expires_at: '', is_active: true }
+  const emptyForm = { code: '', type: 'percent', value: '', min_order: 0, max_discount: '', usage_limit: '', starts_at: '', expires_at: '', is_active: true, show_at_checkout: false }
   const [form, setForm] = useState(emptyForm)
   const [editingCoupon, setEditingCoupon] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -23,6 +26,7 @@ export function AdminCouponsPage({ coupons, loading, onRefresh }) {
   const [confirm, setConfirm] = useState({ open: false })
   const [confirmLoading, setConfirmLoading] = useState(false)
   const [page, setPage] = useState(1)
+  const [openMenuId, setOpenMenuId] = useState(null)
 
   const filteredCoupons = coupons.filter(coupon => {
     const matchSearch = [coupon.code, coupon.type].join(' ').toLowerCase().includes(search.toLowerCase())
@@ -57,6 +61,7 @@ export function AdminCouponsPage({ coupons, loading, onRefresh }) {
       starts_at: dateInput(coupon.starts_at),
       expires_at: dateInput(coupon.expires_at),
       is_active: coupon.is_active ?? true,
+      show_at_checkout: coupon.show_at_checkout ?? false,
     })
   }
 
@@ -70,6 +75,7 @@ export function AdminCouponsPage({ coupons, loading, onRefresh }) {
     starts_at: form.starts_at || null,
     expires_at: form.expires_at || null,
     is_active: !!form.is_active,
+    show_at_checkout: !!form.show_at_checkout,
   })
 
   const submit = async event => {
@@ -96,6 +102,19 @@ export function AdminCouponsPage({ coupons, loading, onRefresh }) {
     try {
       await apiClient.put(`/admin/coupons/${coupon.id}`, { ...coupon, is_active: !coupon.is_active })
       toast.success(coupon.is_active ? tAdmin('coupon_disabled') : tAdmin('coupon_enabled'))
+      await onRefresh()
+    } catch (error) {
+      toast.error(error.response?.data?.message || tAdmin('update_error'))
+    }
+  }
+
+  const toggleShowCheckout = async coupon => {
+    try {
+      await apiClient.put(`/admin/coupons/${coupon.id}`, { ...coupon, show_at_checkout: !coupon.show_at_checkout })
+      toast.success(coupon.show_at_checkout 
+        ? tAdmin('coupon_hidden_checkout', { defaultValue: isEn ? 'Coupon hidden at checkout' : 'Đã ẩn ở checkout' }) 
+        : tAdmin('coupon_shown_checkout', { defaultValue: isEn ? 'Coupon shown at checkout' : 'Đã hiện ở checkout' })
+      )
       await onRefresh()
     } catch (error) {
       toast.error(error.response?.data?.message || tAdmin('update_error'))
@@ -150,6 +169,7 @@ export function AdminCouponsPage({ coupons, loading, onRefresh }) {
             <input type="date" value={form.expires_at} onChange={e => setForm({ ...form, expires_at: e.target.value })} className={inputClass} />
           </div>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.is_active} onChange={e => setForm({ ...form, is_active: e.target.checked })} /> {tAdmin('active')}</label>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.show_at_checkout} onChange={e => setForm({ ...form, show_at_checkout: e.target.checked })} /> {tAdmin('show_at_checkout', { defaultValue: isEn ? 'Show at checkout' : 'Hiện ở checkout' })}</label>
           <button disabled={saving} className="w-full bg-[#D62300] text-white rounded-lg py-2 text-sm font-semibold disabled:opacity-60 flex items-center justify-center gap-2 cursor-pointer">
             {saving && <Loader2 size={14} className="animate-spin" />}
             {editingCoupon ? tAdmin('update_coupon') : tAdmin('save_coupon')}
@@ -164,34 +184,87 @@ export function AdminCouponsPage({ coupons, loading, onRefresh }) {
               <option value="inactive">{tAdmin('inactive')}</option>
             </select>
           </div>
-          {loading ? <TableSkeleton rows={6} cols={8} /> : (
-            <table className="w-full text-left text-sm">
+          {loading ? <TableSkeleton rows={6} cols={9} /> : (
+            <table className="w-full min-w-[950px] text-left text-sm table-auto">
               <thead><tr className="text-xs uppercase text-gray-400 border-b border-gray-100 dark:border-gray-700">
-                <th className="py-3">Code</th><th>{tAdmin('type')}</th><th>{tAdmin('value')}</th><th>{tAdmin('min_order')}</th><th>{tAdmin('used_limit')}</th><th>{tAdmin('expires')}</th><th>{tAdmin('status')}</th><th className="text-right">{tAdmin('actions')}</th>
+                <th className="py-3 px-3 w-[13%]">Code</th>
+                <th className="py-3 px-3 w-[14%]">{tAdmin('type')}</th>
+                <th className="py-3 px-3 w-[9%]">{tAdmin('value')}</th>
+                <th className="py-3 px-3 w-[11%]">{tAdmin('min_order')}</th>
+                <th className="py-3 px-3 w-[9%]">{tAdmin('used_limit')}</th>
+                <th className="py-3 px-3 w-[17%]">{tAdmin('expires')}</th>
+                <th className="py-3 px-3 w-[11%]">{tAdmin('status')}</th>
+                <th className="py-3 px-3 w-[12%]">{tAdmin('show_at_checkout_th', { defaultValue: isEn ? 'Show at checkout' : 'Hiện ở checkout' })}</th>
+                <th className="py-3 px-3 w-[4%] text-right">{tAdmin('actions')}</th>
               </tr></thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                 {paginatedCoupons.map(coupon => (
                   <tr key={coupon.id} className="text-gray-700 dark:text-gray-200">
-                    <td className="py-3 font-bold text-[#D62300]">{coupon.code}</td>
-                    <td>{tAdmin(coupon.type)}</td>
-                    <td>{coupon.type === 'percent' ? `${Number(coupon.value).toFixed(2)}%` : formatVND(coupon.value)}</td>
-                    <td>{formatVND(coupon.min_order)}</td>
-                    <td>{coupon.used_count || 0}/{coupon.usage_limit || '∞'}</td>
-                    <td>{coupon.expires_at ? formatDate(coupon.expires_at) : '-'}</td>
-                    <td>
+                    <td className="py-3 px-3 font-bold text-[#D62300] break-all">{coupon.code}</td>
+                    <td className="py-3 px-3">{tAdmin(coupon.type)}</td>
+                    <td className="py-3 px-3">{coupon.type === 'percent' ? `${Number(coupon.value).toFixed(2)}%` : formatVND(coupon.value)}</td>
+                    <td className="py-3 px-3">{formatVND(coupon.min_order)}</td>
+                    <td className="py-3 px-3">{coupon.used_count || 0}/{coupon.usage_limit || '∞'}</td>
+                    <td className="py-3 px-3 text-xs">{coupon.expires_at ? formatDate(coupon.expires_at) : '-'}</td>
+                    <td className="py-3 px-3">
                       <button type="button" onClick={() => toggleActive(coupon)} className={`text-xs px-2 py-1 rounded-full ${coupon.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
                         {coupon.is_active ? tAdmin('active') : tAdmin('inactive')}
                       </button>
                     </td>
-                    <td className="text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button type="button" onClick={() => editCoupon(coupon)} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 cursor-pointer" aria-label={tAdmin('edit_coupon')}><Pencil size={15} /></button>
-                        <button type="button" onClick={() => deleteCoupon(coupon)} className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 text-red-500 cursor-pointer" aria-label={tAdmin('delete_language')}><Trash2 size={15} /></button>
-                      </div>
+                    <td className="py-3 px-3">
+                      <button type="button" onClick={() => toggleShowCheckout(coupon)} className={`text-xs px-2 py-1 rounded-full ${coupon.show_at_checkout ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>
+                        {coupon.show_at_checkout ? tAdmin('yes', 'Có') : tAdmin('no', 'Không')}
+                      </button>
+                    </td>
+                    <td className="py-3 px-3 text-right relative">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setOpenMenuId(openMenuId === coupon.id ? null : coupon.id)
+                        }}
+                        className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 cursor-pointer"
+                        aria-label={tAdmin('actions')}
+                      >
+                        <MoreVertical size={16} />
+                      </button>
+                      {openMenuId === coupon.id && (
+                        <>
+                          {/* Invisible backdrop to close the dropdown on click outside */}
+                          <div 
+                            className="fixed inset-0 z-10" 
+                            onClick={() => setOpenMenuId(null)}
+                          />
+                          <div className="absolute right-0 mt-1 w-28 bg-white dark:bg-[#1E2130] border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1 z-20 text-left">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                editCoupon(coupon)
+                                setOpenMenuId(null)
+                              }}
+                              className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition cursor-pointer"
+                            >
+                              <Pencil size={13} className="text-gray-400" />
+                              {tAdmin('edit', { defaultValue: 'Sửa' })}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                deleteCoupon(coupon)
+                                setOpenMenuId(null)
+                              }}
+                              className="w-full flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 transition cursor-pointer"
+                            >
+                              <Trash2 size={13} className="text-red-500" />
+                              {tAdmin('delete', { defaultValue: 'Xóa' })}
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </td>
                   </tr>
                 ))}
-                {!filteredCoupons.length && <EmptyTableRow colSpan={8} />}
+                {!filteredCoupons.length && <EmptyTableRow colSpan={9} />}
               </tbody>
             </table>
           )}

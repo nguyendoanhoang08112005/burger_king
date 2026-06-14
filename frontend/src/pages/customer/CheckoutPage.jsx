@@ -137,6 +137,7 @@ export default function CheckoutPage() {
   // Pickup Branch Selection states
   const [branches, setBranches] = useState([])
   const [selectedBranch, setSelectedBranch] = useState(null)
+  const [activeCoupons, setActiveCoupons] = useState([])
 
   const totals = getCartTotals(deliveryType)
   const displayShippingFee = deliveryType === 'pickup' ? 0 : (shippingCalculation?.fee ?? (totals.subtotal >= 300000 ? 0 : 15000))
@@ -173,6 +174,14 @@ export default function CheckoutPage() {
         }
       }).catch(err => {
         console.error('Failed to load branches:', err)
+      })
+
+    // Load visible active coupons
+    apiClient.get('/coupons/active')
+      .then(res => {
+        setActiveCoupons(res.data || [])
+      }).catch(err => {
+        console.error('Failed to load active coupons:', err)
       })
   }, [])
 
@@ -244,9 +253,9 @@ export default function CheckoutPage() {
     return <Navigate to="/menu" />
   }
 
-  const handleApplyCoupon = () => {
-    if (!couponInput) return
-    apiClient.post('/cart/apply-coupon', { code: couponInput, subtotal: totals.subtotal })
+  const handleApplyCouponCode = (code) => {
+    if (!code) return
+    apiClient.post('/cart/apply-coupon', { code: code, subtotal: totals.subtotal })
       .then(res => {
         applyCoupon(res.data)
         showToast(t('checkout.coupon_applied'))
@@ -254,6 +263,10 @@ export default function CheckoutPage() {
         console.error(err)
         showToast(err.response?.data?.message || t('checkout.coupon_invalid'), 'error')
       })
+  }
+
+  const handleApplyCoupon = () => {
+    handleApplyCouponCode(couponInput)
   }
 
   const handleCheckoutSubmit = () => {
@@ -765,6 +778,50 @@ export default function CheckoutPage() {
                 {t('cart.apply').toUpperCase()}
               </button>
             </div>
+
+            {/* Clickable public coupon suggestions */}
+            {activeCoupons.length > 0 && (
+              <div className="mt-3 text-left">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5 flex items-center gap-1">
+                  <Tag className="w-3 h-3 text-gray-400" />
+                  {t('checkout.available_coupons', 'Khuyến mãi có sẵn:')}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {activeCoupons.map((c) => {
+                    const isApplied = coupon?.code === c.code
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => {
+                          if (isApplied) {
+                            removeCoupon()
+                            setCouponInput('')
+                          } else {
+                            setCouponInput(c.code)
+                            handleApplyCouponCode(c.code)
+                          }
+                        }}
+                        className={`text-[11px] font-bold px-2.5 py-1.5 rounded-lg border transition-all flex items-center gap-1 cursor-pointer hover:scale-[1.02] active:scale-[0.98] ${
+                          isApplied
+                            ? 'bg-primary/10 border-primary text-primary shadow-sm'
+                            : 'bg-white border-[#E8E8E8] text-gray-700 hover:border-primary/50'
+                        }`}
+                      >
+                        <span>{c.code}</span>
+                        {c.type === 'percent' ? (
+                          <span className="text-[9px] bg-primary/10 px-1 rounded text-primary">-{Number(c.value).toFixed(0)}%</span>
+                        ) : c.type === 'fixed' ? (
+                          <span className="text-[9px] bg-primary/10 px-1 rounded text-primary">-{formatVND(c.value)}</span>
+                        ) : (
+                          <span className="text-[9px] bg-blue-100 text-blue-800 px-1 rounded">FreeShip</span>
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
 
             {coupon && (
               <div className="mt-2 flex items-center justify-between bg-primary/10 border border-primary/20 text-xs px-3 py-2 rounded-[10px]">
