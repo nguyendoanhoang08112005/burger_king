@@ -141,12 +141,12 @@ class AdminController extends Controller
 
     public function recentOrders()
     {
-        return $this->ok(Order::with(['user', 'items', 'address'])->latest()->limit(10)->get());
+        return $this->ok(Order::with(['user:id,name,email', 'items.product:id,name,thumbnail', 'address'])->latest()->limit(10)->get());
     }
 
     public function activityLog(Request $request)
     {
-        $paginator = Order::with('user')->latest()->paginate($request->get('per_page', 5));
+        $paginator = Order::with('user:id,name')->latest()->paginate($request->get('per_page', 5));
 
         $paginator->getCollection()->transform(fn ($order) => [
             'name' => $order->user?->name ?? __('api.messages.walk_in_customer'),
@@ -163,7 +163,7 @@ class AdminController extends Controller
 
     public function listOrders(Request $request)
     {
-        $query = Order::with(['user', 'items', 'address']);
+        $query = Order::with(['user:id,name,email', 'items.product:id,name,thumbnail', 'address']);
 
         if ($request->filled('status') && $request->status !== 'all') {
             $query->where('status', $request->status);
@@ -259,7 +259,7 @@ class AdminController extends Controller
 
     public function listProducts(Request $request)
     {
-        $query = Product::with(['translations', 'category.translations'])->orderBy('sort_order');
+        $query = Product::with(['translations', 'category.translations', 'sizes:id,product_id,size,extra_price,is_available'])->orderBy('sort_order');
 
         if ($request->filled('search')) {
             $query->where('name', 'like', "%{$request->search}%");

@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\SettingController;
 use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\ComplaintController;
 use App\Http\Controllers\Api\ChatController;
+use App\Http\Controllers\Api\HomepageController;
 
 /*
 |--------------------------------------------------------------------------
@@ -19,6 +20,7 @@ use App\Http\Controllers\Api\ChatController;
 */
 
 // --- PUBLIC STOREFRONT ENDPOINTS ---
+Route::get('/homepage', [HomepageController::class, 'index']);
 Route::get('/products', [CustomerController::class, 'products']);
 Route::get('/products/{slug}', [CustomerController::class, 'productDetail']);
 Route::get('/products/{productId}/reviews', [ReviewController::class, 'getProductReviews']);
@@ -59,6 +61,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/profile', [AuthController::class, 'profile']);
     Route::put('/profile', [AuthController::class, 'updateProfile']);
     Route::put('/profile/password', [AuthController::class, 'changePassword']);
+    Route::post('/profile/avatar', [AuthController::class, 'uploadAvatar']);
     
     // Addresses
     Route::get('/addresses', [CustomerController::class, 'listAddresses']);
@@ -217,4 +220,5 @@ Route::middleware(['auth:sanctum', 'role:admin|staff', 'admin.permission'])->pre
     Route::get('/chat/caches', [ChatController::class, 'adminCaches']);
     Route::delete('/chat/caches/{id}', [ChatController::class, 'adminDeleteCache']);
     Route::post('/chat/caches/clear', [ChatController::class, 'adminClearCaches']);
+    Route::get('/chat/ai-status', [ChatController::class, 'adminAiStatus']);
 });

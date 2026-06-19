@@ -15,6 +15,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->api(prepend: [
             \App\Http\Middleware\SetLocale::class,
             \App\Http\Middleware\EnsureAccountActive::class,
+        ], append: [
+            \App\Http\Middleware\GzipEncoding::class,
+        ]);
+        $middleware->web(append: [
+            \App\Http\Middleware\GzipEncoding::class,
         ]);
         $middleware->alias([
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,

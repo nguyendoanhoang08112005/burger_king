@@ -16,6 +16,24 @@ export const useChat = (onSelectProduct) => {
   const [isOpen, setIsOpen] = useState(false)
 
   const [initialized, setInitialized] = useState(false)
+  const [cooldown, setCooldown] = useState(0)
+
+  // Cooldown countdown timer
+  useEffect(() => {
+    if (cooldown <= 0) return undefined
+
+    const timer = setInterval(() => {
+      setCooldown(prev => {
+        if (prev <= 1) {
+          clearInterval(timer)
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [cooldown])
 
   // Initialize or fetch history only when widget is opened (lazy init)
   useEffect(() => {
@@ -119,14 +137,26 @@ export const useChat = (onSelectProduct) => {
         language: i18n.language || 'vi'
       })
 
+      const botMessageText = response.data.content || ''
       const botMessage = {
         id: Date.now() + 1,
         role: 'assistant',
-        content: response.data.content,
+        content: botMessageText,
         actions: response.data.actions,
         created_at: new Date().toISOString()
       }
       setMessages((prev) => [...prev, botMessage])
+
+      // Extract cooldown duration if rate limit hit
+      if (botMessageText.includes('thử lại sau') || botMessageText.includes('try again in')) {
+        const match = botMessageText.match(/(\d+)\s*(giây|seconds)/i)
+        if (match) {
+          const secs = parseInt(match[1])
+          if (!isNaN(secs) && secs > 0) {
+            setCooldown(secs)
+          }
+        }
+      }
     } catch (err) {
       console.error('Chat error:', err)
       const status = err.response?.status
@@ -141,6 +171,17 @@ export const useChat = (onSelectProduct) => {
         await startNewSession()
       } else if (errorCode === 'quota_exceeded') {
         errorMsg = t('chatbot.error_quota', 'Trợ lý đang bận, thử lại sau ít phút')
+      }
+
+      // Extract cooldown duration from error message if rate limit hit
+      if (errorMsg.includes('thử lại sau') || errorMsg.includes('try again in')) {
+        const match = errorMsg.match(/(\d+)\s*(giây|seconds)/i)
+        if (match) {
+          const secs = parseInt(match[1])
+          if (!isNaN(secs) && secs > 0) {
+            setCooldown(secs)
+          }
+        }
       }
 
       toast.error(errorMsg)
@@ -223,7 +264,6 @@ export const useChat = (onSelectProduct) => {
       if (product) {
         addItem(product, size || 'S', toppings || [], quantity || 1)
         toast.success(t('chatbot.added_to_cart_success', 'Đã thêm món vào giỏ hàng!'))
-        setCartDrawerOpen(true)
       } else {
         toast.error(t('chatbot.add_to_cart_error', 'Không thể thêm món vào giỏ'))
       }
@@ -264,6 +304,7 @@ export const useChat = (onSelectProduct) => {
     sendMessage,
     clearChat,
     handleAction,
-    handleConfirm
+    handleConfirm,
+    cooldown
   }
 }

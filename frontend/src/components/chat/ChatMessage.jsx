@@ -59,6 +59,7 @@ export default function ChatMessage({ message, onAction, onConfirm }) {
         {!isUser && message.actions && (
           <ChatActionButtons
             action={message.actions}
+            messageId={message.id}
             onAction={onAction}
             onConfirm={onConfirm}
           />

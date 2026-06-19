@@ -1,10 +1,21 @@
 /**
  * AdminSettings.jsx - Admin settings page (multi-tab: general, shipping, appearance, etc.)
  */
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, Suspense, lazy } from 'react'
+
+// Lazy loaded tab components
+const GeneralSettings = lazy(() => import('../../components/admin/settings/GeneralSettings'))
+const ShippingSettings = lazy(() => import('../../components/admin/settings/ShippingSettings'))
+const AppearanceSettings = lazy(() => import('../../components/admin/settings/AppearanceSettings'))
+const NotificationSettings = lazy(() => import('../../components/admin/settings/NotificationSettings'))
+const MailSettings = lazy(() => import('../../components/admin/settings/MailSettings'))
+const LocalizationSettings = lazy(() => import('../../components/admin/settings/LocalizationSettings'))
+const SeoSettings = lazy(() => import('../../components/admin/settings/SeoSettings'))
+const LoyaltySettings = lazy(() => import('../../components/admin/settings/LoyaltySettings'))
+const ReviewComplaintSettings = lazy(() => import('../../components/admin/settings/ReviewComplaintSettings'))
 import {
   Bell, Download, Gift, Globe, Loader2, MapPin, Palette,
-  Save, Search, Settings, Star, Store, Trash2, Truck, X, ChevronRight,
+  Save, Search, Settings, Star, Store, Trash2, Truck, X, ChevronRight, Mail,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAdminText } from '../../utils/adminUtils'
@@ -23,6 +34,7 @@ const settingTabs = [
   { key: 'general', labelKey: 'general', icon: Store },
   { key: 'shipping', labelKey: 'shipping', icon: Truck },
   { key: 'appearance', labelKey: 'appearance', icon: Palette },
+  { key: 'mail', labelKey: 'mail', icon: Mail },
   { key: 'notification', labelKey: 'notification', icon: Bell },
   { key: 'localization', labelKey: 'localization', icon: Globe },
   { key: 'seo', labelKey: 'seo', icon: Search },
@@ -248,8 +260,6 @@ export default function AdminSettingsDatabasePage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [dirty, setDirty] = useState(false)
-  const [testAddress, setTestAddress] = useState({ lat: 10.781232, lng: 106.685324, order_amount: 178000 })
-  const [testResult, setTestResult] = useState(null)
   const setPublicSetting = useUiStore(state => state.setPublicSetting)
 
   const updateTransSetting = (key, text) => {
@@ -402,232 +412,98 @@ export default function AdminSettingsDatabasePage() {
     }
   }
 
-  const calculateTestShipping = async () => {
-    const { data } = await apiClient.post('/shipping/calculate', testAddress)
-    setTestResult(data.data)
-  }
-
-  const parseTiers = () => {
-    const tiers = settings['shipping.distance_tiers']
-    if (Array.isArray(tiers)) return tiers
-    try { return JSON.parse(tiers || '[]') } catch { return [] }
-  }
-
-  const updateTiers = tiers => updateSetting('shipping.distance_tiers', tiers)
-
-  const renderGeneral = () => (
-    <div className="space-y-5">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <SettingInput label={tAdmin('store_name')} value={getTransValue(settings['general.store_name'])} onChange={value => updateTransSetting('general.store_name', value)} />
-        <SettingInput label={tAdmin('slogan')} value={getTransValue(settings['general.store_tagline'])} onChange={value => updateTransSetting('general.store_tagline', value)} />
-        <SettingInput label={tAdmin('hotline')} value={settings['general.hotline']} onChange={value => updateSetting('general.hotline', value)} />
-        <SettingInput label={tAdmin('support_email')} value={settings['general.email']} onChange={value => updateSetting('general.email', value)} />
-      </div>
-      <SettingTextarea label={tAdmin('store_description')} value={getTransValue(settings['general.store_description'])} onChange={value => updateTransSetting('general.store_description', value)} />
-      <SettingSelect
-        label={tAdmin('address')}
-        value={selectedBranchId}
-        onChange={handleBranchChange}
-        options={branchOptions}
-        disabled={!branches.length}
-        hint={selectedBranch ? `${tAdmin('branch_address_source')}: ${selectedBranchAddress}` : tAdmin('select_branch_hint')}
-      />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <AdminImageInput
-          label={tAdmin('logo')}
-          value={settings['general.logo']}
-          uploadType="logo"
-          width={settings['general.logo_width'] ?? 260}
-          height={settings['general.logo_height'] ?? 64}
-          onChange={value => updateSetting('general.logo', value)}
-          onWidthChange={value => updateSetting('general.logo_width', value)}
-          onHeightChange={value => updateSetting('general.logo_height', value)}
-        />
-        <AdminImageInput
-          label={tAdmin('favicon')}
-          value={settings['general.favicon']}
-          uploadType="favicon"
-          width={settings['general.favicon_width'] ?? 56}
-          height={settings['general.favicon_height'] ?? 56}
-          onChange={value => updateSetting('general.favicon', value)}
-          onWidthChange={value => updateSetting('general.favicon_width', value)}
-          onHeightChange={value => updateSetting('general.favicon_height', value)}
-        />
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {['facebook_url', 'instagram_url', 'youtube_url', 'tiktok_url', 'zalo_url', 'google_maps_key'].map(key => (
-          <SettingInput key={key} label={key.replaceAll('_', ' ')} value={settings[`general.${key}`]} onChange={value => updateSetting(`general.${key}`, value)} />
-        ))}
-      </div>
-      <SettingToggle label={tAdmin('maintenance_mode')} description={tAdmin('maintenance_desc')} checked={!!settings['general.maintenance_mode']} onChange={value => updateSetting('general.maintenance_mode', value)} />
-      <SettingTextarea label={tAdmin('maintenance_message')} value={getTransValue(settings['general.maintenance_message'])} onChange={value => updateTransSetting('general.maintenance_message', value)} />
-    </div>
-  )
-
-  const renderShipping = () => {
-    const tiers = parseTiers()
-    return (
-      <div className="space-y-5">
-        <SettingSelect label={tAdmin('shipping_method')} value={settings['shipping.method'] || 'fixed'} onChange={value => updateSetting('shipping.method', value)} options={[{ value: 'fixed', label: tAdmin('fixed') }, { value: 'distance', label: tAdmin('distance') }, { value: 'free', label: tAdmin('free_all') }]} />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <SettingInput label={tAdmin('base_fee')} type="number" suffix={settings['localization.currency_symbol'] || 'VND'} value={settings['shipping.base_fee']} onChange={value => updateSetting('shipping.base_fee', value)} />
-          <SettingInput label={tAdmin('free_from')} type="number" suffix={settings['localization.currency_symbol'] || 'VND'} value={settings['shipping.free_from_amount']} onChange={value => updateSetting('shipping.free_from_amount', value)} hint={tAdmin('free_from_hint')} />
-          <SettingInput label={tAdmin('per_km_fee')} type="number" suffix={settings['localization.currency_symbol'] || 'VND'} value={settings['shipping.per_km_fee']} onChange={value => updateSetting('shipping.per_km_fee', value)} />
-          <SettingInput label={tAdmin('max_distance')} type="number" suffix="km" value={settings['shipping.max_distance_km']} onChange={value => updateSetting('shipping.max_distance_km', value)} />
-        </div>
-        <SettingInput label={tAdmin('main_store_address')} value={selectedBranchAddress} onChange={() => {}} disabled hint={tAdmin('managed_from_overview')} />
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <SettingInput label={tAdmin('latitude')} type="number" value={selectedBranchLat} onChange={() => {}} disabled />
-          <SettingInput label={tAdmin('longitude')} type="number" value={selectedBranchLng} onChange={() => {}} disabled />
-          <SettingInput label={tAdmin('estimated_time')} value={typeof settings['shipping.estimated_time'] === 'object' ? settings['shipping.estimated_time']?.vi || '' : settings['shipping.estimated_time'] || ''} onChange={value => updateSetting('shipping.estimated_time', value)} />
-        </div>
-        <div className="rounded-2xl border border-gray-100 dark:border-gray-700 p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold">{tAdmin('distance_tiers')}</h3>
-            <button type="button" onClick={() => updateTiers([...tiers, { max_km: 0, fee: 0 }])} className="text-sm font-semibold text-[#D62300]">{tAdmin('add_tier')}</button>
-          </div>
-          <div className="space-y-2">
-            {tiers.map((tier, index) => (
-              <div key={index} className="grid grid-cols-[1fr_1fr_auto] gap-3">
-                <input type="number" value={tier.max_km} onChange={event => updateTiers(tiers.map((item, i) => i === index ? { ...item, max_km: Number(event.target.value) } : item))} className={fieldInputClass} placeholder={tAdmin('to_km')} />
-                <input type="number" value={tier.fee} onChange={event => updateTiers(tiers.map((item, i) => i === index ? { ...item, fee: Number(event.target.value) } : item))} className={fieldInputClass} placeholder={tAdmin('fee')} />
-                <button type="button" onClick={() => updateTiers(tiers.filter((_, i) => i !== index))} className="px-3 text-red-500 hover:bg-red-50 rounded-lg"><X size={16} /></button>
-              </div>
-            ))}
-            {!tiers.length && <p className="text-sm text-gray-400">{tAdmin('no_tiers')}</p>}
-          </div>
-        </div>
-        <div className="rounded-2xl border border-dashed border-gray-200 dark:border-gray-700 p-4">
-          <h3 className="font-semibold mb-3">{tAdmin('test_shipping')}</h3>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-            <input type="number" value={testAddress.lat} onChange={event => setTestAddress(prev => ({ ...prev, lat: Number(event.target.value) }))} className={fieldInputClass} placeholder="Lat" />
-            <input type="number" value={testAddress.lng} onChange={event => setTestAddress(prev => ({ ...prev, lng: Number(event.target.value) }))} className={fieldInputClass} placeholder="Lng" />
-            <input type="number" value={testAddress.order_amount} onChange={event => setTestAddress(prev => ({ ...prev, order_amount: Number(event.target.value) }))} className={fieldInputClass} placeholder={tAdmin('order_value')} />
-            <button type="button" onClick={calculateTestShipping} className="rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-700">{tAdmin('calculate')}</button>
-          </div>
-          {testResult && (
-            <div className={`mt-3 rounded-xl p-3 text-sm ${testResult.out_of_range ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
-              {testResult.out_of_range ? testResult.message : `${tAdmin('shipping_fee_result')}: ${testResult.is_free ? tAdmin('free') : formatVND(testResult.fee || 0)}${testResult.distance_km ? ` - ${testResult.distance_km}km` : ''}`}
-            </div>
-          )}
-        </div>
-      </div>
-    )
-  }
-
-  const renderAppearance = () => (
-    <div className="space-y-5">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <SettingInput label={tAdmin('primary_color')} type="color" value={settings['appearance.primary_color']} onChange={value => updateSetting('appearance.primary_color', value)} />
-        <SettingInput label={tAdmin('secondary_color')} type="color" value={settings['appearance.secondary_color']} onChange={value => updateSetting('appearance.secondary_color', value)} />
-        <SettingSelect label={tAdmin('font')} value={settings['appearance.font_family']} onChange={value => updateSetting('appearance.font_family', value)} options={[{ value: 'DM Sans', label: 'DM Sans' }, { value: 'Inter', label: 'Inter' }, { value: 'Arial', label: 'Arial' }]} />
-      </div>
-    </div>
-  )
-
-  const renderNotification = () => (
-    <div className="space-y-5">
-      <SettingToggle label={tAdmin('email_order_created')} checked={!!settings['notification.email_order_created']} onChange={value => updateSetting('notification.email_order_created', value)} />
-      <SettingToggle label={tAdmin('email_order_status')} checked={!!settings['notification.email_order_status']} onChange={value => updateSetting('notification.email_order_status', value)} />
-      <SettingToggle label={tAdmin('email_new_user')} checked={!!settings['notification.email_new_user']} onChange={value => updateSetting('notification.email_new_user', value)} />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <SettingInput label={tAdmin('admin_email')} value={settings['notification.admin_email']} onChange={value => updateSetting('notification.admin_email', value)} />
-        <SettingSelect label={tAdmin('email_driver')} value={settings['notification.email_driver']} onChange={value => updateSetting('notification.email_driver', value)} options={[{ value: 'smtp', label: 'SMTP' }, { value: 'mailgun', label: 'Mailgun' }, { value: 'ses', label: 'SES' }]} />
-        <SettingInput label="SMTP host" value={settings['notification.smtp_host']} onChange={value => updateSetting('notification.smtp_host', value)} />
-        <SettingInput label="SMTP port" type="number" value={settings['notification.smtp_port']} onChange={value => updateSetting('notification.smtp_port', value)} />
-        <SettingInput label="SMTP username" value={settings['notification.smtp_username']} onChange={value => updateSetting('notification.smtp_username', value)} />
-        <SettingInput label="SMTP password" type="password" value={settings['notification.smtp_password']} onChange={value => updateSetting('notification.smtp_password', value)} />
-      </div>
-    </div>
-  )
-
-  const renderLocalization = () => (
-    <div className="space-y-5">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <SettingSelect
-          label={tAdmin('timezone')}
-          value={settings['localization.timezone']}
-          onChange={value => updateSetting('localization.timezone', value)}
-          options={[
-            { value: 'Asia/Ho_Chi_Minh', label: 'Asia/Ho_Chi_Minh' },
-            { value: 'Asia/Bangkok', label: 'Asia/Bangkok' },
-            { value: 'Asia/Shanghai', label: 'Asia/Shanghai' },
-            { value: 'Asia/Seoul', label: 'Asia/Seoul' },
-            { value: 'Asia/Tokyo', label: 'Asia/Tokyo' },
-            { value: 'America/New_York', label: 'America/New_York' },
-            { value: 'UTC', label: 'UTC' },
-          ]}
-        />
-        <div className="block">
-          <span className="text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wide">{tAdmin('currency')}</span>
-          <select
-            value={settings['localization.currency'] || ''}
-            onChange={e => {
-              const opt = CURRENCY_OPTIONS.find(o => o.value === e.target.value)
-              updateSetting('localization.currency', e.target.value)
-              if (opt) updateSetting('localization.currency_symbol', opt.symbol)
-            }}
-            className={`${fieldInputClass} mt-2`}
-          >
-            {CURRENCY_OPTIONS.map(opt => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
-        </div>
-        <SettingInput label={tAdmin('currency_symbol')} value={settings['localization.currency_symbol']} onChange={value => updateSetting('localization.currency_symbol', value)} />
-        <SettingSelect label={tAdmin('currency_position')} value={settings['localization.currency_position']} onChange={value => updateSetting('localization.currency_position', value)} options={[{ value: 'after', label: tAdmin('after_amount') }, { value: 'before', label: tAdmin('before_amount') }]} />
-        <SettingSelect label={tAdmin('number_format')} value={settings['localization.number_format']} onChange={value => updateSetting('localization.number_format', value)} options={[{ value: 'dot', label: '1.000' }, { value: 'comma', label: '1,000' }]} />
-      </div>
-    </div>
-  )
-
-  const renderSeo = () => (
-    <div className="space-y-5">
-      <SettingInput label="Meta title" value={getTransValue(settings['seo.meta_title'])} onChange={value => updateTransSetting('seo.meta_title', value)} />
-      <SettingTextarea label="Meta description" value={getTransValue(settings['seo.meta_description'])} onChange={value => updateTransSetting('seo.meta_description', value)} />
-      <SettingInput label="Meta keywords" value={getTransValue(settings['seo.meta_keywords'])} onChange={value => updateTransSetting('seo.meta_keywords', value)} />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <SettingInput label="Google Analytics" value={settings['seo.google_analytics']} onChange={value => updateSetting('seo.google_analytics', value)} />
-        <SettingInput label="Facebook Pixel" value={settings['seo.facebook_pixel']} onChange={value => updateSetting('seo.facebook_pixel', value)} />
-      </div>
-      <SettingTextarea label="robots.txt" rows={5} value={settings['seo.robots_txt']} onChange={value => updateSetting('seo.robots_txt', value)} />
-    </div>
-  )
-
-  const renderLoyalty = () => (
-    <div className="space-y-5">
-      <SettingToggle label={tAdmin('enable_loyalty')} checked={!!settings['loyalty.enabled']} onChange={value => updateSetting('loyalty.enabled', value)} />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <SettingInput label={tAdmin('vnd_per_point')} type="number" value={settings['loyalty.points_per_vnd']} onChange={value => updateSetting('loyalty.points_per_vnd', value)} />
-        <SettingInput label={tAdmin('point_value')} type="number" value={settings['loyalty.vnd_per_point']} onChange={value => updateSetting('loyalty.vnd_per_point', value)} />
-        <SettingInput label={tAdmin('min_redeem_points')} type="number" value={settings['loyalty.min_redeem_points']} onChange={value => updateSetting('loyalty.min_redeem_points', value)} />
-        <SettingInput label={tAdmin('expires_after')} type="number" suffix={tAdmin('days')} value={settings['loyalty.expiry_days']} onChange={value => updateSetting('loyalty.expiry_days', value)} />
-      </div>
-    </div>
-  )
-
-  const renderReviewComplaint = () => (
-    <div className="space-y-5">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <SettingInput label={tAdmin('review_expiry_days')} type="number" suffix={tAdmin('days')} value={settings['review.expiry_days']} onChange={value => updateSetting('review.expiry_days', value)} />
-        <SettingInput label={tAdmin('complaint_expiry_hours')} type="number" suffix={tAdmin('hours_unit') || 'giờ'} value={settings['complaint.expiry_hours']} onChange={value => updateSetting('complaint.expiry_hours', value)} />
-        <SettingInput label={tAdmin('review_bonus_points')} type="number" suffix={tAdmin('points_unit') || 'điểm'} value={settings['review.bonus_points']} onChange={value => updateSetting('review.bonus_points', value)} />
-        <SettingInput label={tAdmin('complaint_notification_email')} type="text" value={settings['complaint.notification_email']} onChange={value => updateSetting('complaint.notification_email', value)} />
-      </div>
-      <SettingToggle label={tAdmin('review_auto_approve_stars')} checked={!!settings['review.auto_approve_stars']} onChange={value => updateSetting('review.auto_approve_stars', value)} />
-      <SettingToggle label={tAdmin('review_email_reminder')} checked={!!settings['review.email_reminder']} onChange={value => updateSetting('review.email_reminder', value)} />
-    </div>
-  )
-
-  const tabContent = {
-    general: renderGeneral,
-    shipping: renderShipping,
-    appearance: renderAppearance,
-    notification: renderNotification,
-    localization: renderLocalization,
-    seo: renderSeo,
-    loyalty: renderLoyalty,
-    review_complaint: renderReviewComplaint,
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'general':
+        return (
+          <GeneralSettings
+            settings={settings}
+            updateSetting={updateSetting}
+            updateTransSetting={updateTransSetting}
+            getTransValue={getTransValue}
+            selectedBranchId={selectedBranchId}
+            handleBranchChange={handleBranchChange}
+            branchOptions={branchOptions}
+            branches={branches}
+            selectedBranch={selectedBranch}
+            selectedBranchAddress={selectedBranchAddress}
+            tAdmin={tAdmin}
+          />
+        )
+      case 'shipping':
+        return (
+          <ShippingSettings
+            settings={settings}
+            updateSetting={updateSetting}
+            selectedBranchAddress={selectedBranchAddress}
+            selectedBranchLat={selectedBranchLat}
+            selectedBranchLng={selectedBranchLng}
+            tAdmin={tAdmin}
+            formatVND={formatVND}
+          />
+        )
+      case 'appearance':
+        return (
+          <AppearanceSettings
+            settings={settings}
+            updateSetting={updateSetting}
+            tAdmin={tAdmin}
+          />
+        )
+      case 'mail':
+        return (
+          <MailSettings
+            settings={settings}
+            updateSetting={updateSetting}
+            tAdmin={tAdmin}
+            onSettingsReload={loadSettings}
+          />
+        )
+      case 'notification':
+        return (
+          <NotificationSettings
+            settings={settings}
+            updateSetting={updateSetting}
+            tAdmin={tAdmin}
+          />
+        )
+      case 'localization':
+        return (
+          <LocalizationSettings
+            settings={settings}
+            updateSetting={updateSetting}
+            tAdmin={tAdmin}
+          />
+        )
+      case 'seo':
+        return (
+          <SeoSettings
+            settings={settings}
+            updateSetting={updateSetting}
+            updateTransSetting={updateTransSetting}
+            getTransValue={getTransValue}
+            tAdmin={tAdmin}
+          />
+        )
+      case 'loyalty':
+        return (
+          <LoyaltySettings
+            settings={settings}
+            updateSetting={updateSetting}
+            tAdmin={tAdmin}
+          />
+        )
+      case 'review_complaint':
+        return (
+          <ReviewComplaintSettings
+            settings={settings}
+            updateSetting={updateSetting}
+            tAdmin={tAdmin}
+          />
+        )
+      default:
+        return null
+    }
   }
 
   if (loading) {
@@ -681,7 +557,9 @@ export default function AdminSettingsDatabasePage() {
               </div>
             )}
           </div>
-          {tabContent[activeTab]?.()}
+          <Suspense fallback={<div className="text-center py-10"><Loader2 className="animate-spin inline-block mr-2" size={16} />{tAdmin('loading') || 'Loading...'}</div>}>
+            {renderTabContent()}
+          </Suspense>
         </div>
       </div>
     </AdminPageShell>

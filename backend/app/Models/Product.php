@@ -91,10 +91,16 @@ class Product extends Model
             try {
                 \Illuminate\Support\Facades\DB::table('chat_caches')->truncate();
             } catch (\Exception $e) {}
+            try {
+                \Illuminate\Support\Facades\Cache::forget('homepage_data');
+            } catch (\Exception $e) {}
         });
         static::deleted(function ($product) {
             try {
                 \Illuminate\Support\Facades\DB::table('chat_caches')->truncate();
+            } catch (\Exception $e) {}
+            try {
+                \Illuminate\Support\Facades\Cache::forget('homepage_data');
             } catch (\Exception $e) {}
         });
     }

@@ -5,6 +5,7 @@ import { CheckCircle } from 'lucide-react'
 import AOS from 'aos'
 import apiClient from '../../api/axios'
 import { formatVND } from '../../utils/format'
+import LazyImage from '../../components/ui/LazyImage'
 
 export default function CombosPage() {
   const { t, i18n } = useTranslation()
@@ -44,7 +45,7 @@ export default function CombosPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {combos.map((combo, index) => (
           <div key={combo.id} data-aos="zoom-in" data-aos-delay={index * 100} className="flex flex-col sm:flex-row gap-6 p-[28px_32px] rounded-2xl bg-white border border-[#E8E8E8] shadow-premium text-left">
-            <img 
+            <LazyImage 
               src={combo.image} 
               alt={combo.name} 
               className="w-full sm:w-48 h-48 object-cover rounded-xl shrink-0"

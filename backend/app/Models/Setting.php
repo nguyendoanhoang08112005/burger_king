@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 class Setting extends Model
 {
@@ -19,6 +20,8 @@ class Setting extends Model
         'is_public' => 'boolean',
     ];
 
+    // ─── Read ──────────────────────────────────────────────────────────────────
+
     public static function get(string $key, mixed $default = null): mixed
     {
         return Cache::remember("setting_{$key}", 3600, function () use ($key, $default) {
@@ -27,16 +30,33 @@ class Setting extends Model
         });
     }
 
+    public static function getGroup(string $group): array
+    {
+        return Cache::remember("settings_group_{$group}", 3600, function () use ($group) {
+            return static::where('group', $group)
+                ->get()
+                ->mapWithKeys(fn (self $setting) => [$setting->key => $setting->parsed_value])
+                ->toArray();
+        });
+    }
+
+    // ─── Write ─────────────────────────────────────────────────────────────────
+
     public static function set(string $key, mixed $value, ?array $meta = null): void
     {
         $type = $meta['type'] ?? static::where('key', $key)->value('type') ?? static::inferType($value);
 
+        // Promote to json when value is an array/object but the declared type is not.
+        if (is_array($value) && $type !== 'json') {
+            $type = 'json';
+        }
+
         static::updateOrCreate(
             ['key' => $key],
             [
-                'group' => $meta['group'] ?? str($key)->before('.')->toString(),
-                'value' => static::serializeValue($value, $type),
-                'type' => $type,
+                'group'     => $meta['group'] ?? str($key)->before('.')->toString(),
+                'value'     => static::serializeValue($value, $type),
+                'type'      => $type,
                 'is_public' => $meta['is_public'] ?? static::where('key', $key)->value('is_public') ?? false,
             ]
         );
@@ -44,15 +64,7 @@ class Setting extends Model
         static::clearCache($key);
     }
 
-    public static function getGroup(string $group): array
-    {
-        return Cache::remember("settings_group_{$group}", 3600, function () use ($group) {
-            return static::where('group', $group)
-                ->get()
-                ->mapWithKeys(fn (Setting $setting) => [$setting->key => $setting->parsed_value])
-                ->toArray();
-        });
-    }
+    // ─── Cache ─────────────────────────────────────────────────────────────────
 
     public static function clearCache(?string $key = null): void
     {
@@ -60,21 +72,27 @@ class Setting extends Model
             Cache::forget("setting_{$key}");
             Cache::forget('settings_group_' . str($key)->before('.')->toString());
         }
+
         Cache::forget('settings_admin_index');
-        foreach (['vi', 'en'] as $loc) {
-            Cache::forget("public_settings_{$loc}");
+
+        foreach (['vi', 'en'] as $locale) {
+            Cache::forget("public_settings_{$locale}");
         }
     }
+
+    // ─── Accessors ─────────────────────────────────────────────────────────────
 
     public function getParsedValueAttribute(): mixed
     {
         return match ($this->type) {
             'boolean' => filter_var($this->value, FILTER_VALIDATE_BOOLEAN),
-            'number' => is_numeric($this->value) ? (float) $this->value : 0,
-            'json' => json_decode($this->value ?: 'null', true),
-            default => $this->value,
+            'number'  => is_numeric($this->value) ? (float) $this->value : 0,
+            'json'    => json_decode($this->value ?: 'null', true),
+            default   => $this->value,
         };
     }
+
+    // ─── Serialization ─────────────────────────────────────────────────────────
 
     public static function serializeValue(mixed $value, string $type): ?string
     {
@@ -82,34 +100,44 @@ class Setting extends Model
             return null;
         }
 
+        // Always JSON-encode arrays/objects regardless of declared type.
+        if (is_array($value) || is_object($value)) {
+            return json_encode($value, JSON_UNESCAPED_UNICODE);
+        }
+
         return match ($type) {
             'boolean' => $value ? '1' : '0',
-            'json' => is_string($value) ? $value : json_encode($value, JSON_UNESCAPED_UNICODE),
-            default => (string) $value,
+            'json'    => is_string($value) ? $value : json_encode($value, JSON_UNESCAPED_UNICODE),
+            default   => (string) $value,
         };
     }
 
     private static function inferType(mixed $value): string
     {
         return match (true) {
-            is_bool($value) => 'boolean',
+            is_bool($value)    => 'boolean',
             is_numeric($value) => 'number',
-            is_array($value) => 'json',
-            default => 'text',
+            is_array($value)   => 'json',
+            default            => 'text',
         };
     }
 
-    protected static function booted()
+    // ─── Model events ──────────────────────────────────────────────────────────
+
+    protected static function booted(): void
     {
-        static::saved(function ($setting) {
+        // Invalidate the chatbot cache whenever any setting changes so the AI
+        // does not use stale context. Uses DELETE instead of TRUNCATE to stay
+        // safe inside a wrapping DB::transaction().
+        $invalidateChatCache = static function (): void {
             try {
-                \Illuminate\Support\Facades\DB::table('chat_caches')->truncate();
-            } catch (\Exception $e) {}
-        });
-        static::deleted(function ($setting) {
-            try {
-                \Illuminate\Support\Facades\DB::table('chat_caches')->truncate();
-            } catch (\Exception $e) {}
-        });
+                DB::table('chat_caches')->delete();
+            } catch (\Exception) {
+                // Non-critical – do not interrupt the setting save.
+            }
+        };
+
+        static::saved($invalidateChatCache);
+        static::deleted($invalidateChatCache);
     }
 }

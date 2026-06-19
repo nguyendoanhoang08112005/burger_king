@@ -2,8 +2,8 @@ import React, { useState, useRef, useEffect } from 'react'
 import { Send, Sparkles } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
-export default function ChatInput({ onSend, isLoading, initialized }) {
-  const { t } = useTranslation()
+export default function ChatInput({ onSend, isLoading, initialized, cooldown }) {
+  const { t, i18n } = useTranslation()
   const [text, setText] = useState('')
   const inputRef = useRef(null)
 
@@ -35,9 +35,9 @@ export default function ChatInput({ onSend, isLoading, initialized }) {
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={t('chatbot.input_placeholder', 'Nhập tin nhắn... Hỏi về thực đơn, ưu đãi...')}
+          placeholder={cooldown > 0 ? (i18n.language === 'en' ? `Try again in ${cooldown}s...` : `Thử lại sau ${cooldown}s...`) : t('chatbot.input_placeholder', 'Nhập tin nhắn... Hỏi về thực đơn, ưu đãi...')}
           maxLength={1000}
-          disabled={isLoading}
+          disabled={isLoading || cooldown > 0}
           className="w-full resize-none bg-[#F8F8F8] text-[#1A1A1A] text-sm font-semibold rounded-2xl py-2.5 pl-3.5 pr-10 border border-transparent focus:border-primary/20 focus:bg-white focus:outline-none placeholder:text-gray-400 placeholder:font-medium transition-all"
           style={{ minHeight: '40px', maxHeight: '120px' }}
         />
@@ -48,14 +48,18 @@ export default function ChatInput({ onSend, isLoading, initialized }) {
 
       <button
         type="submit"
-        disabled={!text.trim() || isLoading}
+        disabled={!text.trim() || isLoading || cooldown > 0}
         className={`flex items-center justify-center w-10.5 h-10.5 rounded-full shadow-md transition-all active:scale-95 ${
-          text.trim() && !isLoading
+          text.trim() && !isLoading && cooldown <= 0
             ? 'bg-primary text-white hover:bg-primary/95 hover:shadow-premium'
             : 'bg-gray-100 text-gray-400 cursor-not-allowed shadow-none'
         }`}
       >
-        <Send className="w-4.5 h-4.5" />
+        {cooldown > 0 ? (
+          <span className="text-xs font-bold text-gray-500">{cooldown}s</span>
+        ) : (
+          <Send className="w-4.5 h-4.5" />
+        )}
       </button>
     </form>
   )

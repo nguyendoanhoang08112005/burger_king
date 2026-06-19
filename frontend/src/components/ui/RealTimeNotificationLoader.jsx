@@ -44,6 +44,7 @@ export default function RealTimeNotificationLoader() {
   const navigate = useNavigate()
   const loadedIdsRef = useRef(new Set())
   const isInitializedRef = useRef(false)
+  const isFetchingRef = useRef(false)
 
   useEffect(() => {
     isInitializedRef.current = false
@@ -52,6 +53,8 @@ export default function RealTimeNotificationLoader() {
     if (!isAuthenticated) return undefined
 
     const fetchNotifications = async () => {
+      if (isFetchingRef.current) return
+      isFetchingRef.current = true
       try {
         const { data } = await apiClient.get('/notifications')
         const list = Array.isArray(data) ? data : data?.data || []
@@ -113,14 +116,16 @@ export default function RealTimeNotificationLoader() {
         }
       } catch (err) {
         console.error('Failed to fetch user notifications for realtime', err)
+      } finally {
+        isFetchingRef.current = false
       }
     }
 
     fetchNotifications()
 
-    const interval = setInterval(fetchNotifications, 5000)
+    const interval = setInterval(fetchNotifications, 30000)
     return () => clearInterval(interval)
-  }, [isAuthenticated, user, navigate, t])
+  }, [isAuthenticated, user?.id, navigate, t])
 
   return null
 }

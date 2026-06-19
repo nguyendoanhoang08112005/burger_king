@@ -6,6 +6,7 @@ import { useUiStore } from '../../store/uiStore'
 import apiClient from '../../api/axios'
 import { formatVND } from '../../utils/format'
 import { assetUrl, logoSizeValue } from '../../utils/adminUtils'
+import LazyImage from './LazyImage'
 
 export default function ProductDetailModal({ product, onClose }) {
   const { t, i18n } = useTranslation()
@@ -113,7 +114,7 @@ export default function ProductDetailModal({ product, onClose }) {
       <div className="relative w-full max-w-3xl bg-white border border-[#E8E8E8] rounded-2xl shadow-premium overflow-hidden z-10 flex flex-col md:flex-row max-h-[90vh] animate-float-half">
         {/* Gallery Slider section */}
         <div className="w-full md:w-1/2 relative bg-[#F5F5F5] flex flex-col justify-center max-h-[35vh] md:max-h-none">
-          <img 
+          <LazyImage 
             src={product.thumbnail} 
             alt={product.name} 
             className="w-full h-full object-cover aspect-square"
@@ -204,7 +205,7 @@ export default function ProductDetailModal({ product, onClose }) {
                     >
                       <div className="flex items-center gap-3">
                         {topping.image ? (
-                          <img src={assetUrl(topping.image)} alt="" className="w-6 h-6 rounded-full object-cover bg-white" />
+                          <LazyImage src={assetUrl(topping.image)} alt="" className="w-6 h-6 rounded-full object-cover bg-white" />
                         ) : (
                           <span className="text-lg">{topping.category === 'cheese' ? '🧀' : topping.category === 'meat' ? '🥓' : topping.category === 'veggie' ? '🧅' : '🏺'}</span>
                         )}

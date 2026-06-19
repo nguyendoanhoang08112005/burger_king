@@ -120,7 +120,7 @@ export const menuGroups = [
       { icon: Settings, labelKey: 'settings', path: '/admin/settings' },
       { icon: Globe, labelKey: 'languages', path: '/admin/translations/locales' },
       { icon: Bell, labelKey: 'notifications', path: '/admin/notifications', badgeKey: 'notificationsUnread' },
-      { icon: Bot, labelKey: 'chatbot', path: '/admin/chat' },
+      { icon: Bot, labelKey: 'chatbot_sidebar', path: '/admin/chat' },
     ],
   },
 ]
@@ -195,9 +195,9 @@ export function ConfirmDialog({ open, title, message, onConfirm, onCancel, loadi
 export function AdminSidebar({ collapsed, onToggle, badges }) {
   const tAdmin = useAdminText()
   const { user } = useAuthStore()
-  const logo = useUiStore(state => state.publicSettings['general.logo'])
-  const logoWidth = useUiStore(state => state.publicSettings['general.logo_width'])
-  const logoHeight = useUiStore(state => state.publicSettings['general.logo_height'])
+  const logo = useUiStore(state => state.publicSettings['general.admin_logo'])
+  const logoWidth = useUiStore(state => state.publicSettings['general.admin_logo_width'])
+  const logoHeight = useUiStore(state => state.publicSettings['general.admin_logo_height'])
   const storeName = useUiStore(state => state.publicSettings['general.store_name'])
 
   return (
@@ -410,9 +410,17 @@ export function AdminTopbar({ notifications = [], unreadCount = 0 }) {
           )}
         </div>
         <div className="flex items-center gap-2.5 pl-2 cursor-pointer group">
-          <div className="w-8 h-8 rounded-full bg-[#D62300] flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
-            {(user?.name || 'A').charAt(0).toUpperCase()}
-          </div>
+          {user?.avatar ? (
+            <img
+              src={assetUrl(user.avatar)}
+              alt={user.name || 'Admin'}
+              className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+            />
+          ) : (
+            <div className="w-8 h-8 rounded-full bg-[#D62300] flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+              {(user?.name || 'A').charAt(0).toUpperCase()}
+            </div>
+          )}
           <div className="hidden lg:block">
             <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 leading-tight">{user?.name || 'Admin'}</p>
             <p className="text-xs text-gray-400">{tAdmin('admin_role')}</p>

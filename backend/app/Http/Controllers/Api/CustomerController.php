@@ -56,65 +56,80 @@ class CustomerController extends Controller
 
     public function products(Request $request)
     {
-        $query = Product::with(['category', 'sizes'])
+        $key = 'products_' . md5(json_encode($request->all()) . '_' . ($request->user('sanctum')?->id ?? 'guest'));
+
+        $products = \Illuminate\Support\Facades\Cache::remember($key, 900, function () use ($request) {
+            $query = Product::with([
+                'category:id,name,slug',
+                'sizes:id,product_id,size,extra_price,is_available'
+            ])
             ->withCount('reviews')
             ->withAvg('reviews', 'rating')
             ->where('is_available', true);
 
-        // Filter by category id when provided. Empty/all means "all products".
-        if ($request->filled('category_id') && $request->category_id !== 'all') {
-            $query->where('category_id', $request->category_id);
-        } elseif ($request->filled('category') && $request->category !== 'all') {
-            $query->whereHas('category', function($q) use ($request) {
-                $q->where('slug', $request->category);
-            });
+            // Filter by category id when provided. Empty/all means "all products".
+            if ($request->filled('category_id') && $request->category_id !== 'all') {
+                $query->where('category_id', $request->category_id);
+            } elseif ($request->filled('category') && $request->category !== 'all') {
+                $query->whereHas('category', function($q) use ($request) {
+                    $q->where('slug', $request->category);
+                });
+            }
+
+            // Search Query
+            if ($request->has('search')) {
+                $query->where('name', 'like', '%' . $request->search . '%');
+            }
+
+            if ($request->boolean('featured') || $request->boolean('is_featured')) {
+                $query->where('is_featured', true);
+            }
+
+            if ($request->filled('exclude')) {
+                $query->where('id', '!=', $request->exclude);
+            }
+
+            // Sort Orders
+            $sortBy = $request->get('sort_by', 'sort_order');
+            if ($sortBy === 'price_asc') {
+                $query->orderByRaw('COALESCE(sale_price, base_price) ASC');
+            } elseif ($sortBy === 'price_desc') {
+                $query->orderByRaw('COALESCE(sale_price, base_price) DESC');
+            } elseif ($sortBy === 'newest') {
+                $query->orderBy('created_at', 'DESC');
+            } else {
+                $query->orderBy('sort_order', 'ASC');
+            }
+
+            $query->select(['id', 'category_id', 'name', 'slug', 'sku', 'base_price', 'sale_price', 'thumbnail', 'is_featured', 'is_available', 'sort_order']);
+
+            if ($request->filled('limit')) {
+                return $query->limit((int) $request->limit)->get();
+            }
+
+            return $query->paginate($request->get('per_page', 9));
+        });
+
+        $user = $request->user('sanctum');
+        if ($user) {
+            $itemsToMark = $products instanceof \Illuminate\Pagination\LengthAwarePaginator ? $products->getCollection() : $products;
+            $this->markWishlisted($itemsToMark, $user);
         }
-
-        // Search Query
-        if ($request->has('search')) {
-            $query->where('name', 'like', '%' . $request->search . '%');
-        }
-
-        if ($request->boolean('featured') || $request->boolean('is_featured')) {
-            $query->where('is_featured', true);
-        }
-
-        if ($request->filled('exclude')) {
-            $query->where('id', '!=', $request->exclude);
-        }
-
-        // Sort Orders
-        $sortBy = $request->get('sort_by', 'sort_order');
-        if ($sortBy === 'price_asc') {
-            $query->orderByRaw('COALESCE(sale_price, base_price) ASC');
-        } elseif ($sortBy === 'price_desc') {
-            $query->orderByRaw('COALESCE(sale_price, base_price) DESC');
-        } elseif ($sortBy === 'newest') {
-            $query->orderBy('created_at', 'DESC');
-        } else {
-            $query->orderBy('sort_order', 'ASC');
-        }
-
-        if ($request->filled('limit')) {
-            $products = $query->limit((int) $request->limit)->get();
-            $this->markWishlisted($products, $request->user('sanctum'));
-
-            return response()->json($products);
-        }
-
-        $products = $query->paginate($request->get('per_page', 9));
-        $this->markWishlisted($products->getCollection(), $request->user('sanctum'));
 
         return response()->json($products);
     }
 
     public function productDetail(Request $request, $slug)
     {
-        $product = Product::with(['category', 'images', 'sizes'])
-            ->withCount('reviews')
-            ->withAvg('reviews', 'rating')
-            ->where('slug', $slug)
-            ->firstOrFail();
+        $product = Product::with([
+            'category:id,name,slug',
+            'images',
+            'sizes:id,product_id,size,extra_price,is_available'
+        ])
+        ->withCount('reviews')
+        ->withAvg('reviews', 'rating')
+        ->where('slug', $slug)
+        ->firstOrFail();
 
         $this->markWishlisted($product, $request->user('sanctum'));
 
@@ -123,38 +138,57 @@ class CustomerController extends Controller
 
     public function categories()
     {
-        return response()->json(Category::where('is_active', true)->orderBy('sort_order')->get());
+        $categories = \Illuminate\Support\Facades\Cache::remember('public_categories', 3600, function () {
+            return Category::where('is_active', true)->orderBy('sort_order')->select(['id', 'name', 'slug', 'image', 'is_active', 'sort_order'])->get();
+        });
+        return response()->json($categories);
     }
 
     public function toppings(Request $request)
     {
-        $query = ProductTopping::where('is_available', true);
+        $categoryId = $request->filled('category_id') ? (int) $request->category_id : null;
+        $key = 'public_toppings_' . ($categoryId ?? 'all');
 
-        if ($request->filled('category_id')) {
-            $categoryId = (int) $request->category_id;
-            $query->where(function ($q) use ($categoryId) {
-                $q->whereNull('category_ids')
-                    ->orWhereJsonLength('category_ids', 0)
-                    ->orWhereJsonContains('category_ids', $categoryId);
-            });
-        }
+        $toppings = \Illuminate\Support\Facades\Cache::remember($key, 3600, function () use ($categoryId) {
+            $query = ProductTopping::where('is_available', true);
+            if ($categoryId) {
+                $query->where(function ($q) use ($categoryId) {
+                    $q->whereNull('category_ids')
+                        ->orWhereJsonLength('category_ids', 0)
+                        ->orWhereJsonContains('category_ids', $categoryId);
+                });
+            }
+            return $query->orderBy('category')->orderBy('name')->get();
+        });
 
-        return response()->json($query->orderBy('category')->orderBy('name')->get());
+        return response()->json($toppings);
     }
 
     public function combos()
     {
-        return response()->json(ComboSet::with('items.product')->where('is_active', true)->get());
+        $combos = \Illuminate\Support\Facades\Cache::remember('public_combos', 1800, function () {
+            return ComboSet::with('items.product:id,name,thumbnail')
+                ->where('is_active', true)
+                ->select(['id', 'name', 'slug', 'description', 'image', 'price', 'is_active'])
+                ->get();
+        });
+        return response()->json($combos);
     }
 
     public function banners()
     {
-        return response()->json(Banner::where('is_active', true)->orderBy('sort_order')->get());
+        $banners = \Illuminate\Support\Facades\Cache::remember('public_banners', 1800, function () {
+            return Banner::where('is_active', true)->orderBy('sort_order')->select(['id', 'title', 'subtitle', 'image', 'link', 'position', 'sort_order', 'is_active'])->get();
+        });
+        return response()->json($banners);
     }
 
     public function branches()
     {
-        return response()->json(Branch::where('is_active', true)->get());
+        $branches = \Illuminate\Support\Facades\Cache::remember('public_branches', 3600, function () {
+            return Branch::where('is_active', true)->select(['id', 'name', 'address', 'phone', 'open_time', 'close_time', 'lat', 'lng', 'is_active'])->get();
+        });
+        return response()->json($branches);
     }
 
     // --- SECURE CUSTOMER ENDPOINTS ---

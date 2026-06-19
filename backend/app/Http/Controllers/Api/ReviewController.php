@@ -118,7 +118,7 @@ class ReviewController extends Controller
     // Admin lists reviews
     public function listReviews(Request $request)
     {
-        $query = OrderReview::with(['user', 'order', 'productReviews.product'])->latest();
+        $query = OrderReview::with(['user:id,name,email', 'order:id,order_code', 'productReviews.product:id,name,slug,sku,thumbnail'])->latest();
 
         if ($request->filled('status')) {
             if ($request->status === 'approved') {

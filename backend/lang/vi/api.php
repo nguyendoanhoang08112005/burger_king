@@ -124,6 +124,7 @@ return [
         'otp_invalid_or_expired' => 'Mã xác minh không hợp lệ hoặc đã hết hạn.',
         'otp_expired_new_required' => 'Mã xác minh đã hết hạn. Vui lòng yêu cầu mã mới.',
         'otp_incorrect' => 'Mã xác minh không chính xác.',
+        'avatar_updated' => 'Cập nhật ảnh đại diện thành công!',
     ],
     'payments' => [
         'cod_name' => 'Tiền mặt khi nhận hàng (COD)',

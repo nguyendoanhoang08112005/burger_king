@@ -14,7 +14,8 @@ export default function ChatWindow({
   sendMessage,
   clearChat,
   handleAction,
-  handleConfirm
+  handleConfirm,
+  cooldown
 }) {
   const { t } = useTranslation()
   const messagesEndRef = useRef(null)
@@ -124,7 +125,7 @@ export default function ChatWindow({
       </div>
 
       {/* Input Form */}
-      <ChatInput onSend={sendMessage} isLoading={isLoading} initialized={initialized} />
+      <ChatInput onSend={sendMessage} isLoading={isLoading} initialized={initialized} cooldown={cooldown} />
     </div>
   )
 }

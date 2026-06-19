@@ -2,15 +2,24 @@ import React, { useState } from 'react'
 import { Check, X, ShoppingBag, Eye, LogIn, ArrowRight } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
-export default function ChatActionButtons({ action, onAction, onConfirm }) {
+export default function ChatActionButtons({ action, messageId, onAction, onConfirm }) {
   const { t } = useTranslation()
-  const [decision, setDecision] = useState(null) // 'yes' | 'no'
+  const [decision, setDecision] = useState(() => {
+    if (messageId) {
+      return localStorage.getItem(`chat_decision_${messageId}`) || null
+    }
+    return null
+  })
 
   if (!action) return null
 
   const handleConfirmClick = (confirmed) => {
     if (decision !== null) return // already decided
-    setDecision(confirmed ? 'yes' : 'no')
+    const newDecision = confirmed ? 'yes' : 'no'
+    setDecision(newDecision)
+    if (messageId) {
+      localStorage.setItem(`chat_decision_${messageId}`, newDecision)
+    }
     if (onConfirm) {
       onConfirm(action.data, confirmed)
     }
@@ -24,15 +33,24 @@ export default function ChatActionButtons({ action, onAction, onConfirm }) {
     return (
       <div className="mt-3 flex flex-col gap-2">
         {isCart && data.product && (
-          <div className="text-xs bg-[#FFF5F5] border border-primary/10 rounded-lg p-2.5 text-primary mb-1">
-            <span className="font-bold">{t('chatbot.confirm_item', 'Thêm vào giỏ:')}</span> {data.product.name}
-            {data.size && <span className="ml-1 px-1 bg-primary/10 rounded font-semibold text-[10px]">{data.size}</span>}
-            {data.toppings && data.toppings.length > 0 && (
-              <div className="mt-1 text-[11px] text-[#666]">
-                + Toppings: {data.toppings.map(tp => tp.name).join(', ')}
-              </div>
+          <div className="text-xs bg-[#FFF5F5] border border-primary/10 rounded-lg p-2.5 text-primary mb-1 flex items-start gap-3">
+            {data.product.thumbnail && (
+              <img
+                src={data.product.thumbnail}
+                alt={data.product.name}
+                className="w-14 h-14 object-cover rounded-lg bg-white border border-primary/5 flex-shrink-0"
+              />
             )}
-            {data.quantity && <div className="mt-0.5 text-[11px] text-[#666]">{t('chatbot.qty', 'Số lượng:')} {data.quantity}</div>}
+            <div className="flex-1 min-w-0">
+              <span className="font-bold">{t('chatbot.confirm_item', 'Thêm vào giỏ:')}</span> {data.product.name}
+              {data.size && <span className="ml-1 px-1 bg-primary/10 rounded font-semibold text-[10px]">{data.size}</span>}
+              {data.toppings && data.toppings.length > 0 && (
+                <div className="mt-1 text-[11px] text-[#666]">
+                  + Toppings: {data.toppings.map(tp => tp.name).join(', ')}
+                </div>
+              )}
+              {data.quantity && <div className="mt-0.5 text-[11px] text-[#666]">{t('chatbot.qty', 'Số lượng:')} {data.quantity}</div>}
+            </div>
           </div>
         )}
 

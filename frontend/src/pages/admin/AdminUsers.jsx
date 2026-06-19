@@ -4,7 +4,7 @@ import { Pencil, Trash2, Unlock, Lock, X, Loader2 } from 'lucide-react'
 import apiClient from '../../api/axios'
 import { useAuthStore } from '../../store/authStore'
 import { formatDate } from '../../utils/format'
-import { useAdminText, fieldInputClass } from '../../utils/adminUtils'
+import { useAdminText, fieldInputClass, assetUrl } from '../../utils/adminUtils'
 import {
   AdminPageShell,
   ConfirmDialog,
@@ -83,8 +83,28 @@ export function UserFormModal({ user, onClose, onSaved }) {
             <div />
             {isCreate ? (
               <>
-                <input required type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} placeholder={tAdmin('password')} className={fieldInputClass} />
-                <input required type="password" value={form.password_confirmation} onChange={e => setForm({ ...form, password_confirmation: e.target.value })} placeholder={tAdmin('password_confirmation')} className={fieldInputClass} />
+                <input 
+                  required 
+                  type="password" 
+                  value={form.password} 
+                  onChange={e => setForm({ ...form, password: e.target.value })} 
+                  placeholder={tAdmin('password')} 
+                  className={fieldInputClass} 
+                  onCopy={(e) => e.preventDefault()}
+                  onCut={(e) => e.preventDefault()}
+                  onPaste={(e) => e.preventDefault()}
+                />
+                <input 
+                  required 
+                  type="password" 
+                  value={form.password_confirmation} 
+                  onChange={e => setForm({ ...form, password_confirmation: e.target.value })} 
+                  placeholder={tAdmin('password_confirmation')} 
+                  className={fieldInputClass} 
+                  onCopy={(e) => e.preventDefault()}
+                  onCut={(e) => e.preventDefault()}
+                  onPaste={(e) => e.preventDefault()}
+                />
               </>
             ) : (
               <input disabled value="********" aria-label={tAdmin('password')} title={tAdmin('password_managed_separately')} className={`${fieldInputClass} bg-gray-50 text-gray-400 cursor-not-allowed`} />
@@ -178,7 +198,19 @@ export function AdminUsersPage({ users, loading, onRefresh }) {
             <thead><tr className="text-xs uppercase text-gray-400 border-b border-gray-100 dark:border-gray-700"><th className="py-3">{tAdmin('avatar')}</th><th>{tAdmin('name')}</th><th>{tAdmin('email')}</th><th>{tAdmin('phone')}</th><th>{tAdmin('role')}</th><th>{tAdmin('status')}</th><th>{tAdmin('orders_count')}</th><th>{tAdmin('points')}</th><th>{tAdmin('created_at')}</th><th className="text-right">{tAdmin('actions')}</th></tr></thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-700">{paginatedUsers.map(user => (
               <tr key={user.id} className={`${user.deleted_at ? 'opacity-60' : ''} text-gray-700 dark:text-gray-200`}>
-                <td className="py-3"><div className="w-9 h-9 rounded-full bg-[#D62300] text-white flex items-center justify-center font-bold">{user.name?.charAt(0)}</div></td>
+                <td className="py-3">
+                  {user.avatar ? (
+                    <img 
+                      src={assetUrl(user.avatar)} 
+                      alt={user.name} 
+                      className="w-9 h-9 rounded-full object-cover" 
+                    />
+                  ) : (
+                    <div className="w-9 h-9 rounded-full bg-[#D62300] text-white flex items-center justify-center font-bold">
+                      {user.name?.charAt(0)}
+                    </div>
+                  )}
+                </td>
                 <td className="font-semibold">{user.name}</td><td>{user.email}</td><td>{user.phone || '-'}</td>
                 <td><span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700">{user.role}</span></td>
                 <td><span className={`text-xs px-2 py-1 rounded-full ${user.deleted_at ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>{tAdmin(user.deleted_at ? 'locked' : 'active')}</span></td>

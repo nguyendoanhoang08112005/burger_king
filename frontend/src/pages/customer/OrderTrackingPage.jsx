@@ -5,6 +5,8 @@ import { AlertCircle, CheckCircle, MapPin, Star, Upload, X } from 'lucide-react'
 import { useUiStore } from '../../store/uiStore'
 import apiClient from '../../api/axios'
 import { formatDate, formatVND } from '../../utils/format'
+import OrderTimeline from '../../components/ui/OrderTimeline'
+import OrderDetailCard from '../../components/ui/OrderDetailCard'
 
 export default function OrderTrackingPage() {
   const { t, i18n } = useTranslation()
@@ -113,39 +115,12 @@ export default function OrderTrackingPage() {
       </div>
 
       {/* Timeline tracker */}
-      {!isCancelled ? (
-        <div className="p-6 rounded-2xl bg-white border border-[#E8E8E8] mb-8 shadow-glass">
-          <h3 className="font-bold text-[20px] text-primary tracking-wide uppercase mb-6 text-center">{t('order.delivery_status')}</h3>
-          <div className="relative flex flex-col md:flex-row justify-between gap-6 md:gap-0">
-            {/* Timeline connectors */}
-            <div className="absolute top-4 left-4 md:left-0 md:right-0 h-full md:h-0.5 bg-gray-200 z-0" />
-            
-            {steps.map((st, idx) => {
-              const active = idx <= currentStepIndex
-              return (
-                <div key={st.id} className="relative z-10 flex md:flex-col items-center gap-4 md:gap-2 text-left md:text-center flex-1">
-                  <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center font-semibold text-xs transition duration-300 ${
-                    active ? 'bg-primary border-primary text-white font-bold' : 'bg-gray-100 border-[#E8E8E8] text-gray-400'
-                  }`}>
-                    {idx + 1}
-                  </div>
-                  <span className={`text-xs font-semibold tracking-wide ${active ? 'text-[#1A1A1A] font-bold' : 'text-gray-400'}`}>
-                    {st.name}
-                  </span>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      ) : (
-        <div className="p-6 rounded-2xl bg-primary/5 border border-primary/10 text-center mb-8 flex flex-col items-center justify-center">
-          <AlertCircle className="w-12 h-12 text-primary mb-3 stroke-1 animate-float" />
-          <h3 className="font-bold text-xl text-primary uppercase tracking-wide">{t('order.cancelled_title')}</h3>
-          <p className="text-xs text-gray-500 mt-2 max-w-sm">
-            {t('order.cancelled_desc')}
-          </p>
-        </div>
-      )}
+      <OrderTimeline 
+        isCancelled={isCancelled} 
+        steps={steps} 
+        currentStepIndex={currentStepIndex} 
+        t={t} 
+      />
 
       {/* Review Invitation Banner */}
       {order.status === 'completed' && !order.order_review && isWithinReviewExpiry && (
@@ -298,113 +273,12 @@ export default function OrderTrackingPage() {
       )}
 
       {/* Summary grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Items lists */}
-        <div className="p-6 rounded-2xl bg-white border border-[#E8E8E8] space-y-4 shadow-glass">
-          <h3 className="font-bold text-[20px] text-primary tracking-wide uppercase">{t('order.item_details')}</h3>
-          <div className="divide-y divide-[#E8E8E8]">
-            {order.items?.map((item) => (
-              <div key={item.id} className="py-3 flex justify-between text-xs">
-                <div>
-                  <p className="font-bold text-[#1A1A1A]">{item.product_name}</p>
-                  {item.size && (
-                    <p className="text-[10px] text-gray-500 mt-1">Size {item.size}</p>
-                  )}
-                  {item.toppings?.length > 0 && (
-                    <p className="text-[10px] text-gray-500 truncate mt-0.5">Toppings: {item.toppings.map(t => t.name).join(', ')}</p>
-                  )}
-                  <p className="text-[10px] text-gray-400 mt-1 font-semibold">x {item.quantity}</p>
-                </div>
-                <span className="text-[#1A1A1A] font-semibold">{formatVND(item.subtotal)}</span>
-              </div>
-            ))}
-          </div>
-
-          <div className="border-t border-[#E8E8E8] pt-4 text-xs space-y-2 text-[#666666]">
-            <div className="flex justify-between">
-              <span>{t('cart.subtotal')}</span>
-              <span>{formatVND(order.subtotal)}</span>
-            </div>
-            {parseFloat(order.discount) > 0 && (
-              <div className="flex justify-between text-primary font-semibold">
-                <span>{t('cart.discount')}</span>
-                <span>-{formatVND(order.discount)}</span>
-              </div>
-            )}
-            <div className="flex justify-between">
-              <span>{t('cart.shipping')}</span>
-              <span>{parseFloat(order.shipping_fee) === 0 ? t('cart.free_shipping') : formatVND(order.shipping_fee)}</span>
-            </div>
-            <div className="flex justify-between border-t border-[#E8E8E8] pt-3 text-sm font-bold text-[#1A1A1A] mt-2">
-              <span className="font-semibold text-sm">{t('cart.total')}</span>
-              <span className="text-primary font-semibold text-base">{formatVND(order.total)}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Delivery / Pickup address card */}
-        <div className="p-6 rounded-2xl bg-white border border-[#E8E8E8] flex flex-col justify-between shadow-glass">
-          <div>
-            <h3 className="font-bold text-lg text-primary uppercase tracking-[0.3px]">{t('order.delivery_info')}</h3>
-            {order.delivery_type === 'delivery' && order.address ? (
-              <div className="mt-4 text-xs space-y-2">
-                <p className="text-[#1A1A1A] font-bold">{order.address.recipient_name} - {order.address.phone}</p>
-                <p className="text-[#666666] leading-relaxed">
-                  {order.address.street}, {order.address.ward}, {order.address.district}, {order.address.province}
-                </p>
-                <p className="text-gray-400 text-[10px] pt-2 flex items-center gap-1.5">
-                  <MapPin className="w-3.5 h-3.5 text-primary" />
-                  {t('order.delivery_from_branch')}
-                </p>
-              </div>
-            ) : (
-              <div className="mt-4 text-xs text-[#666666] space-y-2">
-                {order.address ? (
-                  <>
-                    <p className="text-[#1A1A1A] font-bold">{order.address.recipient_name} - {order.address.phone}</p>
-                    <p className="mt-2 font-semibold text-[#1A1A1A]">🏪 {order.address.province}</p>
-                    <p className="text-[10px] text-gray-500 mt-1">📍 {t('order.pickup_address_label')}: {order.address.district}</p>
-                    {order.address.street && (
-                      <p className="text-[10px] text-gray-500">📞 {t('order.pickup_hotline_label')}: {order.address.street}</p>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <p className="text-[#1A1A1A] font-bold">{t('order.pickup_customer')}</p>
-                    <p className="mt-2">{t('order.pickup_branch')}</p>
-                    <p className="text-[10px] text-gray-500 mt-1">{t('order.pickup_address')}</p>
-                  </>
-                )}
-              </div>
-            )}
-            {order.scheduled_at && (
-              <div className="mt-4 rounded-xl border border-[#E8E8E8] bg-[#F8F8F8] p-4 text-xs">
-                <p className="font-semibold uppercase tracking-[0.4px] text-gray-400">{t('order.scheduled_at')}</p>
-                <p className="mt-1 font-bold text-[#1A1A1A]">{formatDate(order.scheduled_at)}</p>
-              </div>
-            )}
-            {order.note && (
-              <div className="mt-4 rounded-xl border border-amber-100 bg-amber-50 p-4 text-xs">
-                <p className="font-semibold uppercase tracking-[0.4px] text-amber-700">{t('checkout.order_note')}</p>
-                <p className="mt-1 whitespace-pre-wrap leading-relaxed text-[#1A1A1A]">{order.note}</p>
-              </div>
-            )}
-          </div>
-
-          <div className="pt-6 border-t border-[#E8E8E8] mt-6 space-y-2 text-xs">
-            <div className="flex justify-between">
-              <span className="text-gray-400 font-semibold">{t('order.payment')}</span>
-              <span className="text-[#1A1A1A] font-bold uppercase">{order.payment_method}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-400 font-semibold">{t('order.status')}</span>
-              <span className={`font-bold uppercase ${order.payment_status === 'paid' ? 'text-primary' : 'text-primary/70'}`}>
-                {order.payment_status === 'paid' ? t('order.paid') : t('order.unpaid')}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
+      <OrderDetailCard 
+        order={order} 
+        formatVND={formatVND} 
+        formatDate={formatDate} 
+        t={t} 
+      />
 
       {showReviewModal && <ReviewFlowModal />}
       {showComplaintModal && <ComplaintFlowModal />}

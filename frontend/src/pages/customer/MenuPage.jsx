@@ -5,6 +5,7 @@ import { AlertCircle } from 'lucide-react'
 import AOS from 'aos'
 import apiClient from '../../api/axios'
 import ProductCard from '../../components/ui/ProductCard'
+import { MenuPageSkeleton, ProductCardSkeleton } from '../../components/ui/Skeleton'
 
 export default function MenuPage({ onSelectProduct }) {
   const { t, i18n } = useTranslation()
@@ -44,6 +45,10 @@ export default function MenuPage({ onSelectProduct }) {
       setLoading(false)
     })
   }, [activeCategory, search, sortBy, currentPage, i18n.language])
+
+  if (loading && categories.length === 0) {
+    return <MenuPageSkeleton />
+  }
 
   const handleCategorySelect = (slug) => {
     const nextParams = new URLSearchParams(searchParams)
@@ -157,8 +162,10 @@ export default function MenuPage({ onSelectProduct }) {
 
         {/* Grids */}
         {loading ? (
-          <div className="h-64 flex items-center justify-center">
-            <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-primary"></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <ProductCardSkeleton key={i} />
+            ))}
           </div>
         ) : products.length === 0 ? (
           <div className="h-64 flex flex-col items-center justify-center text-center">

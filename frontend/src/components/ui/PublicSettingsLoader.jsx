@@ -17,6 +17,7 @@ export default function PublicSettingsLoader() {
   const isAdminRoute = location.pathname.startsWith('/admin')
   const [maintenance, setMaintenance] = useState(null)
   const setPublicSettings = useUiStore(state => state.setPublicSettings)
+  const publicSettings = useUiStore(state => state.publicSettings)
   const { i18n } = useTranslation()
   const currentLang = i18n.language
 
@@ -39,14 +40,6 @@ export default function PublicSettingsLoader() {
         description.setAttribute('content', settings['seo.meta_description'] || '')
         if (!description.parentNode) document.head.appendChild(description)
 
-        const favicon = settings['general.favicon']
-        if (favicon) {
-          const link = document.querySelector('link[rel="icon"]') || document.createElement('link')
-          link.setAttribute('rel', 'icon')
-          link.setAttribute('href', assetUrl(favicon))
-          if (!link.parentNode) document.head.appendChild(link)
-        }
-
         setMaintenance(settings['general.maintenance_mode'] ? settings['general.maintenance_message'] : null)
       })
       .catch(() => {})
@@ -54,7 +47,22 @@ export default function PublicSettingsLoader() {
     return () => {
       ignore = true
     }
-  }, [setPublicSettings, currentLang])
+  }, [currentLang])
+
+  useEffect(() => {
+    if (!publicSettings) return
+
+    const favicon = isAdminRoute
+      ? publicSettings['general.admin_favicon']
+      : publicSettings['general.favicon']
+
+    if (favicon) {
+      const link = document.querySelector('link[rel="icon"]') || document.createElement('link')
+      link.setAttribute('rel', 'icon')
+      link.setAttribute('href', assetUrl(favicon))
+      if (!link.parentNode) document.head.appendChild(link)
+    }
+  }, [publicSettings, isAdminRoute])
 
   if (!maintenance || isAdminRoute) return null
 

@@ -26,14 +26,16 @@ class PostController extends Controller
 
     public function featured()
     {
-        return response()->json(
-            Post::where('is_published', true)
+        $posts = \Illuminate\Support\Facades\Cache::remember('featured_posts', 1800, function () {
+            return Post::where('is_published', true)
                 ->whereNotNull('published_at')
                 ->where('published_at', '<=', now())
                 ->orderByDesc('published_at')
                 ->limit(3)
-                ->get()
-        );
+                ->select(['id', 'title', 'slug', 'thumbnail', 'excerpt', 'category', 'read_time', 'published_at', 'is_published'])
+                ->get();
+        });
+        return response()->json($posts);
     }
 
     public function show($slug)

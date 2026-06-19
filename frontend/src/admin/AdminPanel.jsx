@@ -377,7 +377,7 @@ function AdminPanel() {
     }, 5000)
 
     return () => window.clearInterval(intervalId)
-  }, [user])
+  }, [user?.id, user?.role])
 
   useEffect(() => {
     if (!user || loading || !canAccessAdminModule(user, 'complaints') || location.pathname !== '/admin/complaints') return

@@ -7,8 +7,12 @@ import { useAuthStore } from '../../store/authStore'
 import apiClient from '../../api/axios'
 import { formatVND } from '../../utils/format'
 
+import LazyImage from './LazyImage'
+import { usePrefetch } from '../../hooks/usePrefetch'
+
 export default function ProductCard({ product, onSelect, index = 0 }) {
   const { t } = useTranslation()
+  const { prefetchProduct } = usePrefetch()
   const showToast = useUiStore(state => state.showToast)
   const isAuthenticated = useAuthStore(state => state.isAuthenticated)
   const navigate = useNavigate()
@@ -51,6 +55,7 @@ export default function ProductCard({ product, onSelect, index = 0 }) {
       data-aos="fade-up"
       data-aos-delay={index * 80}
       onClick={() => onSelect(product)}
+      onMouseEnter={() => prefetchProduct(product.slug)}
       className="group relative flex flex-col rounded-2xl bg-white border border-[#E8E8E8] overflow-hidden shadow-glass cursor-pointer transition-all duration-200 hover:-translate-y-1.5 hover:shadow-premium"
     >
       {/* Badge sales */}
@@ -72,7 +77,7 @@ export default function ProductCard({ product, onSelect, index = 0 }) {
 
       {/* Image container */}
       <div className="relative aspect-video w-full overflow-hidden bg-[#F5F5F5]">
-        <img 
+        <LazyImage 
           src={product.thumbnail} 
           alt={product.name} 
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"

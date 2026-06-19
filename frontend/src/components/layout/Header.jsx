@@ -6,6 +6,7 @@ import { useCartStore } from '../../store/cartStore'
 import { useUiStore } from '../../store/uiStore'
 import LanguageSwitcher from '../LanguageSwitcher'
 import { assetUrl, logoSizeValue } from '../../utils/adminUtils'
+import { usePrefetch } from '../../hooks/usePrefetch'
 
 export function BrandLogo({
   className = '',
@@ -49,12 +50,13 @@ export default function Header() {
   const { setCartDrawerOpen } = useUiStore()
   const navigate = useNavigate()
   const location = useLocation()
+  const { prefetchMenu } = usePrefetch()
 
   const totalQuantity = cartItems.reduce((sum, item) => sum + item.quantity, 0)
   const navClass = (path) => (
     location.pathname === path
       ? 'text-primary font-bold transition'
-      : 'text-[#1A1A1A] hover:text-primary transition'
+      : 'text-[#2C1A16] hover:text-primary transition'
   )
   const handleHomeClick = (event) => {
     event.preventDefault()
@@ -73,10 +75,10 @@ export default function Header() {
 
       <nav className="hidden md:flex items-center gap-8 font-semibold text-sm tracking-wide">
         <a href="/" onClick={handleHomeClick} className={navClass('/')}>{t('nav.home')}</a>
-        <Link to="/menu" className={navClass('/menu')}>{t('nav.menu')}</Link>
+        <Link to="/menu" onMouseEnter={prefetchMenu} className={navClass('/menu')}>{t('nav.menu')}</Link>
         <Link to="/combos" className={navClass('/combos')}>{t('nav.combos')}</Link>
         <Link to="/branches" className={navClass('/branches')}>{t('nav.branches')}</Link>
-        <Link to="/blog" className={location.pathname.startsWith('/blog') ? 'text-primary font-bold transition' : 'text-[#1A1A1A] hover:text-primary transition'}>{t('nav.blog')}</Link>
+        <Link to="/blog" className={location.pathname.startsWith('/blog') ? 'text-primary font-bold transition' : 'text-[#2C1A16] hover:text-primary transition'}>{t('nav.blog')}</Link>
       </nav>
 
       <div className="flex items-center gap-4">
@@ -86,7 +88,7 @@ export default function Header() {
         {/* Cart Trigger */}
         <button 
           onClick={() => setCartDrawerOpen(true)}
-          className="relative p-2.5 rounded-full bg-[#F5F5F5] hover:bg-[#E8E8E8] text-[#1A1A1A] transition hover:-translate-y-[1px] active:translate-y-0"
+          className="relative p-2.5 rounded-full bg-[#F5F5F5] hover:bg-[#E8E8E8] text-[#2C1A16] transition hover:-translate-y-[1px] active:translate-y-0"
         >
           <ShoppingBag className="w-5.5 h-5.5" />
           {totalQuantity > 0 && (
@@ -99,12 +101,16 @@ export default function Header() {
         {/* User Account / Login */}
         {isAuthenticated ? (
           <div className="flex items-center gap-3">
-            <Link to="/profile" className="flex items-center gap-2 hover:text-primary transition text-[#1A1A1A] text-sm bg-[#F5F5F5] hover:bg-[#E8E8E8] px-4 py-2 rounded-full border border-[#E8E8E8]">
-              <UserIcon className="w-4 h-4 text-primary" />
+            <Link to="/profile" className="flex items-center gap-2 hover:text-primary transition text-[#2C1A16] text-sm bg-[#F5F5F5] hover:bg-[#E8E8E8] px-4 py-2 rounded-full border border-[#E8E8E8]">
+              {user?.avatar ? (
+                <img src={assetUrl(user.avatar)} alt={user.name} className="w-5 h-5 rounded-full object-cover" />
+              ) : (
+                <UserIcon className="w-4 h-4 text-primary" />
+              )}
               <span className="hidden sm:inline font-semibold">{user.name}</span>
             </Link>
             {['admin', 'staff'].includes(user.role) && (
-              <Link to="/admin" className="bg-[#FFC72C] text-[#1A1A1A] px-4 py-2 rounded-[8px] text-xs font-semibold hover:opacity-90 hover:-translate-y-[1px] transition">
+              <Link to="/admin" className="bg-[#FFC72C] text-[#2C1A16] px-4 py-2 rounded-[8px] text-xs font-semibold hover:opacity-90 hover:-translate-y-[1px] transition">
                 {t('nav.admin').toUpperCase()}
               </Link>
             )}

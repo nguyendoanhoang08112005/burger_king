@@ -124,6 +124,7 @@ return [
         'otp_invalid_or_expired' => 'Invalid or expired verification code.',
         'otp_expired_new_required' => 'Verification code has expired. Please request a new one.',
         'otp_incorrect' => 'Incorrect verification code.',
+        'avatar_updated' => 'Avatar updated successfully!',
     ],
     'payments' => [
         'cod_name' => 'Cash on delivery (COD)',

@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Storage;
 
 class AuthController extends Controller
 {
@@ -229,6 +230,41 @@ class AuthController extends Controller
         return response()->json([
             'success' => true,
             'message' => __('api.messages.reset_password_success'),
+        ]);
+    }
+
+    public function uploadAvatar(Request $request)
+    {
+        $request->validate([
+            'avatar' => 'required|file|image|mimes:jpg,jpeg,png,webp,gif|max:2048',
+        ], [
+            'avatar.required' => __('api.messages.upload_image_required') ?? 'Please select an image file.',
+            'avatar.image' => __('api.messages.upload_image_invalid') ?? 'The uploaded file is not a valid image.',
+            'avatar.mimes' => __('api.messages.upload_image_invalid_type') ?? 'Unsupported image format.',
+            'avatar.max' => __('api.messages.upload_image_too_large') ?? 'The image must not be larger than 2MB.',
+        ]);
+
+        $user = $request->user();
+
+        if ($user->avatar) {
+            $oldPath = str_replace(Storage::url(''), '', $user->avatar);
+            Storage::disk('public')->delete($oldPath);
+        }
+
+        $path = $request->file('avatar')->store('avatars', 'public');
+        $url = Storage::url($path);
+
+        $user->update(['avatar' => $url]);
+
+        return response()->json([
+            'success' => true,
+            'message' => __('api.messages.avatar_updated') ?? 'Avatar updated successfully!',
+            'avatar_url' => url($url),
+            'user' => array_merge($user->toArray(), [
+                'loyalty_balance' => $user->loyalty_balance,
+                'addresses' => $user->addresses,
+                'permissions' => $user->adminPermissions(),
+            ]),
         ]);
     }
 }

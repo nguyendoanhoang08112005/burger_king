@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import apiClient from '../../api/axios'
 import { formatDate } from '../../utils/format'
+import LazyImage from '../../components/ui/LazyImage'
 
 function BlogDetailPage() {
   const { slug } = useParams()
@@ -49,7 +50,7 @@ function BlogDetailPage() {
 
   return (
     <div className="bg-[#FFFAF5] text-[#1A1A1A]">
-      <img src={post.thumbnail} alt={post.title} className="w-full max-h-[500px] object-cover" />
+      <LazyImage src={post.thumbnail} alt={post.title} className="w-full max-h-[500px] object-cover" />
 
       <div className="max-w-7xl mx-auto px-6 md:px-12 py-8">
         <nav className="text-xs text-[#666666] mb-8">
@@ -91,7 +92,7 @@ function BlogDetailPage() {
               <div className="space-y-4">
                 {related.map(item => (
                   <Link key={item.id} to={`/blog/${item.slug}`} className="flex gap-3 group">
-                    <img src={item.thumbnail} alt={item.title} className="w-20 h-20 rounded-xl object-cover" />
+                    <LazyImage src={item.thumbnail} alt={item.title} className="w-20 h-20 rounded-xl object-cover" />
                     <div>
                       <p className="text-xs text-primary font-bold uppercase">{item.category}</p>
                       <h3 className="text-sm font-bold leading-snug group-hover:text-primary transition">{item.title}</h3>

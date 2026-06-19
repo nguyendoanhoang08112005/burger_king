@@ -29,4 +29,20 @@ class Branch extends Model
         'lng' => 'decimal:8',
         'is_active' => 'boolean',
     ];
+
+    protected static function booted()
+    {
+        static::saved(function () {
+            try {
+                \Illuminate\Support\Facades\Cache::forget('homepage_data');
+                \Illuminate\Support\Facades\Cache::forget('public_branches');
+            } catch (\Exception $e) {}
+        });
+        static::deleted(function () {
+            try {
+                \Illuminate\Support\Facades\Cache::forget('homepage_data');
+                \Illuminate\Support\Facades\Cache::forget('public_branches');
+            } catch (\Exception $e) {}
+        });
+    }
 }

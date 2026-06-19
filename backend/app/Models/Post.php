@@ -32,4 +32,20 @@ class Post extends Model
         'is_published' => 'boolean',
         'published_at' => 'datetime',
     ];
+
+    protected static function booted()
+    {
+        static::saved(function () {
+            try {
+                \Illuminate\Support\Facades\Cache::forget('homepage_data');
+                \Illuminate\Support\Facades\Cache::forget('featured_posts');
+            } catch (\Exception $e) {}
+        });
+        static::deleted(function () {
+            try {
+                \Illuminate\Support\Facades\Cache::forget('homepage_data');
+                \Illuminate\Support\Facades\Cache::forget('featured_posts');
+            } catch (\Exception $e) {}
+        });
+    }
 }

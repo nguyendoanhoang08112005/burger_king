@@ -15,7 +15,8 @@ export default function ChatWidget({ onSelectProduct }) {
     sendMessage,
     clearChat,
     handleAction,
-    handleConfirm
+    handleConfirm,
+    cooldown
   } = useChat(onSelectProduct)
 
   return (
@@ -24,7 +25,7 @@ export default function ChatWidget({ onSelectProduct }) {
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 right-6 z-40 flex items-center justify-center w-14 h-14 bg-primary text-white rounded-full shadow-premium hover:shadow-premium-lg transition-all duration-300 hover:scale-105 active:scale-95 animate-pulse-gold group"
+          className="fixed bottom-24 right-6 z-40 flex items-center justify-center w-14 h-14 bg-primary text-white rounded-full shadow-premium hover:shadow-premium-lg transition-all duration-300 hover:scale-105 active:scale-95 animate-pulse-gold group"
           title={t('chatbot.open_chat', 'Chat với trợ lý AI')}
         >
           <div className="relative">
@@ -48,6 +49,7 @@ export default function ChatWidget({ onSelectProduct }) {
         clearChat={clearChat}
         handleAction={handleAction}
         handleConfirm={handleConfirm}
+        cooldown={cooldown}
       />
     </>
   )

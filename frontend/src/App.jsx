@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense, useRef } from 'react'
 import { 
   BrowserRouter as Router, 
   Routes, 
@@ -22,24 +22,30 @@ import ProductDetailModal from './components/ui/ProductDetailModal'
 import PublicSettingsLoader from './components/ui/PublicSettingsLoader'
 import RealTimeNotificationLoader from './components/ui/RealTimeNotificationLoader'
 
-// Pages
-import Home from './pages/customer/HomePage'
-import Menu from './pages/customer/MenuPage'
-import Combos from './pages/customer/CombosPage'
-import Branches from './pages/customer/BranchesPage'
-import Login from './pages/customer/LoginPage'
-import Register from './pages/customer/RegisterPage'
-import ForgotPassword from './pages/customer/ForgotPasswordPage'
-import Checkout from './pages/customer/CheckoutPage'
-import OrderDetailTracking from './pages/customer/OrderTrackingPage'
-import Profile from './pages/customer/ProfilePage'
-
 // Other storefront pages / components
 import ScrollToTopButton from './components/ScrollToTopButton'
-import BlogPage from './pages/customer/BlogPage'
-import BlogDetailPage from './pages/customer/BlogDetailPage'
-import AdminPanel from './admin/AdminPanel'
 import ChatWidget from './components/chat/ChatWidget'
+
+// Lazy load Pages
+const Home = lazy(() => import('./pages/customer/HomePage'))
+const Menu = lazy(() => import('./pages/customer/MenuPage'))
+const Combos = lazy(() => import('./pages/customer/CombosPage'))
+const Branches = lazy(() => import('./pages/customer/BranchesPage'))
+const Login = lazy(() => import('./pages/customer/LoginPage'))
+const Register = lazy(() => import('./pages/customer/RegisterPage'))
+const ForgotPassword = lazy(() => import('./pages/customer/ForgotPasswordPage'))
+const Checkout = lazy(() => import('./pages/customer/CheckoutPage'))
+const OrderDetailTracking = lazy(() => import('./pages/customer/OrderTrackingPage'))
+const Profile = lazy(() => import('./pages/customer/ProfilePage'))
+const BlogPage = lazy(() => import('./pages/customer/BlogPage'))
+const BlogDetailPage = lazy(() => import('./pages/customer/BlogDetailPage'))
+const AdminPanel = lazy(() => import('./admin/AdminPanel'))
+
+const PageLoader = () => (
+  <div className="min-h-screen flex items-center justify-center bg-[#FFFAF5]">
+    <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+  </div>
+)
 
 // Utilities & Stores
 import { initDarkMode } from './utils/darkMode'
@@ -51,25 +57,33 @@ function AosRefresh() {
 
   useEffect(() => {
     AOS.refresh()
-  }, [location])
+  }, [location.pathname])
 
   return null
 }
 
 function SessionGuard() {
   const isAuthenticated = useAuthStore(state => state.isAuthenticated)
+  const isCheckingRef = useRef(false)
 
   useEffect(() => {
     if (!isAuthenticated) return undefined
 
-    const checkSession = () => {
-      if (document.visibilityState === 'visible') {
-        apiClient.get('/profile').catch(() => {})
+    const checkSession = async () => {
+      if (document.visibilityState !== 'visible') return
+      if (isCheckingRef.current) return
+      isCheckingRef.current = true
+      try {
+        await apiClient.get('/profile')
+      } catch (err) {
+        // Axios interceptor will auto-logout on 401/423
+      } finally {
+        isCheckingRef.current = false
       }
     }
 
     checkSession()
-    const interval = window.setInterval(checkSession, 5000)
+    const interval = window.setInterval(checkSession, 30000)
     window.addEventListener('focus', checkSession)
 
     return () => {
@@ -113,27 +127,29 @@ function AppShell({ selectedProduct, setSelectedProduct }) {
 
         {/* Router Pages Switch */}
         <div className="flex-1">
-          <Routes>
-            <Route path="/admin/*" element={<AdminPanel />} />
-            <Route path="/" element={<Home onSelectProduct={setSelectedProduct} />} />
-            <Route path="/menu" element={<Menu onSelectProduct={setSelectedProduct} />} />
-            <Route path="/combos" element={<Combos />} />
-            <Route path="/branches" element={<Branches />} />
-            <Route path="/blog" element={<BlogPage />} />
-            <Route path="/blog/:slug" element={<BlogDetailPage />} />
-            
-            {/* Authentications */}
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            
-            {/* Checkout & tracking */}
-            <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
-            <Route path="/orders/tracking/:code" element={<OrderDetailTracking />} />
-            
-            {/* Customer & Admin panels */}
-            <Route path="/profile" element={<Profile onSelectProduct={setSelectedProduct} />} />
-          </Routes>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route path="/admin/*" element={<AdminPanel />} />
+              <Route path="/" element={<Home onSelectProduct={setSelectedProduct} />} />
+              <Route path="/menu" element={<Menu onSelectProduct={setSelectedProduct} />} />
+              <Route path="/combos" element={<Combos />} />
+              <Route path="/branches" element={<Branches />} />
+              <Route path="/blog" element={<BlogPage />} />
+              <Route path="/blog/:slug" element={<BlogDetailPage />} />
+              
+              {/* Authentications */}
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              
+              {/* Checkout & tracking */}
+              <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
+              <Route path="/orders/tracking/:code" element={<OrderDetailTracking />} />
+              
+              {/* Customer & Admin panels */}
+              <Route path="/profile" element={<Profile onSelectProduct={setSelectedProduct} />} />
+            </Routes>
+          </Suspense>
         </div>
 
         {/* Bottom Nav on Mobile devices */}

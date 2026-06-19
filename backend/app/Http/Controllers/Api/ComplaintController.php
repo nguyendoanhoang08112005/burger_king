@@ -120,7 +120,7 @@ class ComplaintController extends Controller
     // Admin lists complaints
     public function listComplaints(Request $request)
     {
-        $query = Complaint::with(['user', 'order'])->latest();
+        $query = Complaint::with(['user:id,name,email', 'order:id,order_code', 'items.product:id,name'])->latest();
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);
