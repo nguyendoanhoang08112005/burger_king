@@ -88,7 +88,7 @@ export default function HomePage({ onSelectProduct }) {
               {t('home.order_now').toUpperCase()}
             </Link>
             <Link 
-              to="/combos" 
+              to="/menu?category=combo-meals" 
               className="bg-white/20 hover:bg-white/30 border border-white/30 text-white font-semibold px-8 py-3.5 rounded-[8px] text-sm tracking-widest transition"
             >
               {t('nav.combos').toUpperCase()}

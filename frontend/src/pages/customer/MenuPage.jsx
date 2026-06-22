@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AlertCircle } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import AOS from 'aos'
 import apiClient from '../../api/axios'
 import ProductCard from '../../components/ui/ProductCard'
@@ -10,45 +11,45 @@ import { MenuPageSkeleton, ProductCardSkeleton } from '../../components/ui/Skele
 export default function MenuPage({ onSelectProduct }) {
   const { t, i18n } = useTranslation()
   const ITEMS_PER_PAGE = 9
-  const [products, setProducts] = useState([])
-  const [categories, setCategories] = useState([])
   const [searchParams, setSearchParams] = useSearchParams()
   const [search, setSearch] = useState('')
   const [sortBy, setSortBy] = useState('sort_order')
-  const [loading, setLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(1)
 
   const activeCategory = searchParams.get('category') || ''
 
+  // Fetch categories (cached for 30 minutes, depends on language)
+  const { data: categories = [], isLoading: categoriesLoading } = useQuery({
+    queryKey: ['categories'],
+    queryFn: () => apiClient.get('/categories').then(r => r.data),
+    staleTime: 30 * 60 * 1000,
+  })
+
+  // Fetch products (cached for 5 minutes, depends on filters and language)
+  const { data: productsData, isLoading: productsLoading } = useQuery({
+    queryKey: ['products', { page: currentPage, category: activeCategory, search, sortBy, locale: i18n.language }],
+    queryFn: () => apiClient.get('/products', {
+      params: {
+        page: currentPage,
+        per_page: ITEMS_PER_PAGE,
+        sort_by: sortBy,
+        category: activeCategory || undefined,
+        search: search || undefined,
+      }
+    }).then(r => r.data),
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const products = productsData?.data || []
+  const totalPages = productsData?.last_page || 1
+  const loading = categoriesLoading || productsLoading
+
+  // Trigger AOS animation when loading completes
   useEffect(() => {
-    const params = {
-      page: currentPage,
-      per_page: ITEMS_PER_PAGE,
-      sort_by: sortBy,
-    }
-
-    if (activeCategory) params.category = activeCategory
-    if (search) params.search = search
-
-    Promise.all([
-      apiClient.get('/categories'),
-      apiClient.get('/products', { params })
-    ]).then(([catsRes, productsRes]) => {
-      setCategories(catsRes.data)
-      setProducts(productsRes.data.data || [])
-      setTotalPages(productsRes.data.last_page || 1)
-      setLoading(false)
+    if (!loading) {
       setTimeout(() => AOS.refresh(), 0)
-    }).catch(err => {
-      console.error(err)
-      setLoading(false)
-    })
-  }, [activeCategory, search, sortBy, currentPage, i18n.language])
-
-  if (loading && categories.length === 0) {
-    return <MenuPageSkeleton />
-  }
+    }
+  }, [loading])
 
   const handleCategorySelect = (slug) => {
     const nextParams = new URLSearchParams(searchParams)
@@ -57,26 +58,22 @@ export default function MenuPage({ onSelectProduct }) {
     } else {
       nextParams.set('category', slug)
     }
-    setLoading(true)
     setCurrentPage(1)
     setSearchParams(nextParams)
   }
 
   const handleSearchChange = (value) => {
-    setLoading(true)
     setSearch(value)
     setCurrentPage(1)
   }
 
   const handleSortChange = (value) => {
-    setLoading(true)
     setSortBy(value)
     setCurrentPage(1)
   }
 
   const handlePageChange = (page) => {
     if (page < 1 || page > totalPages || page === currentPage) return
-    setLoading(true)
     setCurrentPage(page)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -91,6 +88,10 @@ export default function MenuPage({ onSelectProduct }) {
       }
     }
     return pages
+  }
+
+  if (loading && categories.length === 0) {
+    return <MenuPageSkeleton />
   }
 
   return (

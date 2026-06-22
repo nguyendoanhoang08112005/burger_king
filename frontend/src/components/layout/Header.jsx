@@ -37,8 +37,15 @@ export function BrandLogo({
 
   return (
     <span className={`inline-flex items-center ${containerClassName} ${className}`}>
-      <span className={`font-extrabold ${textClassName} tracking-wider text-primary`}>HAMBURGER</span>
-      <span className={`font-extrabold ${textClassName} tracking-wider text-white bg-primary px-2 py-0.5 rounded-[8px] ml-1`}>KING</span>
+      <img
+        src="/logo.svg"
+        alt={storeName || 'Hamburger King'}
+        style={{
+          width: logoSizeValue(logoWidth, '260px'),
+          height: logoSizeValue(logoHeight, '64px'),
+        }}
+        className={`max-h-full max-w-full ${imageClassName}`}
+      />
     </span>
   )
 }
@@ -48,6 +55,7 @@ export default function Header() {
   const { user, isAuthenticated, setLogout } = useAuthStore()
   const { cartItems } = useCartStore()
   const { setCartDrawerOpen } = useUiStore()
+  const publicSettings = useUiStore(state => state.publicSettings) || {}
   const navigate = useNavigate()
   const location = useLocation()
   const { prefetchMenu } = usePrefetch()
@@ -58,27 +66,36 @@ export default function Header() {
       ? 'text-primary font-bold transition'
       : 'text-[#2C1A16] hover:text-primary transition'
   )
+  const homeUrl = publicSettings['appearance.header_nav_home_url'] || '/'
+  const menuUrl = publicSettings['appearance.header_nav_menu_url'] || '/menu'
+  const branchesUrl = publicSettings['appearance.header_nav_branches_url'] || '/branches'
+  const blogUrl = publicSettings['appearance.header_nav_blog_url'] || '/blog'
+
   const handleHomeClick = (event) => {
     event.preventDefault()
-    if (location.pathname === '/') {
+    if (location.pathname === homeUrl) {
       window.scrollTo({ top: 0, behavior: 'smooth' })
       return
     }
-    navigate('/')
+    navigate(homeUrl)
   }
+
+  const homeLabel = publicSettings['appearance.header_nav_home'] || t('nav.home')
+  const menuLabel = publicSettings['appearance.header_nav_menu'] || t('nav.menu')
+  const branchesLabel = publicSettings['appearance.header_nav_branches'] || t('nav.branches')
+  const blogLabel = publicSettings['appearance.header_nav_blog'] || t('nav.blog')
 
   return (
     <header className="sticky top-0 z-40 w-full bg-white shadow-premium border-b border-[#E8E8E8] py-4 px-6 md:px-12 flex items-center justify-between">
-      <a href="/" onClick={handleHomeClick} className="flex h-16 items-center gap-2 overflow-hidden">
+      <a href={homeUrl} onClick={handleHomeClick} className="flex h-16 items-center gap-2 overflow-hidden">
         <BrandLogo containerClassName="h-16 w-[220px] sm:w-[280px] max-w-[38vw]" />
       </a>
 
       <nav className="hidden md:flex items-center gap-8 font-semibold text-sm tracking-wide">
-        <a href="/" onClick={handleHomeClick} className={navClass('/')}>{t('nav.home')}</a>
-        <Link to="/menu" onMouseEnter={prefetchMenu} className={navClass('/menu')}>{t('nav.menu')}</Link>
-        <Link to="/combos" className={navClass('/combos')}>{t('nav.combos')}</Link>
-        <Link to="/branches" className={navClass('/branches')}>{t('nav.branches')}</Link>
-        <Link to="/blog" className={location.pathname.startsWith('/blog') ? 'text-primary font-bold transition' : 'text-[#2C1A16] hover:text-primary transition'}>{t('nav.blog')}</Link>
+        <a href={homeUrl} onClick={handleHomeClick} className={navClass(homeUrl)}>{homeLabel}</a>
+        <Link to={menuUrl} onMouseEnter={prefetchMenu} className={navClass(menuUrl)}>{menuLabel}</Link>
+        <Link to={branchesUrl} className={navClass(branchesUrl)}>{branchesLabel}</Link>
+        <Link to={blogUrl} className={location.pathname.startsWith(blogUrl) ? 'text-primary font-bold transition' : 'text-[#2C1A16] hover:text-primary transition'}>{blogLabel}</Link>
       </nav>
 
       <div className="flex items-center gap-4">

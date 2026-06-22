@@ -9,6 +9,10 @@ export {
   assetUrl,
   logoSizeValue,
 
+  // Flag helpers
+  getCountryCode,
+  renderFlag,
+
   // Text / formatting
   slugify,
   skuify,

@@ -40,6 +40,8 @@ apiClient.interceptors.response.use(
       }
     } else if (error.response?.status === 401) {
       useAuthStore.getState().setLogout()
+    } else if (error.response?.status === 503 && error.response?.data?.maintenance) {
+      useUiStore.getState().setMaintenanceMessage(error.response.data.message)
     }
     return Promise.reject(error)
   }

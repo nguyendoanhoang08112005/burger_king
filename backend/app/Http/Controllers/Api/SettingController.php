@@ -46,6 +46,25 @@ class SettingController extends Controller
         'general.admin_favicon'      => ['type' => 'image',  'is_public' => true],
         'general.admin_favicon_width'  => ['type' => 'number', 'is_public' => true],
         'general.admin_favicon_height' => ['type' => 'number', 'is_public' => true],
+        'appearance.footer_hotline'          => ['type' => 'text',   'is_public' => true],
+        'appearance.footer_email'            => ['type' => 'text',   'is_public' => true],
+        'appearance.footer_address'          => ['type' => 'json',   'is_public' => true],
+        'appearance.footer_hours'            => ['type' => 'json',   'is_public' => true],
+        'appearance.header_nav_home'         => ['type' => 'json',   'is_public' => true],
+        'appearance.header_nav_home_url'     => ['type' => 'text',   'is_public' => true],
+        'appearance.header_nav_menu'         => ['type' => 'json',   'is_public' => true],
+        'appearance.header_nav_menu_url'     => ['type' => 'text',   'is_public' => true],
+        'appearance.header_nav_branches'     => ['type' => 'json',   'is_public' => true],
+        'appearance.header_nav_branches_url' => ['type' => 'text',   'is_public' => true],
+        'appearance.header_nav_blog'         => ['type' => 'json',   'is_public' => true],
+        'appearance.header_nav_blog_url'     => ['type' => 'text',   'is_public' => true],
+        'appearance.footer_brand_desc'       => ['type' => 'json',   'is_public' => true],
+        'appearance.footer_menu_title'       => ['type' => 'json',   'is_public' => true],
+        'appearance.footer_contact_title'    => ['type' => 'json',   'is_public' => true],
+        'appearance.footer_newsletter_title' => ['type' => 'json',   'is_public' => true],
+        'appearance.footer_newsletter_desc'  => ['type' => 'json',   'is_public' => true],
+        'appearance.footer_copyright'        => ['type' => 'text',   'is_public' => true],
+        'appearance.footer_credit'           => ['type' => 'text',   'is_public' => true],
     ];
 
     private const LANGUAGE_CATALOG = [
@@ -164,7 +183,7 @@ class SettingController extends Controller
         $cacheKey = "public_settings_{$locale}";
 
         $data = Cache::remember($cacheKey, 3600, function () use ($locale) {
-            return Setting::where('is_public', true)
+            $settingsData = Setting::where('is_public', true)
                 ->get()
                 ->mapWithKeys(function (Setting $setting) use ($locale) {
                     $value = $setting->parsed_value;
@@ -174,6 +193,16 @@ class SettingController extends Controller
                     return [$setting->key => $value];
                 })
                 ->toArray();
+
+            $settingsData['supported_locales'] = \App\Models\Locale::where('is_active', true)
+                ->orderBy('sort_order')
+                ->get(['code', 'name', 'native_name', 'flag', 'is_default'])
+                ->toArray();
+
+            $settingsData['default_locale'] = \App\Models\Locale::where('is_default', true)
+                ->value('code') ?? 'vi';
+
+            return $settingsData;
         });
 
         return response()->json(['data' => $data]);

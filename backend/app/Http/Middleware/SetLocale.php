@@ -31,11 +31,28 @@ class SetLocale
             }
         }
 
-        // Validate locale is either 'vi' or 'en'
-        if (in_array($locale, ['vi', 'en'])) {
+        // Validate locale using active database locales
+        $activeCodes = \Illuminate\Support\Facades\Cache::remember('active_locale_codes', 3600, function () {
+            try {
+                if (\Illuminate\Support\Facades\Schema::hasTable('locales')) {
+                    return \App\Models\Locale::where('is_active', true)->pluck('code')->toArray();
+                }
+            } catch (\Throwable $e) {}
+            return ['vi', 'en'];
+        });
+
+        if (in_array($locale, $activeCodes, true)) {
             app()->setLocale($locale);
         } else {
-            app()->setLocale('vi');
+            $defaultCode = \Illuminate\Support\Facades\Cache::remember('default_locale_code', 3600, function () {
+                try {
+                    if (\Illuminate\Support\Facades\Schema::hasTable('locales')) {
+                        return \App\Models\Locale::where('is_default', true)->value('code') ?: 'vi';
+                    }
+                } catch (\Throwable $e) {}
+                return 'vi';
+            });
+            app()->setLocale($defaultCode);
         }
 
         return $next($request);

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { useUiStore } from '../../store/uiStore'
 import toast from 'react-hot-toast'
 import {
   Search,
@@ -23,7 +24,8 @@ import {
   slugify,
   skuify,
   SettingInput,
-  AdminImageInput
+  AdminImageInput,
+  renderFlag
 } from '../../utils/adminUtils'
 import {
   AdminPageShell,
@@ -37,6 +39,13 @@ export function AdminProductsPage({ products, categories, loading, meta, filters
   const { i18n } = useTranslation()
   const tableLocale = i18n.language?.startsWith('en') ? 'en' : 'vi'
   const tAdmin = useAdminText()
+
+  const publicSettings = useUiStore(state => state.publicSettings)
+  const dbLocales = publicSettings?.supported_locales
+  const LOCALES = (dbLocales && dbLocales.length > 0) ? dbLocales : [
+    { code: 'vi', flag: '🇻🇳', name: 'Tiếng Việt', is_default: true },
+    { code: 'en', flag: '🇺🇸', name: 'English', is_default: false }
+  ]
 
   return (
     <AdminPageShell title={tAdmin('products')} action={tAdmin('add_product')} onAction={() => navigate('/admin/products/create')}>
@@ -91,12 +100,13 @@ export function AdminProductsPage({ products, categories, loading, meta, filters
                   <th className="py-3">{tAdmin('sale_price')}</th>
                   <th className="py-3">{tAdmin('featured')}</th>
                   <th className="py-3">{tAdmin('status')}</th>
-                  <th className="py-3 text-center">
-                    <img src="/flags/vn.svg" alt="Vietnamese" className="mx-auto h-5 w-7 rounded-sm object-cover shadow-sm" />
-                  </th>
-                  <th className="py-3 text-center">
-                    <img src="/flags/us.svg" alt="English" className="mx-auto h-5 w-7 rounded-sm object-cover shadow-sm" />
-                  </th>
+                  {LOCALES.map(locale => (
+                    <th key={locale.code} className="py-3 text-center whitespace-nowrap w-[60px]">
+                      <span className="inline-flex items-center" title={locale.name}>
+                        {renderFlag(locale.code, "h-3.5 w-5 rounded-sm object-cover shadow-sm")}
+                      </span>
+                    </th>
+                  ))}
                   <th className="py-3 text-right">{tAdmin('actions')}</th>
                 </tr>
               </thead>
@@ -145,28 +155,29 @@ export function AdminProductsPage({ products, categories, loading, meta, filters
                           <span className={`inline-block h-4 w-4 mt-0.5 rounded-full bg-white shadow transition-transform duration-200 ${product.is_available ? 'translate-x-4' : 'translate-x-0.5'}`} />
                         </button>
                       </td>
-                      <td className="py-3 text-center">
-                        <button
-                          type="button"
-                          onClick={() => navigate(`/admin/products/${product.id}/edit`)}
-                          title={tAdmin('edit_vi')}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors cursor-pointer"
-                          aria-label={tAdmin('edit_vi')}
-                        >
-                          <Pencil size={15} />
-                        </button>
-                      </td>
-                      <td className="py-3 text-center">
-                        <button
-                          type="button"
-                          onClick={() => navigate(`/admin/products/${product.id}/edit?ref_lang=en`)}
-                          title={tAdmin('edit_en')}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-green-600 hover:bg-green-50 dark:hover:bg-green-500/10 transition-colors cursor-pointer"
-                          aria-label={tAdmin('edit_en')}
-                        >
-                          <Pencil size={15} />
-                        </button>
-                      </td>
+                      {LOCALES.map(locale => {
+                        const editUrl = locale.is_default
+                          ? `/admin/products/${product.id}/edit`
+                          : `/admin/products/${product.id}/edit?ref_lang=${locale.code}`
+
+                        return (
+                          <td key={locale.code} className="py-3 text-center">
+                            <button
+                              type="button"
+                              onClick={() => navigate(editUrl)}
+                              title={tAdmin('edit_resource', { title: locale.name })}
+                              className={`inline-flex h-8 w-8 items-center justify-center rounded-lg transition-colors cursor-pointer ${
+                                locale.is_default
+                                  ? 'text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10'
+                                  : 'text-green-600 hover:bg-green-50 dark:hover:bg-green-500/10'
+                              }`}
+                              aria-label={tAdmin('edit_resource', { title: locale.name })}
+                            >
+                              <Pencil size={15} />
+                            </button>
+                          </td>
+                        )
+                      })}
                       <td className="py-3 text-right">
                         <div className="inline-flex items-center gap-2">
                           <button type="button" onClick={() => onDelete(product)} className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 text-red-500 cursor-pointer"><Trash2 size={15} /></button>
@@ -175,7 +186,7 @@ export function AdminProductsPage({ products, categories, loading, meta, filters
                     </tr>
                   )
                 })}
-                {!products.length && <EmptyTableRow colSpan={9} />}
+                {!products.length && <EmptyTableRow colSpan={7 + LOCALES.length} />}
               </tbody>
             </table>
           </div>
@@ -194,7 +205,7 @@ export function AdminProductFormPage({ categories, itemId }) {
   const id = itemId ?? params.id
   const isCreate = !id
   const navigate = useNavigate()
-  const { refLang, currentLocale, isDefault, LOCALES } = useRefLang()
+  const { refLang, currentLocale, isDefault, LOCALES, defaultCode, defaultLocale } = useRefLang()
   const tAdmin = useAdminText()
 
   const [saving, setSaving] = useState(false)
@@ -359,10 +370,10 @@ export function AdminProductFormPage({ categories, itemId }) {
               placeholder={tAdmin('enter_product_name')}
               className="w-full border border-gray-200 dark:border-gray-700 dark:bg-[#161825] rounded-xl px-3 py-2.5 text-sm mt-1.5 focus:outline-none focus:ring-2 focus:ring-red-100"
             />
-            {!isDefault && translations.name?.vi && (
+            {!isDefault && translations.name?.[defaultCode] && (
               <p className="text-xs text-gray-400 mt-1 flex items-center gap-1.5">
-                <span>🇻🇳 {tAdmin('original_vi')}</span>
-                <span className="font-medium">{translations.name.vi}</span>
+                <span>{defaultLocale?.flag || '🇻🇳'} {tAdmin('original_lang', 'Bản gốc')}:</span>
+                <span className="font-medium">{translations.name[defaultCode]}</span>
               </p>
             )}
           </div>
@@ -420,10 +431,10 @@ export function AdminProductFormPage({ categories, itemId }) {
               rows={2}
               className="w-full border border-gray-200 dark:border-gray-700 dark:bg-[#161825] rounded-xl px-3 py-2.5 text-sm mt-1.5 focus:outline-none focus:ring-2 focus:ring-red-100"
             />
-            {!isDefault && translations.short_description?.vi && (
+            {!isDefault && translations.short_description?.[defaultCode] && (
               <p className="text-xs text-gray-400 mt-1 flex items-start gap-1.5">
-                <span className="flex-shrink-0">🇻🇳 {tAdmin('original_vi')}</span>
-                <span>{translations.short_description.vi}</span>
+                <span className="flex-shrink-0">{defaultLocale?.flag || '🇻🇳'} {tAdmin('original_lang', 'Bản gốc')}:</span>
+                <span>{translations.short_description[defaultCode]}</span>
               </p>
             )}
           </div>
@@ -438,11 +449,11 @@ export function AdminProductFormPage({ categories, itemId }) {
               rows={6}
               className="w-full border border-gray-200 dark:border-gray-700 dark:bg-[#161825] rounded-xl px-3 py-2.5 text-sm mt-1.5 focus:outline-none focus:ring-2 focus:ring-red-100"
             />
-            {!isDefault && translations.description?.vi && (
+            {!isDefault && translations.description?.[defaultCode] && (
               <details className="mt-1">
-                <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600 outline-none">🇻🇳 {tAdmin('view_original_vi')}</summary>
+                <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600 outline-none">{defaultLocale?.flag || '🇻🇳'} {tAdmin('view_original_lang', 'Xem bản gốc')}</summary>
                 <p className="text-xs text-gray-400 mt-1 bg-gray-50 dark:bg-slate-800 p-3 rounded-lg border border-gray-100 dark:border-gray-700">
-                  {translations.description.vi}
+                  {translations.description[defaultCode]}
                 </p>
               </details>
             )}
@@ -575,11 +586,11 @@ export function AdminProductFormPage({ categories, itemId }) {
             <div className="space-y-1">
               {LOCALES.map(locale => {
                 const isActive = locale.code === refLang
-                const hasTranslation = locale.code === 'vi' || !!translations.name?.[locale.code]
+                const hasTranslation = locale.code === defaultCode || !!translations.name?.[locale.code]
 
                 const editUrl = isCreate
-                  ? `/admin/products/create${locale.code !== 'vi' ? `?ref_lang=${locale.code}` : ''}`
-                  : locale.code === 'vi'
+                  ? `/admin/products/create${locale.code !== defaultCode ? `?ref_lang=${locale.code}` : ''}`
+                  : locale.code === defaultCode
                     ? `/admin/products/${id}/edit`
                     : `/admin/products/${id}/edit?ref_lang=${locale.code}`
 
@@ -593,7 +604,7 @@ export function AdminProductFormPage({ categories, itemId }) {
                       }`}
                   >
                     <div className="flex items-center gap-2">
-                      <span className="text-base">{locale.flag}</span>
+                      {renderFlag(locale.code, "h-3.5 w-5 rounded-sm object-cover shadow-sm")}
                       <span>{locale.label}</span>
                     </div>
                     <div className="flex items-center gap-1.5">

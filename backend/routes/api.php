@@ -12,6 +12,8 @@ use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\ComplaintController;
 use App\Http\Controllers\Api\ChatController;
 use App\Http\Controllers\Api\HomepageController;
+use App\Http\Controllers\Api\LocaleController;
+use App\Http\Controllers\Api\ContactController;
 
 /*
 |--------------------------------------------------------------------------
@@ -36,6 +38,10 @@ Route::post('/shipping/calculate', [SettingController::class, 'calculateShipping
 Route::get('/posts', [PostController::class, 'index']);
 Route::get('/posts/featured', [PostController::class, 'featured']);
 Route::get('/posts/{slug}', [PostController::class, 'show']);
+Route::get('/locales/{locale}/{ns}.json', [LocaleController::class, 'servePublicTranslation']);
+
+Route::post('/contacts', [ContactController::class, 'submitContact']);
+Route::post('/newsletter', [ContactController::class, 'submitNewsletter']);
 
 // --- PUBLIC CHATBOT ENDPOINTS ---
 Route::post('/chat/session', [ChatController::class, 'createSession']);
@@ -189,10 +195,12 @@ Route::middleware(['auth:sanctum', 'role:admin|staff', 'admin.permission'])->pre
     Route::put('/settings', [SettingController::class, 'update']);
     Route::post('/settings/upload', [SettingController::class, 'upload']);
     Route::post('/settings/test-email', [SettingController::class, 'testEmail']);
-    Route::get('/translations/locales', [SettingController::class, 'locales']);
-    Route::post('/translations/locales', [SettingController::class, 'addLocale']);
-    Route::patch('/translations/locales/{locale}/default', [SettingController::class, 'setDefaultLocale']);
-    Route::delete('/translations/locales/{locale}', [SettingController::class, 'deleteLocale']);
+    Route::get('/translations/locales', [LocaleController::class, 'index']);
+    Route::post('/translations/locales', [LocaleController::class, 'store']);
+    Route::patch('/translations/locales/{code}/default', [LocaleController::class, 'setDefault']);
+    Route::delete('/translations/locales/{code}', [LocaleController::class, 'destroy']);
+    Route::get('/translations/{code}', [LocaleController::class, 'getTranslations']);
+    Route::put('/translations/{code}', [LocaleController::class, 'updateTranslations']);
 
     // Content
     Route::get('/posts', [AdminController::class, 'listPosts']);
@@ -201,6 +209,18 @@ Route::middleware(['auth:sanctum', 'role:admin|staff', 'admin.permission'])->pre
     Route::get('/posts/{id}', [AdminController::class, 'showPost']);
     Route::put('/posts/{id}', [AdminController::class, 'updatePost']);
     Route::delete('/posts/{id}', [AdminController::class, 'deletePost']);
+    // Post Categories Management
+    Route::get('/post-categories', [AdminController::class, 'listPostCategories']);
+    Route::post('/post-categories', [AdminController::class, 'createPostCategory']);
+    Route::get('/post-categories/{id}', [AdminController::class, 'showPostCategory']);
+    Route::put('/post-categories/{id}', [AdminController::class, 'updatePostCategory']);
+    Route::delete('/post-categories/{id}', [AdminController::class, 'deletePostCategory']);
+    // Post Tags Management
+    Route::get('/post-tags', [AdminController::class, 'listPostTags']);
+    Route::post('/post-tags', [AdminController::class, 'createPostTag']);
+    Route::get('/post-tags/{id}', [AdminController::class, 'showPostTag']);
+    Route::put('/post-tags/{id}', [AdminController::class, 'updatePostTag']);
+    Route::delete('/post-tags/{id}', [AdminController::class, 'deletePostTag']);
     Route::get('/banners', [AdminController::class, 'listBanners']);
     Route::post('/banners', [AdminController::class, 'createBanner']);
     Route::get('/banners/{id}', [AdminController::class, 'showBanner']);
@@ -211,6 +231,12 @@ Route::middleware(['auth:sanctum', 'role:admin|staff', 'admin.permission'])->pre
     Route::get('/branches/{id}', [AdminController::class, 'showBranch']);
     Route::put('/branches/{id}', [AdminController::class, 'updateBranch']);
     Route::delete('/branches/{id}', [AdminController::class, 'deleteBranch']);
+
+    // Contacts Management
+    Route::get('/contacts', [ContactController::class, 'listContacts']);
+    Route::get('/contacts/{id}', [ContactController::class, 'showContact']);
+    Route::put('/contacts/{id}', [ContactController::class, 'updateContact']);
+    Route::delete('/contacts/{id}', [ContactController::class, 'deleteContact']);
 
     // --- SECURE CHATBOT ADMIN ENDPOINTS ---
     Route::get('/chat/stats', [ChatController::class, 'adminStats']);

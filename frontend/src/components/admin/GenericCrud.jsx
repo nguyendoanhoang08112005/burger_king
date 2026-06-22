@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import i18next from 'i18next'
 import toast from 'react-hot-toast'
 import {
   Pencil,
@@ -28,7 +29,8 @@ import {
   slugify,
   skuify,
   SettingInput,
-  AdminImageInput
+  AdminImageInput,
+  renderFlag
 } from '../../utils/adminUtils'
 import {
   AdminPageShell,
@@ -63,6 +65,169 @@ export function ToggleCell({ checked, onToggle }) {
     >
       <span className={`inline-block h-4 w-4 mt-0.5 rounded-full bg-white shadow transition-transform duration-200 ${checked ? 'translate-x-4' : 'translate-x-0.5'}`} />
     </button>
+  )
+}
+
+export function TagInputField({ field, form, updateField, isDefault, fieldLabel, tAdmin }) {
+  const tags = Array.isArray(form[field.key]) ? form[field.key] : []
+  const [tagInputVal, setTagInputVal] = useState('')
+  const [availableTags, setAvailableTags] = useState([])
+  const [isOpen, setIsOpen] = useState(false)
+  const [activeIndex, setActiveIndex] = useState(0)
+
+  const containerRef = useRef(null)
+  const inputRef = useRef(null)
+
+  useEffect(() => {
+    let active = true
+    const fetchTags = async () => {
+      try {
+        const res = await apiClient.get('/admin/post-tags')
+        const data = res.data?.data || []
+        if (active) {
+          setAvailableTags(data.map(item => item.name))
+        }
+      } catch (err) {
+        console.error('Failed to load tags from database', err)
+      }
+    }
+    fetchTags()
+    return () => {
+      active = false
+    }
+  }, [])
+
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setIsOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleOutsideClick)
+    return () => document.removeEventListener('mousedown', handleOutsideClick)
+  }, [])
+
+  const suggestions = useMemo(() => {
+    const query = tagInputVal.trim().toLowerCase()
+    return availableTags.filter(t => {
+      const isNotSelected = !tags.includes(t)
+      if (!query) return isNotSelected
+      return isNotSelected && t.toLowerCase().includes(query)
+    })
+  }, [availableTags, tags, tagInputVal])
+
+  useEffect(() => {
+    setActiveIndex(0)
+  }, [suggestions])
+
+  const addTag = (raw) => {
+    const trimmed = raw.trim()
+    if (!trimmed || tags.includes(trimmed)) return
+    updateField(field.key, [...tags, trimmed])
+    if (!availableTags.includes(trimmed)) {
+      setAvailableTags(prev => [...prev, trimmed])
+    }
+  }
+
+  const handleTagKey = (e) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault()
+      if (isOpen && suggestions[activeIndex]) {
+        addTag(suggestions[activeIndex])
+        setTagInputVal('')
+      } else if (tagInputVal.trim()) {
+        addTag(tagInputVal)
+        setTagInputVal('')
+      }
+      setIsOpen(false)
+    } else if (e.key === 'Backspace' && !tagInputVal && tags.length > 0) {
+      updateField(field.key, tags.slice(0, -1))
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setIsOpen(true)
+      setActiveIndex(prev => (prev + 1) % Math.max(1, suggestions.length))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setIsOpen(true)
+      setActiveIndex(prev => (prev - 1 + suggestions.length) % Math.max(1, suggestions.length))
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      setIsOpen(false)
+    }
+  }
+
+  return (
+    <div key={field.key} className="space-y-1.5 text-left relative" ref={containerRef}>
+      <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+        {fieldLabel(field)}
+      </label>
+      <div
+        className={`flex flex-wrap gap-1.5 p-2 border rounded-xl min-h-[42px] focus-within:ring-2 focus-within:ring-red-100 focus-within:border-red-300 transition-all ${isDefault ? 'border-gray-200 dark:border-gray-700 bg-white dark:bg-[#161825]' : 'border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-slate-800/30 opacity-60'}`}
+        onClick={() => inputRef.current?.focus()}
+      >
+        {tags.map(tag => (
+          <span key={tag} className="inline-flex items-center gap-1 bg-red-50 dark:bg-red-500/10 text-[#D62300] text-xs font-medium px-2.5 py-0.5 rounded-full animate-fade-in">
+            {tag}
+            {isDefault && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  updateField(field.key, tags.filter(t => t !== tag))
+                }}
+                className="hover:text-red-700 transition-colors font-bold"
+              >
+                ×
+              </button>
+            )}
+          </span>
+        ))}
+        {isDefault && (
+          <input
+            ref={inputRef}
+            type="text"
+            value={tagInputVal}
+            onChange={e => {
+              setTagInputVal(e.target.value)
+              setIsOpen(true)
+            }}
+            onFocus={() => setIsOpen(true)}
+            onKeyDown={handleTagKey}
+            placeholder={tags.length === 0 ? tAdmin('tags_placeholder', 'Nhập tag rồi Enter...') : ''}
+            className="flex-1 min-w-[120px] text-sm outline-none bg-transparent dark:text-gray-100 placeholder-gray-400 py-0.5"
+          />
+        )}
+      </div>
+
+      {isDefault && isOpen && suggestions.length > 0 && (
+        <div className="absolute left-0 right-0 mt-1 z-50 max-h-52 overflow-y-auto bg-white dark:bg-[#1E2130] border border-gray-100 dark:border-gray-700 rounded-xl shadow-xl p-1.5 space-y-0.5 animate-fade-in">
+          {suggestions.map((tag, index) => {
+            const isActive = index === activeIndex
+            return (
+              <button
+                key={tag}
+                type="button"
+                onMouseDown={(e) => {
+                  e.preventDefault()
+                  addTag(tag)
+                  setTagInputVal('')
+                  setIsOpen(false)
+                }}
+                onMouseEnter={() => setActiveIndex(index)}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-all text-left cursor-pointer ${
+                  isActive
+                    ? 'bg-red-50 dark:bg-red-500/10 text-[#D62300] font-semibold'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+                }`}
+              >
+                <span>{tag}</span>
+                {isActive && <span className="text-[10px] text-gray-400">↵ {tAdmin('select', 'chọn')}</span>}
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -200,20 +365,34 @@ export const crudPages = {
   },
   posts: {
     endpoint: '/admin/posts',
-    defaults: { title: { vi: '', en: '' }, slug: '', excerpt: { vi: '', en: '' }, thumbnail: '', category: '', read_time: 5, video_url: '', content: { vi: '', en: '' }, is_published: true, published_at: '' },
+    defaults: { title: { vi: '', en: '' }, slug: '', excerpt: { vi: '', en: '' }, thumbnail: '', category: '', tags: [], read_time: 5, video_url: '', content: { vi: '', en: '' }, is_published: true, published_at: '' },
     filters: [
       { key: 'status', labelKey: 'all_statuses', options: [{ value: 'published', labelKey: 'published' }, { value: 'draft', labelKey: 'draft' }] },
       {
         key: 'category',
         labelKey: 'all_categories',
         options: ({ postCategories }) => (postCategories || [])
-          .map(category => ({ value: category, label: category })),
+          .map(cat => ({
+            value: cat.slug || cat,
+            label: typeof cat === 'object' ? (cat.name?.vi || cat.name?.en || cat.slug) : cat,
+          })),
       },
     ],
     columns: [
       { key: 'thumbnail', labelKey: 'image', render: item => imageThumb(item.thumbnail, 'w-16 h-10') },
       { key: 'title', labelKey: 'title', render: item => <div><p className="font-semibold">{item.title}</p><p className="text-xs text-gray-400">{item.slug}</p></div> },
-      { key: 'category', labelKey: 'blog_category' },
+      {
+        key: 'category',
+        labelKey: 'blog_category',
+        render: item => {
+          const lang = i18next.language?.startsWith('en') ? 'en' : 'vi'
+          const cat = item.post_category
+          if (cat) {
+            return cat.name?.[lang] || cat.name?.vi || cat.name?.en || cat.name || item.category
+          }
+          return item.category
+        }
+      },
       { key: 'read_time', labelKey: 'read_label', render: item => item.read_time },
       { key: 'is_published', labelKey: 'status', render: item => <StatusBadge status={item.is_published ? 'published' : 'draft'} /> },
       { key: 'published_at', labelKey: 'published_at', render: item => item.published_at ? formatDate(item.published_at) : '-' },
@@ -223,12 +402,140 @@ export const crudPages = {
       { key: 'slug', label: 'Slug' },
       { key: 'excerpt', label: 'Excerpt', type: 'textarea', rows: 2, required: true, maxLength: 200, translatable: true },
       { key: 'thumbnail', labelKey: 'thumbnail', type: 'image', required: true },
-      { key: 'category', labelKey: 'category', required: true },
+      { key: 'category', labelKey: 'category', type: 'postCategorySelect', required: true },
+      { key: 'tags', labelKey: 'tags', type: 'tagInput' },
       { key: 'read_time', labelKey: 'read_time', type: 'number' },
       { key: 'video_url', labelKey: 'video_url' },
       { key: 'content', labelKey: 'content', type: 'textarea', rows: 10, required: true, translatable: true },
       { key: 'is_published', labelKey: 'published', type: 'checkbox' },
       { key: 'published_at', labelKey: 'published_at', type: 'date' },
+    ],
+  },
+  postCategories: {
+    endpoint: '/admin/post-categories',
+    defaults: { name: { vi: '', en: '' }, slug: '', color: '#D62300', sort_order: 0, is_active: true },
+    columns: [
+      {
+        key: 'color',
+        labelKey: 'color',
+        render: item => (
+          <span className="inline-flex items-center gap-1.5">
+            <span className="inline-block w-4 h-4 rounded-full border border-gray-200" style={{ background: item.color || '#D62300' }} />
+            <span className="text-xs text-gray-500">{item.color}</span>
+          </span>
+        ),
+      },
+      { key: 'name', labelKey: 'category_name' },
+      { key: 'slug', label: 'Slug' },
+      { key: 'posts_count', labelKey: 'posts_count' },
+      { key: 'sort_order', labelKey: 'sort_order' },
+      { key: 'is_active', labelKey: 'status', toggleKey: 'is_active' },
+    ],
+    fields: [
+      { key: 'name', labelKey: 'name', required: true, translatable: true },
+      { key: 'slug', label: 'Slug' },
+      { key: 'color', labelKey: 'color', type: 'colorInput' },
+      { key: 'sort_order', labelKey: 'sort_order', type: 'number' },
+      { key: 'is_active', labelKey: 'active', type: 'checkbox' },
+    ],
+  },
+  postTags: {
+    endpoint: '/admin/post-tags',
+    defaults: { name: { vi: '', en: '' }, slug: '' },
+    columns: [
+      { key: 'name', labelKey: 'tag_name' },
+      { key: 'slug', label: 'Slug' },
+      { key: 'posts_count', labelKey: 'posts_count' },
+    ],
+    fields: [
+      { key: 'name', labelKey: 'tag_name', required: true, translatable: true },
+      { key: 'slug', label: 'Slug' },
+    ],
+  },
+  contacts: {
+    endpoint: '/admin/contacts',
+    defaults: { name: '', email: '', phone: '', message: '', type: 'contact', status: 'pending', admin_note: '' },
+    filters: [
+      {
+        key: 'type', labelKey: 'contact_type', options: [
+          { value: 'contact', labelKey: 'contact' },
+          { value: 'newsletter', labelKey: 'newsletter' }
+        ]
+      },
+      {
+        key: 'status', labelKey: 'contact_status', options: [
+          { value: 'pending', labelKey: 'contact_pending' },
+          { value: 'read', labelKey: 'contact_read' },
+          { value: 'replied', labelKey: 'contact_replied' }
+        ]
+      }
+    ],
+    columns: [
+      { key: 'name', labelKey: 'name', render: item => item.name || '-' },
+      { key: 'email', labelKey: 'email' },
+      { key: 'phone', labelKey: 'phone', render: item => item.phone || '-' },
+      {
+        key: 'type',
+        labelKey: 'contact_type',
+        render: item => {
+          const isContact = item.type === 'contact'
+          return (
+            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${isContact ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-300' : 'bg-pink-100 text-pink-700 dark:bg-pink-500/10 dark:text-pink-300'}`}>
+              {isContact ? i18next.t('adminPanel.contact', 'Liên hệ') : i18next.t('adminPanel.newsletter', 'Newsletter')}
+            </span>
+          )
+        }
+      },
+      {
+        key: 'status',
+        labelKey: 'contact_status',
+        render: item => {
+          const statusColors = {
+            pending: 'bg-amber-100 text-amber-700 dark:bg-amber-400/15 dark:text-amber-300',
+            read: 'bg-blue-100 text-blue-700 dark:bg-blue-400/15 dark:text-blue-300',
+            replied: 'bg-green-100 text-green-700 dark:bg-green-400/15 dark:text-green-300',
+          }
+          const statusLabels = {
+            pending: i18next.t('adminPanel.contact_pending', 'Chưa xử lý'),
+            read: i18next.t('adminPanel.contact_read', 'Đã đọc'),
+            replied: i18next.t('adminPanel.contact_replied', 'Đã trả lời'),
+          }
+          return (
+            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${statusColors[item.status] || ''}`}>
+              {statusLabels[item.status] || item.status}
+            </span>
+          )
+        }
+      },
+      { key: 'created_at', labelKey: 'created_at', render: item => new Date(item.created_at).toLocaleString('vi-VN') },
+    ],
+    fields: [
+      { key: 'name', labelKey: 'name', readonly: true },
+      { key: 'email', labelKey: 'email', readonly: true },
+      { key: 'phone', labelKey: 'phone', readonly: true },
+      {
+        key: 'type',
+        labelKey: 'contact_type',
+        type: 'select',
+        readonly: true,
+        options: [
+          { value: 'contact', labelKey: 'contact' },
+          { value: 'newsletter', labelKey: 'newsletter' }
+        ]
+      },
+      { key: 'message', labelKey: 'contact_message', type: 'textarea', readonly: true, rows: 5 },
+      {
+        key: 'status',
+        labelKey: 'contact_status',
+        type: 'select',
+        required: true,
+        options: [
+          { value: 'pending', labelKey: 'contact_pending' },
+          { value: 'read', labelKey: 'contact_read' },
+          { value: 'replied', labelKey: 'contact_replied' }
+        ]
+      },
+      { key: 'admin_note', labelKey: 'admin_note', type: 'textarea', rows: 3 }
     ],
   },
 }
@@ -304,7 +611,7 @@ export function GenericCrudPage({ title, endpoint, columns, fields, filters = []
 
   const resolveTranslation = (value, locale = 'vi') => {
     if (value && typeof value === 'object') {
-      return value[locale] || value['vi'] || '';
+      return value[locale] || value['vi'] || Object.values(value)[0] || '';
     }
     return value;
   }
@@ -316,8 +623,13 @@ export function GenericCrudPage({ title, endpoint, columns, fields, filters = []
         // Flatten all translatable attributes into strings for the tableLocale
         const translatedItem = { ...item };
         Object.keys(translatedItem).forEach(key => {
-          if (translatedItem[key] && typeof translatedItem[key] === 'object') {
-            translatedItem[key] = translatedItem[key][tableLocale] || translatedItem[key]['vi'] || '';
+          if (
+            translatedItem[key] &&
+            typeof translatedItem[key] === 'object' &&
+            !Array.isArray(translatedItem[key]) &&
+            !('id' in translatedItem[key])
+          ) {
+            translatedItem[key] = translatedItem[key][tableLocale] || Object.values(translatedItem[key])[0] || '';
           }
         });
         if (column.valueOptions) {
@@ -331,7 +643,7 @@ export function GenericCrudPage({ title, endpoint, columns, fields, filters = []
 
       const rawValue = item[column.key];
       if (rawValue && typeof rawValue === 'object') {
-        return rawValue[tableLocale] || rawValue['vi'] || '';
+        return rawValue[tableLocale] || Object.values(rawValue)[0] || '';
       }
       if (column.valueOptions) {
         const option = column.valueOptions.find(entry => entry.value === rawValue)
@@ -359,8 +671,9 @@ export function GenericCrudPage({ title, endpoint, columns, fields, filters = []
     }
   })
 
+  const hasAddAction = resourceKey !== 'contacts'
   return (
-    <AdminPageShell title={titleText || title} action={tAdmin('add_new')} onAction={() => navigate(`/admin/${resourceKey}/create`)}>
+    <AdminPageShell title={titleText || title} action={hasAddAction ? tAdmin('add_new') : undefined} onAction={hasAddAction ? () => navigate(`/admin/${resourceKey}/create`) : undefined}>
       <div className="bg-white dark:bg-[#1E2130] rounded-2xl p-6 shadow-sm space-y-5">
         <div className="flex flex-col md:flex-row gap-3 items-center">
           <AdminSearch value={search} onChange={value => { setSearch(value); setPage(1) }} placeholder={tAdmin('search_resource', { title: titleText.toLowerCase() })} className="relative flex-1 min-w-[260px]" />
@@ -368,7 +681,7 @@ export function GenericCrudPage({ title, endpoint, columns, fields, filters = []
             <select key={filter.key} value={filterValues[filter.key] || ''} onChange={e => { setFilterValues(prev => ({ ...prev, [filter.key]: e.target.value })); setPage(1) }} className={`${fieldInputClass} flex-1 min-w-[220px]`}>
               <option value="">{filterLabel(filter)}</option>
               {(typeof filter.options === 'function' ? filter.options({ categories, products, postCategories, data: crud.data }) : filter.options).map(option => {
-                const rawLabel = option.label && typeof option.label === 'object' ? (option.label[tableLocale] || option.label.vi || '') : option.label
+                const rawLabel = option.label && typeof option.label === 'object' ? (option.label[tableLocale] || Object.values(option.label)[0] || '') : option.label
                 const optLabel = option.labelKey ? tAdmin(option.labelKey) : labelFor(rawLabel)
                 return <option key={option.value} value={option.value}>{optLabel}</option>
               })}
@@ -382,30 +695,30 @@ export function GenericCrudPage({ title, endpoint, columns, fields, filters = []
           data={crud.data}
           loading={crud.loading}
           onDelete={deleteItem}
-          renderLanguageActions={hasTranslatableFields ? item => (
+          renderLanguageActions={hasTranslatableFields ? (item, LOCALES) => (
             <>
-              <td className="py-3 text-center">
-                <button
-                  type="button"
-                  onClick={() => navigate(`/admin/${resourceKey}/${item.id}/edit`)}
-                  title={tAdmin('edit_vi')}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors cursor-pointer"
-                  aria-label={tAdmin('edit_vi')}
-                >
-                  <Pencil size={15} />
-                </button>
-              </td>
-              <td className="py-3 text-center">
-                <button
-                  type="button"
-                  onClick={() => navigate(`/admin/${resourceKey}/${item.id}/edit?ref_lang=en`)}
-                  title={tAdmin('edit_en')}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-green-600 hover:bg-green-50 dark:hover:bg-green-500/10 transition-colors cursor-pointer"
-                  aria-label={tAdmin('edit_en')}
-                >
-                  <Pencil size={15} />
-                </button>
-              </td>
+              {LOCALES.map(locale => {
+                const editUrl = locale.is_default
+                  ? `/admin/${resourceKey}/${item.id}/edit`
+                  : `/admin/${resourceKey}/${item.id}/edit?ref_lang=${locale.code}`
+
+                return (
+                  <td key={locale.code} className="py-3 text-center">
+                    <button
+                      type="button"
+                      onClick={() => navigate(editUrl)}
+                      title={tAdmin('edit_resource', { title: locale.name })}
+                      className={`inline-flex h-8 w-8 items-center justify-center rounded-lg transition-colors cursor-pointer ${locale.is_default
+                          ? 'text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10'
+                          : 'text-green-600 hover:bg-green-50 dark:hover:bg-green-500/10'
+                        }`}
+                      aria-label={tAdmin('edit_resource', { title: locale.name })}
+                    >
+                      <Pencil size={15} />
+                    </button>
+                  </td>
+                )
+              })}
             </>
           ) : undefined}
           renderActions={item => (
@@ -439,7 +752,7 @@ export function GenericCrudFormPage({ config, products = [], categories = [], po
   const id = itemId ?? params.id
   const isCreate = !id
   const navigate = useNavigate()
-  const { refLang, currentLocale, isDefault, LOCALES } = useRefLang()
+  const { refLang, currentLocale, isDefault, LOCALES, defaultCode, defaultLocale } = useRefLang()
 
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -457,7 +770,7 @@ export function GenericCrudFormPage({ config, products = [], categories = [], po
   const optionLabel = option => {
     if (typeof option === 'string') return tAdmin(option) === option ? option : tAdmin(option)
     if (option.labelKey) return tAdmin(option.labelKey)
-    if (option.label && typeof option.label === 'object') return option.label[refLang] || option.label.vi || ''
+    if (option.label && typeof option.label === 'object') return option.label[refLang] || option.label[defaultCode] || Object.values(option.label)[0] || ''
     if (option.label) return option.label
     return option.value || ''
   }
@@ -473,17 +786,14 @@ export function GenericCrudFormPage({ config, products = [], categories = [], po
         const merged = { ...config.defaults }
         Object.keys(config.defaults).forEach(key => {
           if (translatableKeys.includes(key)) {
-            const translationMap = fetchedItem.translations?.[key] || fetchedItem[key] || { vi: '', en: '' }
-            if (translationMap && typeof translationMap === 'object') {
-              merged[key] = {
-                vi: translationMap.vi || '',
-                en: translationMap.en || ''
-              }
-            } else if (translationMap) {
-              merged[key] = { vi: translationMap, en: '' }
-            } else {
-              merged[key] = { vi: '', en: '' }
-            }
+            const translationMap = fetchedItem.translations?.[key] || fetchedItem[key] || {}
+            const transObj = {}
+            LOCALES.forEach(locale => {
+              transObj[locale.code] = (translationMap && typeof translationMap === 'object')
+                ? (translationMap[locale.code] || '')
+                : (locale.code === defaultCode ? (translationMap || '') : '')
+            })
+            merged[key] = transObj
           } else {
             merged[key] = fetchedItem[key] !== undefined ? fetchedItem[key] : config.defaults[key]
           }
@@ -491,7 +801,7 @@ export function GenericCrudFormPage({ config, products = [], categories = [], po
         setForm(merged)
       } catch (err) {
         console.error(err)
-        toast.error(tAdmin('product_not_found'))
+        toast.error(err.response?.data?.message || tAdmin('load_error', 'Không thể tải dữ liệu'))
       } finally {
         setLoading(false)
       }
@@ -509,7 +819,7 @@ export function GenericCrudFormPage({ config, products = [], categories = [], po
         ...(prev[field] || {}),
         [refLang]: value
       },
-      ...(field === nameKey && refLang === 'vi' && isCreate && !prev.sku
+      ...(field === nameKey && refLang === defaultCode && isCreate && !prev.sku
         ? { sku: skuify(resourceKey === 'combos' ? 'CMB' : resourceKey === 'toppings' ? 'TOP' : 'SKU', value) }
         : {}),
     }))
@@ -648,7 +958,7 @@ export function GenericCrudFormPage({ config, products = [], categories = [], po
             />
             {!isDefault && origVi && (
               <p className="text-xs text-gray-400 mt-1 flex items-start gap-1.5 border-t border-gray-100 dark:border-gray-700 pt-2">
-                <span className="flex-shrink-0">🇻🇳 {tAdmin('original_vi')}</span>
+                <span className="flex-shrink-0">{defaultLocale?.flag || '🇻🇳'} {tAdmin('original_lang', 'Bản gốc')}:</span>
                 <span>{origVi}</span>
               </p>
             )}
@@ -686,14 +996,14 @@ export function GenericCrudFormPage({ config, products = [], categories = [], po
           {!isDefault && origVi && (
             showDetails ? (
               <details className="mt-1">
-                <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600 outline-none">🇻🇳 {tAdmin('view_original_vi')}</summary>
+                <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600 outline-none">{defaultLocale?.flag || '🇻🇳'} {tAdmin('view_original_lang', 'Xem bản gốc')}</summary>
                 <p className="text-xs text-gray-400 mt-1 bg-gray-50 dark:bg-slate-800 p-3 rounded-lg border border-gray-100 dark:border-gray-700 whitespace-pre-wrap">
                   {origVi}
                 </p>
               </details>
             ) : (
               <p className="text-xs text-gray-400 mt-1 flex items-start gap-1.5">
-                <span className="flex-shrink-0">🇻🇳 {tAdmin('original_vi')}</span>
+                <span className="flex-shrink-0">{defaultLocale?.flag || '🇻🇳'} {tAdmin('original_lang', 'Bản gốc')}:</span>
                 <span>{origVi}</span>
               </p>
             )
@@ -709,7 +1019,7 @@ export function GenericCrudFormPage({ config, products = [], categories = [], po
             {fieldLabel(field)} {field.required && isDefault && <span className="text-red-500">*</span>}
           </label>
           <textarea
-            disabled={!isDefault}
+            disabled={!isDefault || field.readonly}
             value={form[field.key] || ''}
             onChange={e => updateField(field.key, e.target.value)}
             rows={field.rows || 3}
@@ -729,7 +1039,7 @@ export function GenericCrudFormPage({ config, products = [], categories = [], po
             {fieldLabel(field)} {field.required && isDefault && <span className="text-red-500">*</span>}
           </label>
           <select
-            disabled={!isDefault}
+            disabled={!isDefault || field.readonly}
             value={form[field.key] || ''}
             onChange={e => updateField(field.key, e.target.value)}
             className="w-full border border-gray-200 dark:border-gray-700 dark:bg-[#161825] rounded-xl px-3 py-2.5 text-sm mt-1.5 focus:outline-none focus:ring-2 focus:ring-red-100 disabled:opacity-60"
@@ -813,6 +1123,74 @@ export function GenericCrudFormPage({ config, products = [], categories = [], po
       )
     }
 
+    if (field.type === 'tagInput') {
+      return (
+        <TagInputField
+          key={field.key}
+          field={field}
+          form={form}
+          updateField={updateField}
+          isDefault={isDefault}
+          fieldLabel={fieldLabel}
+          tAdmin={tAdmin}
+        />
+      )
+    }
+
+    if (field.type === 'postCategorySelect') {
+      const catOptions = (postCategories || []).filter(c => c && typeof c === 'object')
+      const currentVal = form[field.key] || ''
+      return (
+        <div key={field.key} className="space-y-1.5 text-left">
+          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+            {fieldLabel(field)} {field.required && isDefault && <span className="text-red-500">*</span>}
+          </label>
+          <select
+            disabled={!isDefault}
+            value={currentVal}
+            onChange={e => updateField(field.key, e.target.value)}
+            className="w-full border border-gray-200 dark:border-gray-700 dark:bg-[#161825] rounded-xl px-3 py-2.5 text-sm mt-1.5 focus:outline-none focus:ring-2 focus:ring-red-100 disabled:opacity-60"
+            required={field.required && isDefault}
+          >
+            <option value="">{tAdmin('choose_category', 'Chọn danh mục...')}</option>
+            {catOptions.map(cat => (
+              <option key={cat.id} value={cat.slug}>
+                {cat.name?.[refLang] || cat.name?.vi || cat.name?.en || cat.slug}
+              </option>
+            ))}
+          </select>
+        </div>
+      )
+    }
+
+    if (field.type === 'colorInput') {
+      const colorVal = form[field.key] || '#D62300'
+      return (
+        <div key={field.key} className="space-y-1.5 text-left">
+          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{fieldLabel(field)}</label>
+          <div className="flex items-center gap-3">
+            <input
+              type="color"
+              value={colorVal}
+              onChange={e => updateField(field.key, e.target.value)}
+              disabled={!isDefault}
+              className="w-10 h-10 rounded-lg border border-gray-200 dark:border-gray-700 cursor-pointer p-0.5 disabled:opacity-60"
+            />
+            <input
+              type="text"
+              value={colorVal}
+              onChange={e => updateField(field.key, e.target.value)}
+              disabled={!isDefault}
+              className={inputClass + ' flex-1 font-mono'}
+              placeholder="#D62300"
+              maxLength={20}
+            />
+            <span className="w-8 h-8 rounded-full border border-gray-200" style={{ background: colorVal }} />
+          </div>
+        </div>
+      )
+    }
+
     if (field.type === 'comboItems') {
       const items = form.items || []
       return (
@@ -839,7 +1217,7 @@ export function GenericCrudFormPage({ config, products = [], categories = [], po
               >
                 <option value="">{tAdmin('product')}</option>
                 {products.map(product => {
-                  const prodName = product.name && typeof product.name === 'object' ? (product.name[refLang] || product.name.vi || '') : product.name
+                  const prodName = product.name && typeof product.name === 'object' ? (product.name[refLang] || product.name[defaultCode] || Object.values(product.name)[0] || '') : product.name
                   return <option key={product.id} value={product.id}>{product.sku ? `${product.sku} - ${prodName}` : prodName}</option>
                 })}
               </select>
@@ -873,7 +1251,7 @@ export function GenericCrudFormPage({ config, products = [], categories = [], po
           {fieldLabel(field)} {field.required && isDefault && <span className="text-red-500">*</span>}
         </label>
         <input
-          disabled={!isDefault}
+          disabled={!isDefault || field.readonly}
           type={field.type || 'text'}
           value={form[field.key] || ''}
           onChange={e => updateField(field.key, e.target.value)}
@@ -932,11 +1310,11 @@ export function GenericCrudFormPage({ config, products = [], categories = [], po
             <div className="space-y-1">
               {LOCALES.map(locale => {
                 const isActive = locale.code === refLang
-                const hasTranslation = locale.code === 'vi' || !!form[nameKey]?.[locale.code]
+                const hasTranslation = locale.code === defaultCode || !!form[nameKey]?.[locale.code]
 
                 const editUrl = isCreate
-                  ? `/admin/${resourceKey}/create${locale.code !== 'vi' ? `?ref_lang=${locale.code}` : ''}`
-                  : locale.code === 'vi'
+                  ? `/admin/${resourceKey}/create${locale.code !== defaultCode ? `?ref_lang=${locale.code}` : ''}`
+                  : locale.code === defaultCode
                     ? `/admin/${resourceKey}/${id}/edit`
                     : `/admin/${resourceKey}/${id}/edit?ref_lang=${locale.code}`
 
@@ -945,12 +1323,12 @@ export function GenericCrudFormPage({ config, products = [], categories = [], po
                     key={locale.code}
                     to={editUrl}
                     className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all ${isActive
-                        ? 'bg-red-50 dark:bg-red-500/10 text-[#D62300] font-semibold scale-[1.02]'
-                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                      ? 'bg-red-50 dark:bg-red-500/10 text-[#D62300] font-semibold scale-[1.02]'
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
                       }`}
                   >
                     <div className="flex items-center gap-2">
-                      <span className="text-base">{locale.flag}</span>
+                      {renderFlag(locale.code, "h-3.5 w-5 rounded-sm object-cover shadow-sm")}
                       <span>{locale.label}</span>
                     </div>
                     <div className="flex items-center gap-1.5">

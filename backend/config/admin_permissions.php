@@ -20,4 +20,6 @@ return [
     'languages',
     'notifications',
     'chatbot',
+    'post-categories',
 ];
+

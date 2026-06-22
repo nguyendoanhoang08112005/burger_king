@@ -206,7 +206,23 @@ class ChatController extends Controller
             }
 
             $model = Gemini::generativeModel(model: env('GEMINI_MODEL', 'gemini-2.5-flash'))
-                ->withSystemInstruction(Content::parse($systemPrompt));
+                ->withSystemInstruction(Content::parse($systemPrompt))
+                ->withSafetySetting(new \Gemini\Data\SafetySetting(
+                    category: \Gemini\Enums\HarmCategory::HARM_CATEGORY_HARASSMENT,
+                    threshold: \Gemini\Enums\HarmBlockThreshold::BLOCK_NONE
+                ))
+                ->withSafetySetting(new \Gemini\Data\SafetySetting(
+                    category: \Gemini\Enums\HarmCategory::HARM_CATEGORY_HATE_SPEECH,
+                    threshold: \Gemini\Enums\HarmBlockThreshold::BLOCK_NONE
+                ))
+                ->withSafetySetting(new \Gemini\Data\SafetySetting(
+                    category: \Gemini\Enums\HarmCategory::HARM_CATEGORY_SEXUALLY_EXPLICIT,
+                    threshold: \Gemini\Enums\HarmBlockThreshold::BLOCK_NONE
+                ))
+                ->withSafetySetting(new \Gemini\Data\SafetySetting(
+                    category: \Gemini\Enums\HarmCategory::HARM_CATEGORY_DANGEROUS_CONTENT,
+                    threshold: \Gemini\Enums\HarmBlockThreshold::BLOCK_NONE
+                ));
 
             // Load and attach tools
             $tools = ChatToolExecutor::getTools();
@@ -230,62 +246,80 @@ class ChatController extends Controller
             $assistantContent = '';
             $actions = null;
             $toolCallsLog = null;
-
-            // Check if model returned a function call
-            $parts = $response->parts();
             $hasFunctionCall = false;
 
-            foreach ($parts as $part) {
-                if ($part->functionCall !== null) {
-                    $hasFunctionCall = true;
-                    $toolName = $part->functionCall->name;
-                    $toolArgs = $part->functionCall->args;
-                    $toolCallsLog = [
-                        'name' => $toolName,
-                        'args' => $toolArgs
-                    ];
+            while (true) {
+                $parts = $response->parts();
+                $functionCallPart = null;
 
-                    // Execute tool with try/catch
-                    $executor = new ChatToolExecutor();
-                    try {
-                        $toolResult = $executor->execute($toolName, $toolArgs, $chatSession);
-                    } catch (\Exception $e) {
-                        \Illuminate\Support\Facades\Log::error("Tool execution failed: {$toolName}", [
-                            'error' => $e->getMessage()
-                        ]);
-                        $toolResult = [
-                            'success' => false,
-                            'error' => 'tool_execution_failed',
-                            'message' => 'Tool execution failed'
-                        ];
+                foreach ($parts as $part) {
+                    if ($part->functionCall !== null) {
+                        $functionCallPart = $part;
+                        break;
                     }
+                }
 
-                    $this->updatePendingContext($chatSession, $toolName, $toolResult);
-
-                    if (isset($toolResult['action'])) {
-                        $actions = $toolResult['action'];
-                    }
-
-                    // Send function result back to Gemini to get final text
-                    $functionResponsePart = new Part(
-                        functionResponse: new FunctionResponse(
-                            name: $toolName,
-                            response: $toolResult
-                        )
-                    );
-
-                    $followUpContent = new Content(
-                        parts: [$functionResponsePart],
-                        role: Role::USER
-                    );
-
-                    $response = $this->callGeminiWithRetry($chat, $followUpContent);
+                if ($functionCallPart === null) {
                     break;
                 }
+
+                $hasFunctionCall = true;
+                $toolName = $functionCallPart->functionCall->name;
+                $toolArgs = $functionCallPart->functionCall->args;
+                $toolCallsLog = [
+                    'name' => $toolName,
+                    'args' => $toolArgs
+                ];
+
+                // Execute tool with try/catch
+                $executor = new ChatToolExecutor();
+                try {
+                    $toolResult = $executor->execute($toolName, $toolArgs, $chatSession);
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::error("Tool execution failed: {$toolName}", [
+                        'error' => $e->getMessage()
+                    ]);
+                    $toolResult = [
+                        'success' => false,
+                        'error' => 'tool_execution_failed',
+                        'message' => 'Tool execution failed'
+                    ];
+                }
+
+                $this->updatePendingContext($chatSession, $toolName, $toolResult);
+
+                if (isset($toolResult['action'])) {
+                    $actions = $toolResult['action'];
+                }
+
+                // Send function result back to Gemini to get final text
+                $functionResponsePart = new Part(
+                    functionResponse: new FunctionResponse(
+                        name: $toolName,
+                        response: $toolResult
+                    ),
+                    thoughtSignature: $functionCallPart->thoughtSignature
+                );
+
+                $followUpContent = new Content(
+                    parts: [$functionResponsePart],
+                    role: Role::USER
+                );
+
+                $response = $this->callGeminiWithRetry($chat, $followUpContent);
             }
 
             // Final text response
-            $assistantContent = $response->text();
+            try {
+                $assistantContent = $response->text();
+            } catch (\ValueError $e) {
+                \Illuminate\Support\Facades\Log::warning("Gemini response has no text part. Safety ratings or other block may have triggered.", [
+                    'response' => method_exists($response, 'toArray') ? $response->toArray() : (string) $response
+                ]);
+                $assistantContent = $language === 'vi'
+                    ? "Xin lỗi, mình không thể hoàn thành yêu cầu này do bộ lọc an toàn của hệ thống. Bạn có muốn thử lại hoặc đặt món khác không? 🍔"
+                    : "I apologize, but I cannot complete this request due to system safety filters. Please try again or choose another item. 🍔";
+            }
 
             // Save Assistant message to Database
             ChatMessage::create([

@@ -14,6 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->api(prepend: [
             \App\Http\Middleware\SetLocale::class,
+            \App\Http\Middleware\CheckMaintenanceMode::class,
             \App\Http\Middleware\EnsureAccountActive::class,
         ], append: [
             \App\Http\Middleware\GzipEncoding::class,

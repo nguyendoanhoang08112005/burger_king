@@ -4,6 +4,7 @@ import {
   Routes, 
   Route, 
   useLocation,
+  Navigate,
 } from 'react-router-dom'
 import AOS from 'aos'
 import 'aos/dist/aos.css'
@@ -29,7 +30,6 @@ import ChatWidget from './components/chat/ChatWidget'
 // Lazy load Pages
 const Home = lazy(() => import('./pages/customer/HomePage'))
 const Menu = lazy(() => import('./pages/customer/MenuPage'))
-const Combos = lazy(() => import('./pages/customer/CombosPage'))
 const Branches = lazy(() => import('./pages/customer/BranchesPage'))
 const Login = lazy(() => import('./pages/customer/LoginPage'))
 const Register = lazy(() => import('./pages/customer/RegisterPage'))
@@ -132,7 +132,7 @@ function AppShell({ selectedProduct, setSelectedProduct }) {
               <Route path="/admin/*" element={<AdminPanel />} />
               <Route path="/" element={<Home onSelectProduct={setSelectedProduct} />} />
               <Route path="/menu" element={<Menu onSelectProduct={setSelectedProduct} />} />
-              <Route path="/combos" element={<Combos />} />
+              <Route path="/combos" element={<Navigate to="/menu?category=combo-meals" replace />} />
               <Route path="/branches" element={<Branches />} />
               <Route path="/blog" element={<BlogPage />} />
               <Route path="/blog/:slug" element={<BlogDetailPage />} />

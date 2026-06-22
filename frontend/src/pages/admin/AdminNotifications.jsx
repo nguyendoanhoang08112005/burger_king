@@ -147,17 +147,7 @@ function NotificationDetailModal({ notification, order, loading, onClose, onProc
             </div>
           )}
           {loading && <div className="flex justify-center py-8"><Loader2 className="animate-spin text-[#D62300]" size={24} /></div>}
-          {order && (
-            <div className="flex justify-end pt-2">
-              <button
-                type="button"
-                onClick={onProcessOrder}
-                className="w-full sm:w-auto inline-flex justify-center items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold bg-[#D62300] hover:bg-[#B51E00] text-white transition-colors shadow-sm cursor-pointer"
-              >
-                <Eye size={16} /> {tAdmin('process_order') || 'Xử lý đơn hàng'}
-              </button>
-            </div>
-          )}
+
         </div>
       </div>
     </div>

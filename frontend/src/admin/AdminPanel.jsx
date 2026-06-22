@@ -17,7 +17,7 @@ import {
 } from '../components/layout/AdminLayout'
 
 // Generic CRUD Page components
-import { GenericCrudFormPage, crudPages } from '../components/admin/GenericCrud'
+import { GenericCrudPage, GenericCrudFormPage, crudPages } from '../components/admin/GenericCrud'
 
 // Helper Utilities from adminShared
 import {
@@ -46,9 +46,12 @@ import AdminToppingsPage from '../pages/admin/AdminToppings'
 import AdminPaymentsPage from '../pages/admin/AdminPayments'
 import AdminLoyaltyPage from '../pages/admin/AdminLoyalty'
 import AdminPostsPage from '../pages/admin/AdminPosts'
+import AdminPostCategoriesPage from '../pages/admin/AdminPostCategories'
+import AdminPostTagsPage from '../pages/admin/AdminPostTags'
 import AdminBannersPage from '../pages/admin/AdminBanners'
 import AdminBranchesPage from '../pages/admin/AdminBranches'
 import AdminSettingsDatabasePage, { AdminLanguageLocalesPage } from '../pages/admin/AdminSettings'
+import AdminTranslationEdit from '../pages/admin/AdminTranslationEdit'
 import AdminNotificationsPage from '../pages/admin/AdminNotifications'
 import AdminChatPage from '../pages/admin/AdminChat'
 
@@ -69,8 +72,8 @@ function AdminPanel() {
   const navigate = useNavigate()
   const tAdmin = useAdminText()
   const editMatch = location.pathname.match(/^\/admin\/products\/(\d+)\/edit$/)
-  const genericEditMatch = location.pathname.match(/^\/admin\/(categories|combos|toppings|posts|banners|branches)\/(\d+)\/edit$/)
-  const genericCreateMatch = location.pathname.match(/^\/admin\/(categories|combos|toppings|posts|banners|branches)\/create$/)
+  const genericEditMatch = location.pathname.match(/^\/admin\/(categories|combos|toppings|posts|banners|branches|post-categories|post-tags|contacts)\/([^/]+)\/edit$/)
+  const genericCreateMatch = location.pathname.match(/^\/admin\/(categories|combos|toppings|posts|banners|branches|post-categories|post-tags)\/create$/)
 
   const [stats, setStats] = useState(null)
   const [chartData, setChartData] = useState([])
@@ -329,7 +332,7 @@ function AdminPanel() {
         await fetchProducts({ search: '', categoryId: '', available: '', page: 1 })
       } else if (path.startsWith('/admin/toppings')) {
         await fetchCategories()
-      } else if (path.startsWith('/admin/posts')) {
+      } else if (path.startsWith('/admin/posts') || path.startsWith('/admin/post-categories')) {
         await fetchPostCategories()
       } else if (path === '/admin/complaints') {
         await fetchComplaintsCount()
@@ -521,6 +524,7 @@ function AdminPanel() {
   else if (location.pathname === '/admin/coupons') page = <AdminCouponsPage coupons={coupons} loading={tableLoading} onRefresh={fetchCoupons} />
   else if (location.pathname === '/admin/users') page = <AdminUsersPage users={users} loading={tableLoading} onRefresh={fetchUsers} />
   else if (location.pathname === '/admin/reviews') page = <AdminReviewsPage reviews={reviews} loading={tableLoading} onModerate={moderateReview} />
+  else if (location.pathname === '/admin/contacts') page = <GenericCrudPage {...crudPages.contacts} />
   else if (location.pathname === '/admin/complaints') page = (
     <AdminComplaintsPage 
       complaints={complaints} 
@@ -546,19 +550,27 @@ function AdminPanel() {
   else if (location.pathname === '/admin/payments') page = <AdminPaymentsPage />
   else if (location.pathname === '/admin/loyalty') page = <AdminLoyaltyPage users={users} loading={tableLoading} />
   else if (location.pathname === '/admin/posts') page = <AdminPostsPage postCategories={postCategories} />
+  else if (location.pathname === '/admin/post-categories') page = <AdminPostCategoriesPage />
+  else if (location.pathname === '/admin/post-tags') page = <AdminPostTagsPage />
   else if (location.pathname === '/admin/banners') page = <AdminBannersPage />
   else if (location.pathname === '/admin/branches') page = <AdminBranchesPage />
   else if (genericEditMatch) {
     const resource = genericEditMatch[1]
-    const config = crudPages[resource]
+    const configKey = resource === 'post-categories' ? 'postCategories' : (resource === 'post-tags' ? 'postTags' : resource)
+    const config = crudPages[configKey]
     page = <GenericCrudFormPage key={`edit-${resource}-${genericEditMatch[2]}`} config={config} itemId={genericEditMatch[2]} products={products} categories={categories} postCategories={postCategories} />
   } else if (genericCreateMatch) {
     const resource = genericCreateMatch[1]
-    const config = crudPages[resource]
+    const configKey = resource === 'post-categories' ? 'postCategories' : (resource === 'post-tags' ? 'postTags' : resource)
+    const config = crudPages[configKey]
     page = <GenericCrudFormPage key={`create-${resource}`} config={config} products={products} categories={categories} postCategories={postCategories} />
   }
   else if (location.pathname === '/admin/settings') page = <AdminSettingsDatabasePage />
   else if (location.pathname === '/admin/translations/locales') page = <AdminLanguageLocalesPage />
+  else if (location.pathname.startsWith('/admin/translations/')) {
+    const pathCode = location.pathname.split('/').pop()
+    page = <AdminTranslationEdit code={pathCode} />
+  }
   else if (location.pathname === '/admin/notifications') page = <AdminNotificationsPage notifications={notifications} loading={notificationLoading} onMarkRead={markNotificationRead} onStatusChange={updateOrderStatus} />
   else if (location.pathname === '/admin/chat') page = <AdminChatPage />
   else if (location.pathname !== '/admin' && !genericEditMatch && !genericCreateMatch) navigate('/admin')

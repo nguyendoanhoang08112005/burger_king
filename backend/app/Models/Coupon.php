@@ -91,12 +91,12 @@ class Coupon extends Model
     {
         static::saved(function ($coupon) {
             try {
-                \Illuminate\Support\Facades\DB::table('chat_caches')->truncate();
+                \Illuminate\Support\Facades\DB::table('chat_caches')->delete();
             } catch (\Exception $e) {}
         });
         static::deleted(function ($coupon) {
             try {
-                \Illuminate\Support\Facades\DB::table('chat_caches')->truncate();
+                \Illuminate\Support\Facades\DB::table('chat_caches')->delete();
             } catch (\Exception $e) {}
         });
     }

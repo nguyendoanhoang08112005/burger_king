@@ -1,5 +1,7 @@
 import { Pencil, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { useUiStore } from '../../store/uiStore'
+import { renderFlag } from '../../utils/adminUtils'
 
 const Skeleton = ({ cols }) => (
   <tbody className="animate-pulse divide-y divide-gray-100 dark:divide-gray-700">
@@ -18,6 +20,12 @@ const Skeleton = ({ cols }) => (
 export default function AdminTable({ columns, data = [], loading, onEdit, onDelete, renderActions, renderLanguageActions, emptyText }) {
   const { t } = useTranslation()
   const hasLanguageActions = typeof renderLanguageActions === 'function'
+  const publicSettings = useUiStore(state => state.publicSettings)
+  const dbLocales = publicSettings?.supported_locales
+  const LOCALES = (dbLocales && dbLocales.length > 0) ? dbLocales : [
+    { code: 'vi', flag: '🇻🇳', name: 'Tiếng Việt', is_default: true },
+    { code: 'en', flag: '🇺🇸', name: 'English', is_default: false }
+  ]
 
   return (
     <div className="overflow-x-auto">
@@ -27,21 +35,18 @@ export default function AdminTable({ columns, data = [], loading, onEdit, onDele
             {columns.map(column => (
               <th key={column.key} className="py-3 pr-4 whitespace-nowrap">{column.label}</th>
             ))}
-            {hasLanguageActions && (
-              <>
-                <th className="py-3 text-center whitespace-nowrap">
-                  <img src="/flags/vn.svg" alt="Vietnamese" className="mx-auto h-5 w-7 rounded-sm object-cover shadow-sm" />
-                </th>
-                <th className="py-3 text-center whitespace-nowrap">
-                  <img src="/flags/us.svg" alt="English" className="mx-auto h-5 w-7 rounded-sm object-cover shadow-sm" />
-                </th>
-              </>
-            )}
+            {hasLanguageActions && LOCALES.map(locale => (
+              <th key={locale.code} className="py-3 text-center whitespace-nowrap w-[60px]">
+                <span className="inline-flex items-center" title={locale.name}>
+                  {renderFlag(locale.code, "h-3.5 w-5 rounded-sm object-cover shadow-sm")}
+                </span>
+              </th>
+            ))}
             <th className="py-3 text-right whitespace-nowrap">{t('common.actions')}</th>
           </tr>
         </thead>
         {loading ? (
-          <Skeleton cols={columns.length + (hasLanguageActions ? 2 : 0)} />
+          <Skeleton cols={columns.length + (hasLanguageActions ? LOCALES.length : 0)} />
         ) : (
           <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
             {data.map(item => (
@@ -51,7 +56,7 @@ export default function AdminTable({ columns, data = [], loading, onEdit, onDele
                     {column.render ? column.render(item) : item[column.key]}
                   </td>
                 ))}
-                {hasLanguageActions && renderLanguageActions(item)}
+                {hasLanguageActions && renderLanguageActions(item, LOCALES)}
                 <td className="py-3 text-right">
                   <div className="inline-flex items-center gap-2 justify-end">
                     {renderActions ? renderActions(item) : (
@@ -74,7 +79,7 @@ export default function AdminTable({ columns, data = [], loading, onEdit, onDele
             ))}
             {!data.length && (
               <tr>
-                <td colSpan={columns.length + (hasLanguageActions ? 3 : 1)} className="py-10 text-center text-gray-400">
+                <td colSpan={columns.length + (hasLanguageActions ? LOCALES.length + 1 : 1)} className="py-10 text-center text-gray-400">
                   {emptyText || t('common.no_result')}
                 </td>
               </tr>

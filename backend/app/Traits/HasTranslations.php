@@ -222,12 +222,20 @@ trait HasTranslations
 
         if ($isAdmin) {
             $translations = [];
+            $activeLocales = \Illuminate\Support\Facades\Cache::remember('active_locale_codes', 3600, function () {
+                try {
+                    if (\Illuminate\Support\Facades\Schema::hasTable('locales')) {
+                        return \App\Models\Locale::where('is_active', true)->pluck('code')->toArray();
+                    }
+                } catch (\Throwable $e) {}
+                return ['vi', 'en'];
+            });
             foreach ($this->translatable as $field) {
                 $transMap = $this->getTranslations($field);
                 $attributes[$field] = $transMap;
                 $translations[$field] = $transMap;
 
-                foreach (['vi', 'en'] as $loc) {
+                foreach ($activeLocales as $loc) {
                     $attributes[$field . '_' . $loc] = $transMap[$loc] ?? null;
                 }
             }

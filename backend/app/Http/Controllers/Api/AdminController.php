@@ -13,6 +13,8 @@ use App\Models\Banner;
 use App\Models\ComboItem;
 use App\Models\ComboSet;
 use App\Models\Post;
+use App\Models\PostCategory;
+use App\Models\PostTag;
 use App\Models\ProductTopping;
 use App\Models\User;
 use App\Models\Review;
@@ -48,6 +50,15 @@ class AdminController extends Controller
             'current_page' => $paginator->currentPage(),
             'last_page' => $paginator->lastPage(),
         ]);
+    }
+
+    private function clearPublicCache(): void
+    {
+        try {
+            \Illuminate\Support\Facades\Cache::flush();
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Failed to clear public cache: " . $e->getMessage());
+        }
     }
 
     // --- DASHBOARD STATS ---
@@ -347,6 +358,8 @@ class AdminController extends Controller
             ]);
         }
 
+        $this->clearPublicCache();
+
         return $this->ok($product->load('category'), __('api.messages.product_created'))->setStatusCode(201);
     }
 
@@ -412,6 +425,8 @@ class AdminController extends Controller
             }
         }
 
+        $this->clearPublicCache();
+
         return $this->ok($product->load(['category', 'sizes']), __('api.messages.product_updated_details'));
     }
 
@@ -441,6 +456,8 @@ class AdminController extends Controller
 
         $product->update($data);
 
+        $this->clearPublicCache();
+
         return $this->ok($product->load('category'), __('api.messages.product_updated'));
     }
 
@@ -448,6 +465,8 @@ class AdminController extends Controller
     {
         $product = Product::findOrFail($id);
         $product->delete();
+
+        $this->clearPublicCache();
 
         return $this->ok(null, __('api.messages.product_deleted'));
     }
@@ -507,6 +526,8 @@ class AdminController extends Controller
             'is_active' => $request->boolean('is_active', true),
         ]);
 
+        $this->clearPublicCache();
+
         return $this->ok($category, __('api.messages.category_created'))->setStatusCode(201);
     }
 
@@ -540,12 +561,16 @@ class AdminController extends Controller
 
         $category->update($data);
 
+        $this->clearPublicCache();
+
         return $this->ok($category->loadCount('products'), __('api.messages.category_updated'));
     }
 
     public function deleteCategory($id)
     {
         Category::findOrFail($id)->delete();
+
+        $this->clearPublicCache();
 
         return $this->ok(null, __('api.messages.category_deleted'));
     }
@@ -944,6 +969,9 @@ class AdminController extends Controller
             $combo->update(['sku' => $this->generatedSku('CMB', $combo->slug, $combo->id)]);
         }
         $this->syncComboItems($combo, $request->items ?? []);
+        
+        $this->clearPublicCache();
+
         return $this->ok($combo->load('items.product'), __('api.messages.combo_created'))->setStatusCode(201);
     }
 
@@ -977,12 +1005,18 @@ class AdminController extends Controller
         $data['sku'] = $this->normalizeSku($data['sku'] ?? null) ?: $this->generatedSku('CMB', $data['slug'] ?: $slugName, $combo->id);
         $combo->update($data);
         $this->syncComboItems($combo, $request->items ?? []);
+        
+        $this->clearPublicCache();
+
         return $this->ok($combo->load('items.product'), __('api.messages.combo_updated'));
     }
 
     public function deleteCombo($id)
     {
         ComboSet::findOrFail($id)->delete();
+        
+        $this->clearPublicCache();
+
         return $this->ok(null, __('api.messages.combo_deleted'));
     }
 
@@ -1040,6 +1074,9 @@ class AdminController extends Controller
         if (!$topping->sku) {
             $topping->update(['sku' => $this->generatedSku('TOP', $topping->name, $topping->id)]);
         }
+        
+        $this->clearPublicCache();
+
         return $this->ok($topping, __('api.messages.topping_created'))->setStatusCode(201);
     }
 
@@ -1071,12 +1108,18 @@ class AdminController extends Controller
         $data['sku'] = $this->normalizeSku($data['sku'] ?? null) ?: $this->generatedSku('TOP', $data['name'], $topping->id);
         $data['category_ids'] = array_values(array_map('intval', $data['category_ids'] ?? []));
         $topping->update($data);
+        
+        $this->clearPublicCache();
+
         return $this->ok($topping, __('api.messages.topping_updated'));
     }
 
     public function deleteTopping($id)
     {
         ProductTopping::findOrFail($id)->delete();
+        
+        $this->clearPublicCache();
+
         return $this->ok(null, __('api.messages.topping_deleted'));
     }
 
@@ -1124,7 +1167,11 @@ class AdminController extends Controller
             'is_active' => 'nullable|boolean',
         ]);
         $data['is_active'] = $request->boolean('is_active', true);
-        return $this->ok(Banner::create($data), __('api.messages.banner_created'))->setStatusCode(201);
+        $banner = Banner::create($data);
+
+        $this->clearPublicCache();
+
+        return $this->ok($banner, __('api.messages.banner_created'))->setStatusCode(201);
     }
 
     public function showBanner($id)
@@ -1155,12 +1202,18 @@ class AdminController extends Controller
             'is_active' => 'nullable|boolean',
         ]);
         $banner->update($data);
+
+        $this->clearPublicCache();
+
         return $this->ok($banner, __('api.messages.banner_updated'));
     }
 
     public function deleteBanner($id)
     {
         Banner::findOrFail($id)->delete();
+
+        $this->clearPublicCache();
+
         return $this->ok(null, __('api.messages.banner_deleted'));
     }
 
@@ -1191,7 +1244,11 @@ class AdminController extends Controller
             'is_active' => 'nullable|boolean',
         ]);
         $data['is_active'] = $request->boolean('is_active', true);
-        return $this->ok(Branch::create($data), __('api.messages.branch_created'))->setStatusCode(201);
+        $branch = Branch::create($data);
+
+        $this->clearPublicCache();
+
+        return $this->ok($branch, __('api.messages.branch_created'))->setStatusCode(201);
     }
 
     public function showBranch($id)
@@ -1221,18 +1278,24 @@ class AdminController extends Controller
             'is_active' => 'nullable|boolean',
         ]);
         $branch->update($data);
+
+        $this->clearPublicCache();
+
         return $this->ok($branch, __('api.messages.branch_updated'));
     }
 
     public function deleteBranch($id)
     {
         Branch::findOrFail($id)->delete();
+
+        $this->clearPublicCache();
+
         return $this->ok(null, __('api.messages.branch_deleted'));
     }
 
     public function listPosts(Request $request)
     {
-        $query = Post::with('translations')->latest('published_at');
+        $query = Post::with(['translations', 'postCategory'])->latest('published_at');
         if ($request->filled('search')) $query->where('title', 'like', "%{$request->search}%");
         if ($request->filled('status')) $query->where('is_published', $request->status === 'published');
         if ($request->filled('category')) $query->where('category', $request->category);
@@ -1241,15 +1304,82 @@ class AdminController extends Controller
 
     public function postCategories()
     {
+        // Return full PostCategory models for admin dropdown
         return $this->ok(
-            Post::query()
-                ->whereNotNull('category')
-                ->select('category')
-                ->distinct()
-                ->orderBy('category')
-                ->pluck('category')
-                ->values()
+            PostCategory::with('translations')
+                ->orderBy('sort_order')
+                ->orderBy('name')
+                ->get()
         );
+    }
+
+    // --- POST CATEGORIES CRUD ---
+
+    public function listPostCategories(Request $request)
+    {
+        $query = PostCategory::with('translations')->withCount('posts')->orderBy('sort_order');
+        if ($request->filled('search')) {
+            $query->where('name', 'like', "%{$request->search}%");
+        }
+        return $this->page($query->paginate($request->get('per_page', 20)));
+    }
+
+    public function createPostCategory(Request $request)
+    {
+        if ($request->has('translations')) {
+            $request->merge(['name' => $request->input('translations.name')]);
+        }
+        $request->validate([
+            'name'       => 'required',
+            'slug'       => 'nullable|string|max:255|unique:post_categories,slug',
+            'color'      => 'nullable|string|max:20',
+            'sort_order' => 'nullable|integer',
+            'is_active'  => 'nullable|boolean',
+        ]);
+        $slugName = is_array($request->name) ? ($request->name['vi'] ?? '') : $request->name;
+        $cat = PostCategory::create([
+            'name'       => $request->name,
+            'slug'       => $request->slug ?: \Illuminate\Support\Str::slug($slugName),
+            'color'      => $request->color ?? '#D62300',
+            'sort_order' => $request->sort_order ?? 0,
+            'is_active'  => $request->boolean('is_active', true),
+        ]);
+        return $this->ok($cat, 'Post category created')->setStatusCode(201);
+    }
+
+    public function showPostCategory($id)
+    {
+        return $this->ok(PostCategory::with('translations')->findOrFail($id));
+    }
+
+    public function updatePostCategory(Request $request, $id)
+    {
+        $cat = PostCategory::findOrFail($id);
+        if ($request->has('translations')) {
+            $request->merge(['name' => $request->input('translations.name')]);
+        }
+        $request->validate([
+            'name'       => 'required',
+            'slug'       => 'nullable|string|max:255|unique:post_categories,slug,' . $cat->id,
+            'color'      => 'nullable|string|max:20',
+            'sort_order' => 'nullable|integer',
+            'is_active'  => 'nullable|boolean',
+        ]);
+        $slugName = is_array($request->name) ? ($request->name['vi'] ?? '') : $request->name;
+        $cat->update([
+            'name'       => $request->name,
+            'slug'       => $request->slug ?: \Illuminate\Support\Str::slug($slugName),
+            'color'      => $request->color ?? $cat->color,
+            'sort_order' => $request->sort_order ?? $cat->sort_order,
+            'is_active'  => $request->boolean('is_active', $cat->is_active),
+        ]);
+        return $this->ok($cat->loadCount('posts'), 'Post category updated');
+    }
+
+    public function deletePostCategory($id)
+    {
+        PostCategory::findOrFail($id)->delete();
+        return $this->ok(null, 'Post category deleted');
     }
 
     public function createPost(Request $request)
@@ -1288,26 +1418,29 @@ class AdminController extends Controller
         }
 
         $data = $request->validate([
-            'title' => 'required',
-            'slug' => 'nullable|string|max:255|unique:posts,slug' . ($ignoreId ? ',' . $ignoreId : ''),
-            'excerpt' => 'required',
-            'content' => 'required',
-            'thumbnail' => 'required|string',
-            'category' => 'required|string|max:255',
-            'author' => 'nullable|string|max:255',
-            'read_time' => 'nullable|integer|min:1',
-            'video_url' => 'nullable|string|max:255',
+            'title'        => 'required',
+            'slug'         => 'nullable|string|max:255|unique:posts,slug' . ($ignoreId ? ',' . $ignoreId : ''),
+            'excerpt'      => 'required',
+            'content'      => 'required',
+            'thumbnail'    => 'required|string',
+            'category'     => 'required|string|max:255',
+            'tags'         => 'nullable|array',
+            'tags.*'       => 'string|max:100',
+            'author'       => 'nullable|string|max:255',
+            'read_time'    => 'nullable|integer|min:1',
+            'video_url'    => 'nullable|string|max:255',
             'is_published' => 'nullable|boolean',
             'published_at' => 'nullable|date',
         ]);
 
         $slugTitle = is_array($data['title']) ? ($data['title']['vi'] ?? '') : $data['title'];
 
-        $data['slug'] = $data['slug'] ?: \Illuminate\Support\Str::slug($slugTitle);
-        $data['author'] = $data['author'] ?? 'Hamburger King Editorial';
-        $data['read_time'] = $data['read_time'] ?? 5;
+        $data['slug']         = $data['slug'] ?: \Illuminate\Support\Str::slug($slugTitle);
+        $data['author']       = $data['author'] ?? 'Hamburger King Editorial';
+        $data['read_time']    = $data['read_time'] ?? 5;
         $data['is_published'] = $request->boolean('is_published', true);
         $data['published_at'] = $data['published_at'] ?? now();
+        $data['tags']         = $data['tags'] ?? [];
         return $data;
     }
 
@@ -1343,5 +1476,115 @@ class AdminController extends Controller
         }
 
         return response()->json(['data' => $result]);
+    }
+
+    // --- POST TAGS CRUD ---
+
+    public function listPostTags(Request $request)
+    {
+        $query = PostTag::latest();
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('slug', 'like', "%{$search}%");
+            });
+        }
+
+        $tags = $query->get();
+
+        $data = $tags->map(function($tag) {
+            $count = Post::whereJsonContains('tags', $tag->slug)->count();
+            return [
+                'id' => $tag->id,
+                'name' => $tag->getTranslations('name'),
+                'slug' => $tag->slug,
+                'posts_count' => $count,
+            ];
+        });
+
+        return $this->ok(array_values($data->toArray()));
+    }
+
+    public function createPostTag(Request $request)
+    {
+        if ($request->has('translations')) {
+            $request->merge(['name' => $request->input('translations.name')]);
+        }
+        $request->validate([
+            'name' => 'required',
+            'slug' => 'nullable|string|max:255|unique:post_tags,slug',
+        ]);
+        
+        $slugName = is_array($request->name) ? ($request->name['vi'] ?? '') : $request->name;
+        $tag = PostTag::create([
+            'name' => $request->name,
+            'slug' => $request->slug ?: \Illuminate\Support\Str::slug($slugName),
+        ]);
+        
+        return $this->ok($tag, 'Post tag created');
+    }
+
+    public function showPostTag($id)
+    {
+        $tag = PostTag::findOrFail($id);
+        return $this->ok([
+            'id' => $tag->id,
+            'name' => $tag->getTranslations('name'),
+            'slug' => $tag->slug,
+        ]);
+    }
+
+    public function updatePostTag(Request $request, $id)
+    {
+        $tag = PostTag::findOrFail($id);
+        if ($request->has('translations')) {
+            $request->merge(['name' => $request->input('translations.name')]);
+        }
+        $request->validate([
+            'name' => 'required',
+            'slug' => 'nullable|string|max:255|unique:post_tags,slug,' . $tag->id,
+        ]);
+        
+        $oldSlug = $tag->slug;
+        $slugName = is_array($request->name) ? ($request->name['vi'] ?? '') : $request->name;
+        $newSlug = $request->slug ?: \Illuminate\Support\Str::slug($slugName);
+
+        $tag->update([
+            'name' => $request->name,
+            'slug' => $newSlug,
+        ]);
+
+        if ($oldSlug !== $newSlug) {
+            $posts = Post::whereJsonContains('tags', $oldSlug)->get();
+            foreach ($posts as $post) {
+                $tags = $post->tags;
+                if (is_array($tags)) {
+                    $tags = array_map(fn($t) => $t === $oldSlug ? $newSlug : $t, $tags);
+                    $post->update(['tags' => array_values(array_unique($tags))]);
+                }
+            }
+        }
+
+        return $this->ok($tag, 'Post tag updated');
+    }
+
+    public function deletePostTag($id)
+    {
+        $tag = PostTag::findOrFail($id);
+        $slug = $tag->slug;
+
+        $posts = Post::whereJsonContains('tags', $slug)->get();
+        foreach ($posts as $post) {
+            $tags = $post->tags;
+            if (is_array($tags)) {
+                $tags = array_filter($tags, fn($t) => $t !== $slug);
+                $post->update(['tags' => array_values($tags)]);
+            }
+        }
+
+        $tag->delete();
+        return $this->ok(null, 'Post tag deleted');
     }
 }

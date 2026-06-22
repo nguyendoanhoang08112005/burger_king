@@ -162,6 +162,7 @@ class DatabaseSeeder extends Seeder
             BlogSeeder::class,             // 9. Blog posts (5)
             PaymentPluginSeeder::class,    // 10. Payment plugins
             SettingsSeeder::class,         // 11. Site settings
+            LocalesSeeder::class,          // 12. Locales settings
         ]);
 
         // ═══════════════════════════════════════════

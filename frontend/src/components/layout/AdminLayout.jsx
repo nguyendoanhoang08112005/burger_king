@@ -35,13 +35,19 @@ import {
   Building2,
   Settings,
   Globe,
+  Mail,
   Bot,
+  X,
 } from 'lucide-react'
 import {
   assetUrl,
   logoSizeValue,
   playNotificationSound,
   useAdminText,
+  unwrapNotifications,
+  notificationData,
+  notificationTitle,
+  notificationBody,
 } from '../../utils/adminUtils'
 
 export function AdminRoute({ children }) {
@@ -61,8 +67,8 @@ export function AdminRoute({ children }) {
 
 export const adminPermissionModules = [
   'dashboard', 'reports', 'orders', 'products', 'categories', 'combos', 'toppings',
-  'coupons', 'payments', 'users', 'reviews', 'loyalty', 'complaints', 'posts', 'banners',
-  'branches', 'settings', 'languages', 'notifications', 'chatbot',
+  'coupons', 'payments', 'users', 'reviews', 'loyalty', 'complaints', 'posts', 'post-categories', 'post-tags', 'banners',
+  'branches', 'settings', 'languages', 'notifications', 'chatbot', 'contacts',
 ]
 
 export const adminPathModule = path => {
@@ -102,6 +108,7 @@ export const menuGroups = [
     items: [
       { icon: Users, labelKey: 'users', path: '/admin/users' },
       { icon: Star, labelKey: 'reviews', path: '/admin/reviews' },
+      { icon: Mail, labelKey: 'contacts', path: '/admin/contacts' },
       { icon: AlertCircle, labelKey: 'complaints', path: '/admin/complaints', badgeKey: 'pendingComplaints' },
       { icon: Target, labelKey: 'loyalty', path: '/admin/loyalty' },
     ],
@@ -110,6 +117,8 @@ export const menuGroups = [
     labelKey: 'group_content',
     items: [
       { icon: FileText, labelKey: 'posts', path: '/admin/posts' },
+      { icon: Layers, labelKey: 'post-categories', path: '/admin/post-categories' },
+      { icon: Tags, labelKey: 'post-tags', path: '/admin/post-tags' },
       { icon: Image, labelKey: 'banners', path: '/admin/banners' },
       { icon: Building2, labelKey: 'branches', path: '/admin/branches' },
     ],
@@ -131,29 +140,6 @@ const formatBadgeCount = value => {
   return count > 99 ? '99+' : String(count)
 }
 
-const unwrapNotifications = payload => (Array.isArray(payload) ? payload : payload?.data || [])
-
-export const notificationData = item => {
-  if (!item?.data) return {}
-  if (typeof item.data === 'string') {
-    try {
-      return JSON.parse(item.data)
-    } catch {
-      return {}
-    }
-  }
-  return item.data
-}
-
-export const notificationTitle = item => {
-  const data = notificationData(item)
-  return item?.title || data.title || data.message || item?.message || ''
-}
-
-export const notificationBody = item => {
-  const data = notificationData(item)
-  return data.body || data.content || ''
-}
 
 export function ConfirmDialog({ open, title, message, onConfirm, onCancel, loading }) {
   const tAdmin = useAdminText()
@@ -215,7 +201,17 @@ export function AdminSidebar({ collapsed, onToggle, badges }) {
                 }}
                 className="max-h-full max-w-full object-contain"
               />
-            ) : 'HAMBURGER KING'}
+            ) : (
+              <img
+                src="/logo.svg"
+                alt={storeName || 'Hamburger King'}
+                style={{
+                  width: logoSizeValue(logoWidth, '190px'),
+                  height: logoSizeValue(logoHeight, '40px'),
+                }}
+                className="max-h-full max-w-full object-contain"
+              />
+            )}
           </Link>
         )}
         <button
@@ -284,6 +280,12 @@ export function AdminTopbar({ notifications = [], unreadCount = 0 }) {
   const tAdmin = useAdminText()
   const [isDark, setIsDark] = useState(() => localStorage.getItem('adminDarkMode') === 'dark')
   const [notificationsOpen, setNotificationsOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [selectedIndex, setSelectedIndex] = useState(0)
+
+  const searchInputRef = useRef(null)
+  const searchContainerRef = useRef(null)
   const notificationMenuRef = useRef(null)
 
   useEffect(() => {
@@ -299,6 +301,36 @@ export function AdminTopbar({ notifications = [], unreadCount = 0 }) {
     setIsDark(toggleDarkMode())
   }
 
+  const items = useMemo(() => {
+    const list = []
+    menuGroups.forEach(group => {
+      group.items.forEach(item => {
+        if (canAccessAdminModule(user, adminPathModule(item.path))) {
+          list.push({
+            label: tAdmin(item.labelKey),
+            path: item.path,
+            group: tAdmin(group.labelKey),
+            icon: item.icon,
+          })
+        }
+      })
+    })
+    return list
+  }, [user, tAdmin])
+
+  const filtered = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase()
+    if (!q) return items.slice(0, 8)
+    return items.filter(item =>
+      item.label.toLowerCase().includes(q) ||
+      item.group.toLowerCase().includes(q)
+    )
+  }, [items, searchQuery])
+
+  useEffect(() => {
+    setSelectedIndex(0)
+  }, [filtered])
+
   useEffect(() => {
     if (!notificationsOpen) return undefined
 
@@ -312,19 +344,120 @@ export function AdminTopbar({ notifications = [], unreadCount = 0 }) {
     return () => document.removeEventListener('mousedown', handlePointerDown)
   }, [notificationsOpen])
 
+  useEffect(() => {
+    const handlePointerDown = event => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target)) {
+        setSearchOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handlePointerDown)
+    return () => document.removeEventListener('mousedown', handlePointerDown)
+  }, [])
+
+  useEffect(() => {
+    const handleKeyDown = event => {
+      if ((event.ctrlKey || event.metaKey) && event.key === 'k') {
+        event.preventDefault()
+        searchInputRef.current?.focus()
+        setSearchOpen(true)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
+  const handleInputKeyDown = event => {
+    if (!searchOpen) {
+      if (event.key === 'ArrowDown' || event.key === 'Enter') {
+        setSearchOpen(true)
+      }
+      return
+    }
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault()
+      setSelectedIndex(prev => (prev + 1) % Math.max(1, filtered.length))
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault()
+      setSelectedIndex(prev => (prev - 1 + filtered.length) % Math.max(1, filtered.length))
+    } else if (event.key === 'Enter') {
+      event.preventDefault()
+      if (filtered[selectedIndex]) {
+        navigate(filtered[selectedIndex].path)
+        setSearchOpen(false)
+        searchInputRef.current?.blur()
+      }
+    } else if (event.key === 'Escape') {
+      event.preventDefault()
+      setSearchOpen(false)
+      searchInputRef.current?.blur()
+    }
+  }
+
   const recentNotifications = notifications.slice(0, 5)
 
   return (
     <header className="h-[60px] bg-white dark:bg-[#1E2130] border-b border-gray-100 dark:border-gray-700 flex items-center px-6 gap-4 sticky top-0 z-30">
-      <div className="relative flex-1 max-w-sm">
+      <div
+        ref={searchContainerRef}
+        className="relative flex-1 max-w-sm"
+      >
         <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
         <input
+          ref={searchInputRef}
+          type="text"
+          value={searchQuery}
+          onChange={e => {
+            setSearchQuery(e.target.value)
+            setSearchOpen(true)
+          }}
+          onFocus={() => setSearchOpen(true)}
+          onKeyDown={handleInputKeyDown}
           placeholder={tAdmin('search')}
           className="w-full pl-9 pr-16 py-2 bg-gray-50 dark:bg-[#161825] rounded-xl text-sm border border-transparent focus:outline-none focus:border-red-200 dark:focus:border-red-500/50 focus:bg-white dark:focus:bg-[#1E2130] dark:text-gray-100 transition-all"
         />
-        <kbd className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 bg-gray-200 dark:bg-gray-700 px-1.5 py-0.5 rounded font-mono">
+        <kbd className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 bg-gray-200 dark:bg-gray-700 px-1.5 py-0.5 rounded font-mono select-none">
           Ctrl+K
         </kbd>
+
+        {searchOpen && (
+          <div className="absolute top-full left-0 right-0 mt-2 z-50 bg-white dark:bg-[#1E2130] rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 max-h-72 overflow-y-auto p-1.5 space-y-0.5">
+            {filtered.map((item, index) => {
+              const Icon = item.icon
+              const isSelected = index === selectedIndex
+              return (
+                <button
+                  key={item.path}
+                  type="button"
+                  onMouseDown={() => {
+                    navigate(item.path)
+                    setSearchOpen(false)
+                  }}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs transition-all text-left cursor-pointer ${
+                    isSelected
+                      ? 'bg-red-50 dark:bg-red-500/10 text-[#D62300] font-semibold'
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    {Icon && <Icon size={14} className={isSelected ? 'text-[#D62300]' : 'text-gray-400'} />}
+                    <span>{item.label}</span>
+                  </div>
+                  <span className="text-[10px] text-gray-400 font-normal">{item.group}</span>
+                </button>
+              )
+            })}
+            {filtered.length === 0 && (
+              <div className="text-center py-4 text-xs text-gray-400">
+                {tAdmin('no_result')}
+              </div>
+            )}
+            <div className="bg-gray-50 dark:bg-[#161825] px-3 py-1.5 rounded-lg flex justify-between items-center text-[9px] text-gray-400 mt-1 select-none">
+              <span>↑↓ {tAdmin('navigate', 'di chuyển')} &nbsp; ↵ {tAdmin('select', 'chọn')}</span>
+              <span>Esc {tAdmin('close', 'đóng')}</span>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="ml-auto flex items-center gap-2">

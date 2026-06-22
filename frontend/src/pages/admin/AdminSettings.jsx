@@ -1,7 +1,5 @@
-/**
- * AdminSettings.jsx - Admin settings page (multi-tab: general, shipping, appearance, etc.)
- */
-import { useState, useEffect, useMemo, Suspense, lazy } from 'react'
+import { useState, useEffect, useMemo, Suspense, lazy, useRef } from 'react'
+import { Link } from 'react-router-dom'
 
 // Lazy loaded tab components
 const GeneralSettings = lazy(() => import('../../components/admin/settings/GeneralSettings'))
@@ -18,7 +16,7 @@ import {
   Save, Search, Settings, Star, Store, Trash2, Truck, X, ChevronRight, Mail,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { useAdminText } from '../../utils/adminUtils'
+import { useAdminText, renderFlag } from '../../utils/adminUtils'
 import {
   SettingInput, SettingTextarea, SettingSelect, SettingToggle, AdminImageInput,
   fieldInputClass, CURRENCY_OPTIONS,
@@ -54,195 +52,219 @@ function formatVND(value) {
 export function AdminLanguageLocalesPage() {
   const tAdmin = useAdminText()
   const [locales, setLocales] = useState([])
-  const [available, setAvailable] = useState([])
-  const [defaultLocale, setDefaultLocale] = useState('vi')
-  const [selectedLocale, setSelectedLocale] = useState('')
-  const [query, setQuery] = useState('')
+  const [availableLocales, setAvailableLocales] = useState([])
+  const [selectedCode, setSelectedCode] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const setPublicSettings = useUiStore(state => state.setPublicSettings)
 
-  const enabledCodes = useMemo(() => new Set(locales.map(locale => locale.code)), [locales])
-  const options = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase()
-    return available
-      .filter(locale => !enabledCodes.has(locale.code))
-      .filter(locale => !normalizedQuery || `${locale.name} ${locale.code}`.toLowerCase().includes(normalizedQuery))
-  }, [available, enabledCodes, query])
+  const refreshPublicSettings = async () => {
+    try {
+      const { data } = await apiClient.get('/settings/public')
+      setPublicSettings(data.data || {})
+    } catch (e) {
+      console.error('Failed to refresh public settings', e)
+    }
+  }
 
-  const selectedName = available.find(locale => locale.code === selectedLocale)?.name || ''
+  const loadLocales = async (silent = false) => {
+    if (!silent) setLoading(true)
+    try {
+      const { data } = await apiClient.get('/admin/translations/locales')
+      setLocales(data.active || [])
+      setAvailableLocales(data.available || [])
+    } catch {
+      toast.error(tAdmin('languages_load_error') || 'Lỗi tải danh sách ngôn ngữ')
+    } finally {
+      if (!silent) setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    let ignore = false
-    apiClient.get('/admin/translations/locales')
-      .then(({ data }) => {
-        if (ignore) return
-        const payload = data.data || {}
-        setLocales(payload.locales || [])
-        setAvailable(payload.available || [])
-        setDefaultLocale(payload.default || 'vi')
+    loadLocales()
+  }, [])
+
+  const handleAdd = async () => {
+    if (!selectedCode) return
+    setSaving(true)
+    try {
+      await apiClient.post('/admin/translations/locales', {
+        code: selectedCode
       })
-      .catch(() => toast.error(tAdmin('languages_load_error')))
-      .finally(() => { if (!ignore) setLoading(false) })
-    return () => { ignore = true }
-  }, [tAdmin])
-
-  const addLocale = async () => {
-    if (!selectedLocale) { toast.error(tAdmin('language_required')); return }
-    setSaving(true)
-    try {
-      const { data } = await apiClient.post('/admin/translations/locales', { locale: selectedLocale })
-      const payload = data.data || {}
-      setLocales(payload.locales || [])
-      setAvailable(payload.available || [])
-      setDefaultLocale(payload.default || 'vi')
-      setSelectedLocale('')
-      setQuery('')
-      toast.success(tAdmin('language_added'))
+      toast.success(tAdmin('toast_language_added', 'Đã thêm ngôn ngữ mới thành công!'))
+      setSelectedCode('')
+      await loadLocales()
+      await refreshPublicSettings()
     } catch (error) {
-      toast.error(error.response?.data?.message || tAdmin('language_add_error'))
+      toast.error(error.response?.data?.message || tAdmin('toast_language_add_error', 'Lỗi khi thêm ngôn ngữ mới'))
     } finally {
       setSaving(false)
     }
   }
 
-  const makeDefault = async locale => {
-    if (locale === defaultLocale) return
+  const handleDelete = async (code) => {
+    if (!confirm(tAdmin('confirm_delete_language', 'Bạn có chắc chắn muốn xóa ngôn ngữ {{code}}? Toàn bộ tệp dịch tương ứng sẽ bị loại bỏ.', { code }))) return
     setSaving(true)
     try {
-      const { data } = await apiClient.patch(`/admin/translations/locales/${locale}/default`)
-      const payload = data.data || {}
-      setLocales(payload.locales || [])
-      setDefaultLocale(payload.default || locale)
-      toast.success(tAdmin('default_language_changed'))
+      await apiClient.delete(`/admin/translations/locales/${code}`)
+      toast.success(tAdmin('toast_language_deleted', 'Đã xóa ngôn ngữ!'))
+      await loadLocales()
+      await refreshPublicSettings()
     } catch (error) {
-      toast.error(error.response?.data?.message || tAdmin('default_language_error'))
+      toast.error(error.response?.data?.message || tAdmin('toast_language_delete_error', 'Lỗi khi xóa ngôn ngữ'))
     } finally {
       setSaving(false)
     }
   }
 
-  const deleteLocale = async locale => {
+  const handleSetDefault = async (code) => {
     setSaving(true)
     try {
-      const { data } = await apiClient.delete(`/admin/translations/locales/${locale}`)
-      const payload = data.data || {}
-      setLocales(payload.locales || [])
-      setDefaultLocale(payload.default || 'vi')
-      toast.success(tAdmin('language_deleted'))
+      await apiClient.patch(`/admin/translations/locales/${code}/default`)
+      toast.success(tAdmin('toast_default_language_changed', 'Đã đặt làm ngôn ngữ mặc định mới!'))
+      await loadLocales()
+      await refreshPublicSettings()
     } catch (error) {
-      toast.error(error.response?.data?.message || tAdmin('language_delete_error'))
+      toast.error(error.response?.data?.message || tAdmin('toast_default_language_change_error', 'Lỗi khi thay đổi ngôn ngữ mặc định'))
     } finally {
       setSaving(false)
     }
   }
 
   return (
-    <AdminPageShell title={tAdmin('languages')} eyebrow={tAdmin('localization_breadcrumb')}>
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(320px,0.8fr)_minmax(0,1.4fr)] gap-5">
-        <div className="bg-white dark:bg-[#1E2130] rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm h-fit">
-          <div className="px-6 py-5 border-b border-gray-100 dark:border-gray-700">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{tAdmin('languages')}</h2>
-          </div>
-          <div className="p-6 space-y-4">
-            <label className="block">
-              <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">{tAdmin('select_language')}</span>
-              <div className="mt-2 rounded-lg border border-blue-300 dark:border-blue-500/70 ring-4 ring-blue-100 dark:ring-blue-500/10 bg-white dark:bg-[#161825] overflow-hidden">
-                <button type="button" className="w-full flex items-center justify-between px-4 py-3 text-left text-sm text-gray-700 dark:text-gray-100">
-                  <span>{selectedName ? `${selectedName} - ${selectedLocale}` : tAdmin('select_language')}</span>
-                  <ChevronRight size={16} className="rotate-90 text-gray-400" />
-                </button>
-                <div className="border-t border-gray-100 dark:border-gray-700 p-2">
-                  <input
-                    value={query}
-                    onChange={event => setQuery(event.target.value)}
-                    placeholder={tAdmin('search_language')}
-                    className="w-full rounded-lg border border-blue-300 dark:border-blue-500/60 px-3 py-2 text-sm bg-white dark:bg-[#1E2130] focus:outline-none focus:ring-2 focus:ring-blue-100"
-                  />
+    <AdminPageShell title={tAdmin('languages_management', 'Quản Lý Ngôn Ngữ')} eyebrow={tAdmin('settings', 'Cài đặt')}>
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        {/* Locales đang dùng */}
+        <div className="bg-white dark:bg-[#1E2130] rounded-2xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm h-fit">
+          <h3 className="font-bold text-lg text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
+            <span>{tAdmin('languages_in_use', 'Ngôn Ngữ Đang Dùng')}</span>
+            {saving && <Loader2 size={16} className="animate-spin text-[#D62300]" />}
+          </h3>
+          {loading ? (
+            <div className="space-y-4 py-4">
+              <TableSkeleton rows={3} cols={2} />
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {locales.map(locale => (
+                <div key={locale.code}
+                  className="flex items-center justify-between p-4 border border-gray-100 dark:border-gray-700 rounded-xl hover:border-gray-200 dark:hover:border-gray-600 transition-all bg-gray-50/30 dark:bg-[#161825]/30">
+                  <div className="flex items-center gap-3.5">
+                    <span className="text-3xl leading-none flex items-center" role="img" aria-label={locale.name}>
+                      {renderFlag(locale.code, "h-6 w-9 rounded-md object-cover shadow-md")}
+                    </span>
+                    <div>
+                      <p className="font-semibold text-sm text-gray-800 dark:text-gray-200">
+                        {locale.native_name} ({locale.code.toUpperCase()})
+                      </p>
+                      <div className="flex items-center gap-2 mt-1.5">
+                        {locale.is_default && (
+                          <span className="text-[10px] font-bold bg-green-50 dark:bg-green-500/10 text-green-600 dark:text-green-400 px-2 py-0.5 rounded-full border border-green-200/50">
+                            {tAdmin('default', 'Mặc định')}
+                          </span>
+                        )}
+                        <span className="text-xs text-gray-400 dark:text-gray-500">
+                          {tAdmin('progress_translated_with_percent', '{{percent}}% đã dịch', { percent: locale.progress ?? 100 })}
+                        </span>
+                      </div>
+                      {/* Progress bar */}
+                      <div className="w-36 h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full mt-2 overflow-hidden">
+                        <div
+                           className="h-full bg-[#D62300] rounded-full transition-all duration-500"
+                          style={{ 
+                            width: `${locale.progress ?? 100}%` 
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    {locale.code !== 'vi' && (
+                      <Link
+                        to={`/admin/translations/${locale.code}`}
+                        className="text-xs px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 font-semibold transition-all">
+                        {tAdmin('translate', 'Dịch')}
+                      </Link>
+                    )}
+                    {!locale.is_default && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => handleSetDefault(locale.code)}
+                          disabled={saving}
+                          className="text-xs px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 font-semibold transition-all cursor-pointer">
+                          {tAdmin('set_default', 'Đặt mặc định')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(locale.code)}
+                          disabled={saving}
+                          className="text-xs px-3 py-2 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-900/50 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/20 font-semibold transition-all cursor-pointer">
+                          {tAdmin('delete', 'Xóa')}
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
-                <div className="max-h-[320px] overflow-y-auto">
-                  <button type="button" onClick={() => setSelectedLocale('')} className={`w-full px-4 py-2.5 text-left text-sm ${!selectedLocale ? 'bg-blue-600 text-white' : 'hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
-                    {tAdmin('select_language')}
-                  </button>
-                  {options.map(locale => (
-                    <button
-                      key={locale.code}
-                      type="button"
-                      onClick={() => setSelectedLocale(locale.code)}
-                      className={`w-full px-4 py-2.5 text-left text-sm ${selectedLocale === locale.code ? 'bg-blue-600 text-white' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
-                    >
-                      {locale.name} - {locale.code}
-                    </button>
-                  ))}
-                  {!options.length && <div className="px-4 py-6 text-center text-sm text-gray-400">{tAdmin('no_language_options')}</div>}
+              ))}
+              {!locales.length && (
+                <div className="text-center py-6 text-gray-400 dark:text-gray-500 text-sm">
+                  {tAdmin('no_languages_configured', 'Chưa cấu hình ngôn ngữ nào')}
                 </div>
-              </div>
-            </label>
-            <button
-              type="button"
-              onClick={addLocale}
-              disabled={saving || !selectedLocale}
-              className="inline-flex items-center justify-center rounded-lg bg-[#2b72c9] px-4 py-2 text-sm font-semibold text-white hover:bg-[#2362ad] disabled:opacity-50"
-            >
-              {saving ? <Loader2 size={15} className="animate-spin" /> : tAdmin('add_language')}
-            </button>
-          </div>
+              )}
+            </div>
+          )}
         </div>
 
-        <div className="bg-white dark:bg-[#1E2130] rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
-          <div className="px-6 py-5 border-b border-gray-100 dark:border-gray-700">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{tAdmin('languages')}</h2>
-          </div>
-          {loading ? (
-            <div className="p-6"><TableSkeleton rows={3} cols={4} /></div>
-          ) : (
-            <table className="w-full text-left text-sm">
-              <thead className="bg-gray-50 dark:bg-[#161825]">
-                <tr className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-700">
-                  <th className="px-6 py-3 font-semibold">{tAdmin('language_name')}</th>
-                  <th className="px-6 py-3 font-semibold text-center">{tAdmin('language_code')}</th>
-                  <th className="px-6 py-3 font-semibold text-center">{tAdmin('is_default')}</th>
-                  <th className="px-6 py-3 font-semibold text-right">{tAdmin('actions')}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                {locales.map(locale => (
-                  <tr key={locale.code} className="text-gray-800 dark:text-gray-100">
-                    <td className="px-6 py-4 font-medium">{locale.name}</td>
-                    <td className="px-6 py-4 text-center">{locale.code}</td>
-                    <td className="px-6 py-4 text-center">
-                      <button
-                        type="button"
-                        disabled={saving || locale.is_default}
-                        onClick={() => makeDefault(locale.code)}
-                        className={`rounded-md px-3 py-1 text-sm ${locale.is_default ? 'text-gray-900 dark:text-gray-100 cursor-default' : 'text-[#2b72c9] hover:bg-blue-50 dark:hover:bg-blue-500/10'}`}
-                      >
-                        {locale.is_default ? tAdmin('yes') : tAdmin('no')}
-                      </button>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex justify-end gap-2">
-                        <button type="button" title={tAdmin('download_language')} className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-[#2b72c9] text-white hover:bg-[#2362ad]">
-                          <Download size={16} />
-                        </button>
-                        {!locale.is_default && (
-                          <button
-                            type="button"
-                            onClick={() => deleteLocale(locale.code)}
-                            disabled={saving}
-                            title={tAdmin('delete_language')}
-                            className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-red-500 text-white hover:bg-red-600 disabled:opacity-50"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
+        {/* Thêm ngôn ngữ mới */}
+        <div className="bg-white dark:bg-[#1E2130] rounded-2xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm h-fit">
+          <h3 className="font-bold text-lg text-gray-900 dark:text-gray-100 mb-4">
+            {tAdmin('add_language_title', 'Thêm Ngôn Ngữ Mới')}
+          </h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4 leading-relaxed">
+            {tAdmin('add_language_desc', 'Sau khi thêm, hệ thống sẽ tự động tạo tệp dịch mới bằng cách sao chép cấu trúc từ bản dịch tiếng Anh để giữ tính nhất quán. Bạn có thể dịch từng key trong trang quản lý dịch thuật.')}
+          </p>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-2">
+                {tAdmin('select_language_label', 'Chọn Ngôn Ngữ Muốn Thêm')}
+              </label>
+              <select
+                value={selectedCode}
+                onChange={e => setSelectedCode(e.target.value)}
+                disabled={saving}
+                className="w-full border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-red-300 bg-white dark:bg-[#161825] text-gray-800 dark:text-gray-100">
+                <option value="">{tAdmin('select_language_placeholder', 'Chọn ngôn ngữ...')}</option>
+                {availableLocales.map(locale => (
+                  <option key={locale.code} value={locale.code}>
+                    {locale.flag} {locale.native_name} ({locale.code.toUpperCase()})
+                  </option>
                 ))}
-                {!locales.length && <EmptyTableRow colSpan={4} message={tAdmin('no_languages')} />}
-              </tbody>
-            </table>
-          )}
+              </select>
+            </div>
+            
+            <button
+              type="button"
+              onClick={handleAdd}
+              disabled={!selectedCode || saving}
+              className="w-full py-3 bg-[#D62300] hover:bg-[#b51e00] text-white rounded-xl font-bold text-sm disabled:opacity-50 transition-colors shadow-md shadow-red-500/10 cursor-pointer">
+              {saving ? tAdmin('processing', 'Đang xử lý...') : tAdmin('add_language_btn', 'Thêm ngôn ngữ')}
+            </button>
+          </div>
+
+          {/* Info box */}
+          <div className="mt-5 p-4 bg-blue-50/50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/50 rounded-xl">
+            <h4 className="text-xs font-bold text-blue-700 dark:text-blue-400 flex items-center gap-1.5">
+              <span>💡 {tAdmin('after_adding_note_title', 'Sau khi thêm ngôn ngữ:')}</span>
+            </h4>
+            <ul className="text-xs text-blue-600 dark:text-blue-400 mt-2 space-y-1.5 list-disc list-inside leading-relaxed">
+              <li>{tAdmin('after_adding_note_1', 'Biểu tượng cờ tự động xuất hiện trên menu chọn ngôn ngữ của trang khách hàng.')}</li>
+              <li>{tAdmin('after_adding_note_2', 'File JSON dịch tự động được tạo từ template bản tiếng Anh (hoặc tiếng Việt).')}</li>
+              <li>{tAdmin('after_adding_note_3', 'Các key chưa dịch sẽ tự động fallback về tiếng Anh (hoặc tiếng Việt) để đảm bảo không lỗi giao diện.')}</li>
+            </ul>
+          </div>
         </div>
       </div>
     </AdminPageShell>
@@ -261,6 +283,19 @@ export default function AdminSettingsDatabasePage() {
   const [saving, setSaving] = useState(false)
   const [dirty, setDirty] = useState(false)
   const setPublicSetting = useUiStore(state => state.setPublicSetting)
+
+  const [langDropdownOpen, setLangDropdownOpen] = useState(false)
+  const dropdownRef = useRef(null)
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setLangDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   const updateTransSetting = (key, text) => {
     const val = settings[key]
@@ -447,6 +482,10 @@ export default function AdminSettingsDatabasePage() {
           <AppearanceSettings
             settings={settings}
             updateSetting={updateSetting}
+            updateTransSetting={updateTransSetting}
+            getTransValue={getTransValue}
+            refLang={refLang}
+            branches={branches}
             tAdmin={tAdmin}
           />
         )
@@ -538,22 +577,48 @@ export default function AdminSettingsDatabasePage() {
         <div className="bg-white dark:bg-[#1E2130] rounded-2xl p-6 shadow-sm">
           <div className="flex items-center justify-between mb-5 border-b border-gray-100 dark:border-gray-700 pb-4">
             <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">{tAdmin(settingTabs.find(tab => tab.key === activeTab)?.labelKey)}</h2>
-            {['general', 'seo'].includes(activeTab) && (
-              <div className="flex items-center gap-1 bg-gray-100 dark:bg-slate-800 p-0.5 rounded-lg border border-gray-200/50 dark:border-slate-700/50">
-                {LOCALES.map(locale => {
-                  const isActive = locale.code === refLang
-                  return (
-                    <button
-                      type="button"
-                      key={locale.code}
-                      onClick={() => switchLang(locale.code)}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-bold transition-all duration-200 cursor-pointer ${isActive ? 'bg-white dark:bg-slate-700 text-[#D62300] shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
-                    >
-                      <img src={locale.flagImg} alt={locale.label} className="w-4 h-2.5 object-cover rounded-sm shadow-sm" />
-                      <span>{locale.short}</span>
-                    </button>
-                  )
-                })}
+            {['general', 'seo', 'appearance'].includes(activeTab) && (
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => setLangDropdownOpen(!langDropdownOpen)}
+                  className="flex items-center gap-2 px-3 py-2 border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#161825] hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl text-xs font-semibold text-gray-700 dark:text-gray-200 transition shadow-sm cursor-pointer"
+                >
+                  {renderFlag(refLang, "w-4 h-2.5 object-cover rounded-sm shadow-sm")}
+                  <span>{LOCALES.find(l => l.code === refLang)?.short || refLang.toUpperCase()}</span>
+                  <svg className={`w-3 h-3 text-gray-400 transition-transform duration-200 ${langDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                  </svg>
+                </button>
+
+                {langDropdownOpen && (
+                  <div className="absolute right-0 mt-1.5 w-40 bg-white dark:bg-[#1E2130] border border-gray-100 dark:border-gray-700 rounded-xl shadow-lg py-1.5 z-30 animate-fade-in-down">
+                    {LOCALES.map(locale => {
+                      const isActive = locale.code === refLang
+                      return (
+                        <button
+                          type="button"
+                          key={locale.code}
+                          onClick={() => {
+                            switchLang(locale.code)
+                            setLangDropdownOpen(false)
+                          }}
+                          className={`w-full flex items-center justify-between px-3.5 py-2 text-left text-xs transition ${
+                            isActive
+                              ? 'bg-red-50 dark:bg-red-500/10 text-[#D62300] font-bold'
+                              : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            {renderFlag(locale.code, "w-4 h-2.5 object-cover rounded-sm shadow-sm")}
+                            <span>{locale.label || locale.name || locale.short}</span>
+                          </div>
+                          {isActive && <span className="w-1.5 h-1.5 rounded-full bg-[#D62300]" />}
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
             )}
           </div>

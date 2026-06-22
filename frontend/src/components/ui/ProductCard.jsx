@@ -23,6 +23,9 @@ export default function ProductCard({ product, onSelect, index = 0 }) {
     : Boolean(product.wishlisted)
 
   const hasSale = product.sale_price && parseFloat(product.sale_price) < parseFloat(product.base_price)
+  const discountPercentage = hasSale
+    ? Math.round(((parseFloat(product.base_price) - parseFloat(product.sale_price)) / parseFloat(product.base_price)) * 100)
+    : 0
 
   const handleQuickAdd = (e) => {
     e.stopPropagation()
@@ -61,7 +64,7 @@ export default function ProductCard({ product, onSelect, index = 0 }) {
       {/* Badge sales */}
       {hasSale && (
         <span className="absolute top-4 left-4 z-10 bg-primary text-white font-semibold text-xs px-3 py-1 rounded-full border border-white/10">
-          - {product.discount_percentage}%
+          - {discountPercentage}%
         </span>
       )}
       <button

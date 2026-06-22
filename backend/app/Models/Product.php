@@ -89,7 +89,7 @@ class Product extends Model
     {
         static::saved(function ($product) {
             try {
-                \Illuminate\Support\Facades\DB::table('chat_caches')->truncate();
+                \Illuminate\Support\Facades\DB::table('chat_caches')->delete();
             } catch (\Exception $e) {}
             try {
                 \Illuminate\Support\Facades\Cache::forget('homepage_data');
@@ -97,7 +97,7 @@ class Product extends Model
         });
         static::deleted(function ($product) {
             try {
-                \Illuminate\Support\Facades\DB::table('chat_caches')->truncate();
+                \Illuminate\Support\Facades\DB::table('chat_caches')->delete();
             } catch (\Exception $e) {}
             try {
                 \Illuminate\Support\Facades\Cache::forget('homepage_data');

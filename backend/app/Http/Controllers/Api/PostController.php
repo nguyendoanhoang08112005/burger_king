@@ -10,7 +10,7 @@ class PostController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Post::where('is_published', true)
+        $query = Post::with('postCategory')->where('is_published', true)
             ->whereNotNull('published_at')
             ->where('published_at', '<=', now());
 
@@ -27,12 +27,11 @@ class PostController extends Controller
     public function featured()
     {
         $posts = \Illuminate\Support\Facades\Cache::remember('featured_posts', 1800, function () {
-            return Post::where('is_published', true)
+            return Post::with('postCategory')->where('is_published', true)
                 ->whereNotNull('published_at')
                 ->where('published_at', '<=', now())
                 ->orderByDesc('published_at')
                 ->limit(3)
-                ->select(['id', 'title', 'slug', 'thumbnail', 'excerpt', 'category', 'read_time', 'published_at', 'is_published'])
                 ->get();
         });
         return response()->json($posts);
@@ -40,7 +39,7 @@ class PostController extends Controller
 
     public function show($slug)
     {
-        $post = Post::where('is_published', true)
+        $post = Post::with('postCategory')->where('is_published', true)
             ->where('slug', $slug)
             ->firstOrFail();
 

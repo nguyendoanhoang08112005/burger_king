@@ -289,6 +289,7 @@ class ChatToolExecutor
     {
         $now = now();
         $coupons = Coupon::where('is_active', true)
+            ->where('show_at_checkout', true)
             ->where(function ($q) use ($now) {
                 $q->whereNull('starts_at')->orWhere('starts_at', '<=', $now);
             })

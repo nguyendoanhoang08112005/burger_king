@@ -75,9 +75,16 @@ class Setting extends Model
 
         Cache::forget('settings_admin_index');
 
-        foreach (['vi', 'en'] as $locale) {
-            Cache::forget("public_settings_{$locale}");
-        }
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('locales')) {
+                $locales = \App\Models\Locale::pluck('code')->toArray();
+                foreach ($locales as $locale) {
+                    Cache::forget("public_settings_{$locale}");
+                }
+            }
+        } catch (\Throwable $e) {}
+        Cache::forget("public_settings_vi");
+        Cache::forget("public_settings_en");
     }
 
     // ─── Accessors ─────────────────────────────────────────────────────────────

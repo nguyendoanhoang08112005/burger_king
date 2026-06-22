@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import i18next from 'i18next'
 import toast from 'react-hot-toast'
 import { ChevronLeft, ChevronRight, Info, Loader2, Upload } from 'lucide-react'
 import apiClient from '../api/axios'
@@ -17,6 +18,39 @@ export const assetUrl = value => {
 export const logoSizeValue = (value, fallback) => {
   const numeric = Number(value)
   return Number.isFinite(numeric) && numeric > 0 ? `${numeric}px` : fallback
+}
+
+// ─── Flag helpers ─────────────────────────────────────────────────────────────
+
+export const getCountryCode = localeCode => {
+  const map = {
+    vi: 'vn',
+    en: 'us',
+    zh: 'cn',
+    ja: 'jp',
+    ko: 'kr',
+    fr: 'fr',
+    de: 'de',
+    es: 'es',
+    ar: 'sa',
+    be: 'by',
+    th: 'th',
+  }
+  return map[(localeCode || '').toLowerCase()] || (localeCode || '').toLowerCase()
+}
+
+export const renderFlag = (localeCode, className = 'inline-block h-3.5 w-5 rounded-sm object-cover shadow-sm') => {
+  const country = getCountryCode(localeCode)
+  return (
+    <img
+      src={`https://flagcdn.com/${country}.svg`}
+      alt={localeCode}
+      className={className}
+      onError={e => {
+        e.target.style.display = 'none'
+      }}
+    />
+  )
 }
 
 // ─── Text / slug helpers ───────────────────────────────────────────────────────
@@ -89,8 +123,8 @@ export const formatBadgeCount = value => {
 
 export const adminPermissionModules = [
   'dashboard', 'reports', 'orders', 'products', 'categories', 'combos', 'toppings',
-  'coupons', 'payments', 'users', 'reviews', 'loyalty', 'complaints', 'posts', 'banners',
-  'branches', 'settings', 'languages', 'notifications',
+  'coupons', 'payments', 'users', 'reviews', 'loyalty', 'complaints', 'posts', 'post-categories', 'post-tags', 'banners',
+  'branches', 'settings', 'languages', 'notifications', 'contacts',
 ]
 
 export const canAccessAdminModule = (user, module) =>
@@ -151,15 +185,18 @@ export const menuGroups = [
     items: [
       { labelKey: 'users',   path: '/admin/users' },
       { labelKey: 'reviews', path: '/admin/reviews' },
+      { labelKey: 'contacts', path: '/admin/contacts' },
       { labelKey: 'loyalty', path: '/admin/loyalty' },
     ],
   },
   {
     labelKey: 'group_content',
     items: [
-      { labelKey: 'posts',    path: '/admin/posts' },
-      { labelKey: 'banners',  path: '/admin/banners' },
-      { labelKey: 'branches', path: '/admin/branches' },
+      { labelKey: 'posts',           path: '/admin/posts' },
+      { labelKey: 'post-categories', path: '/admin/post-categories' },
+      { labelKey: 'post-tags',       path: '/admin/post-tags' },
+      { labelKey: 'banners',         path: '/admin/banners' },
+      { labelKey: 'branches',        path: '/admin/branches' },
     ],
   },
   {
@@ -206,12 +243,83 @@ export const notificationData = item => {
 
 export const notificationTitle = item => {
   const data = notificationData(item)
-  return item?.title || data.title || data.message || item?.message || ''
+  const rawTitle = item?.title || data.title || data.message || item?.message || ''
+  
+  if (rawTitle === 'Khiếu nại mới') {
+    return i18next.t('adminPanel.new_complaint', 'Khiếu nại mới')
+  }
+  if (rawTitle === 'Đánh giá mới') {
+    return i18next.t('adminPanel.new_review', 'Đánh giá mới')
+  }
+  if (rawTitle === 'Đơn hàng mới') {
+    return i18next.t('adminPanel.new_order', 'Đơn hàng mới')
+  }
+  if (rawTitle === 'Liên hệ mới') {
+    return i18next.t('adminPanel.new_contact', 'Liên hệ mới')
+  }
+  if (rawTitle === 'Đăng ký nhận tin') {
+    return i18next.t('adminPanel.new_newsletter', 'Đăng ký nhận tin')
+  }
+  
+  return rawTitle
 }
 
 export const notificationBody = item => {
   const data = notificationData(item)
-  return data.body || data.content || ''
+  const rawBody = data.body || data.content || ''
+  
+  const complaintRegex = /^Đơn hàng (HK-[A-Z0-9]+|HBK-[A-Z0-9]+) có khiếu nại mới về \[(.+)\]\. Người thực hiện: (.+)\.$/i
+  const complaintMatch = rawBody.match(complaintRegex)
+  if (complaintMatch) {
+    const code = complaintMatch[1]
+    const type = complaintMatch[2]
+    const customer = complaintMatch[3]
+    
+    const typeMap = {
+      'Thiếu món': i18next.t('adminPanel.issue_missing', 'Thiếu món'),
+      'Giao sai món': i18next.t('adminPanel.issue_wrong', 'Giao sai món'),
+      'Chất lượng kém': i18next.t('adminPanel.issue_bad_quality', 'Chất lượng kém'),
+      'Giao hàng trễ': i18next.t('adminPanel.issue_late_delivery', 'Giao hàng trễ'),
+      'Thái độ shipper': i18next.t('adminPanel.issue_shipper_attitude', 'Thái độ shipper'),
+      'Vấn đề khác': i18next.t('adminPanel.issue_other', 'Vấn đề khác'),
+    }
+    const translatedType = typeMap[type] || type
+    return i18next.t('adminPanel.notification_new_complaint_body', 'Đơn hàng {{code}} có khiếu nại mới về [{{type}}]. Người thực hiện: {{customer}}.', { code, type: translatedType, customer })
+  }
+  
+  const reviewRegex = /^(.+) vừa đánh giá đơn (HK-[A-Z0-9]+|HBK-[A-Z0-9]+) (\d+) sao\.$/i
+  const reviewMatch = rawBody.match(reviewRegex)
+  if (reviewMatch) {
+    const customer = reviewMatch[1]
+    const code = reviewMatch[2]
+    const rating = reviewMatch[3]
+    return i18next.t('adminPanel.notification_new_review_body', '{{customer}} vừa đánh giá đơn {{code}} {{rating}} sao.', { customer, code, rating })
+  }
+
+  const orderRegex = /^(.+) vừa đặt đơn (HK-[A-Z0-9]+|HBK-[A-Z0-9]+), tổng tiền (.+) đ\.$/i
+  const orderMatch = rawBody.match(orderRegex)
+  if (orderMatch) {
+    const customer = orderMatch[1]
+    const code = orderMatch[2]
+    const total = orderMatch[3]
+    return i18next.t('adminPanel.notification_new_order_body', '{{customer}} vừa đặt đơn {{code}}, tổng tiền {{total}} đ.', { customer, code, total })
+  }
+
+  const contactRegex = /^Khách hàng (.+) vừa gửi yêu cầu liên hệ hỗ trợ\.$/i
+  const contactMatch = rawBody.match(contactRegex)
+  if (contactMatch) {
+    const customer = contactMatch[1]
+    return i18next.t('adminPanel.notification_new_contact_body', 'Khách hàng {{customer}} vừa gửi yêu cầu liên hệ hỗ trợ.', { customer })
+  }
+
+  const newsletterRegex = /^Email (.+) vừa đăng ký nhận bản tin\.$/i
+  const newsletterMatch = rawBody.match(newsletterRegex)
+  if (newsletterMatch) {
+    const email = newsletterMatch[1]
+    return i18next.t('adminPanel.notification_new_newsletter_body', 'Email {{email}} vừa đăng ký nhận bản tin.', { email })
+  }
+
+  return rawBody
 }
 
 // ─── Audio ─────────────────────────────────────────────────────────────────────
@@ -253,10 +361,13 @@ export function useAdminText() {
   const { t } = useTranslation()
 
   return useCallback(
-    (key, values = {}) => {
-      const opts = typeof values === 'string'
-        ? { defaultValue: values }
-        : { defaultValue: key, ...values }
+    (key, defaultValueOrOptions, options = {}) => {
+      let opts = {}
+      if (typeof defaultValueOrOptions === 'string') {
+        opts = { defaultValue: defaultValueOrOptions, ...options }
+      } else {
+        opts = { defaultValue: key, ...defaultValueOrOptions }
+      }
       return t(`adminPanel.${key}`, opts)
     },
     [t]
