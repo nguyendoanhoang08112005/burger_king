@@ -42,11 +42,11 @@ function BlogSlider({ posts = [] }) {
             style={{ transform: `translateX(-${current * 100}%)` }}
           >
             {posts.map((post) => (
-              <div key={post.id} className="min-w-full grid grid-cols-1 md:grid-cols-2">
+              <Link key={post.id} to={`/blog/${post.slug}`} className="min-w-full grid grid-cols-1 md:grid-cols-2 hover:opacity-95 transition-opacity">
                 <div className="relative h-72 overflow-hidden">
                   <img src={post.thumbnail} alt={post.title} className="w-full h-full object-cover" />
                 </div>
-                <div className="p-8 flex flex-col justify-center">
+                <div className="p-8 flex flex-col justify-center text-left">
                   <span className="text-xs font-semibold text-[#D62300] uppercase tracking-wider mb-3">
                     {post.category}
                   </span>
@@ -54,15 +54,14 @@ function BlogSlider({ posts = [] }) {
                   <p className="text-gray-600 text-sm leading-relaxed mb-6 line-clamp-3">
                     {post.excerpt}
                   </p>
-                  <Link
-                    to={`/blog/${post.slug}`}
+                  <span
                     className="inline-flex items-center gap-2 text-[#D62300] font-semibold text-sm hover:gap-3 transition-all group w-fit"
                   >
                     {t('common.see_more')}
                     <span className="group-hover:translate-x-1 transition-transform" aria-hidden="true">→</span>
-                  </Link>
+                  </span>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
 

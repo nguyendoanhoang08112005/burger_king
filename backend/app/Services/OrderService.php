@@ -65,8 +65,8 @@ class OrderService
                         $price += $sizeModel->extra_price;
                     }
                 }
-                $selectedSize = $item['size'] ?? 'M';
-                $sizeSku = $sizeModel?->sku ?? ($product->sku ? "{$product->sku}-{$selectedSize}" : null);
+                $selectedSize = !empty($item['size']) ? $item['size'] : null;
+                $sizeSku = $sizeModel?->sku ?? ($selectedSize && $product->sku ? "{$product->sku}-{$selectedSize}" : null);
 
                 // Handle toppings extra prices
                 $toppingsList = [];
@@ -173,8 +173,8 @@ class OrderService
                 ]);
             }
 
-            // 8. Save Order Address (if delivery)
-            if ($data['delivery_type'] === 'delivery' && !empty($data['address'])) {
+            // 8. Save Order Address (if address is provided)
+            if (!empty($data['address'])) {
                 $addr = $data['address'];
                 OrderAddress::create([
                     'order_id' => $order->id,

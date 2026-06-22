@@ -28,4 +28,20 @@ class ProductTopping extends Model
         'is_available' => 'boolean',
         'category_ids' => 'array',
     ];
+
+    protected static function booted()
+    {
+        $clear = function ($topping) {
+            try {
+                \Illuminate\Support\Facades\Cache::forget('public_toppings_all');
+                if ($topping->category_ids) {
+                    foreach ($topping->category_ids as $cid) {
+                        \Illuminate\Support\Facades\Cache::forget('public_toppings_' . $cid);
+                    }
+                }
+            } catch (\Exception $e) {}
+        };
+        static::saved($clear);
+        static::deleted($clear);
+    }
 }

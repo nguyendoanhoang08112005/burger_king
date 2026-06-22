@@ -59,7 +59,10 @@ class Product extends Model
 
     public function reviews()
     {
-        return $this->hasMany(Review::class)->where('is_approved', true);
+        return $this->hasMany(ProductReview::class)
+            ->whereHas('orderReview', function ($q) {
+                $q->where('is_approved', true);
+            });
     }
 
     public function wishlists()
@@ -80,5 +83,25 @@ class Product extends Model
     public function getActivePriceAttribute()
     {
         return $this->sale_price ?? $this->base_price;
+    }
+
+    protected static function booted()
+    {
+        static::saved(function ($product) {
+            try {
+                \Illuminate\Support\Facades\DB::table('chat_caches')->delete();
+            } catch (\Exception $e) {}
+            try {
+                \Illuminate\Support\Facades\Cache::forget('homepage_data');
+            } catch (\Exception $e) {}
+        });
+        static::deleted(function ($product) {
+            try {
+                \Illuminate\Support\Facades\DB::table('chat_caches')->delete();
+            } catch (\Exception $e) {}
+            try {
+                \Illuminate\Support\Facades\Cache::forget('homepage_data');
+            } catch (\Exception $e) {}
+        });
     }
 }

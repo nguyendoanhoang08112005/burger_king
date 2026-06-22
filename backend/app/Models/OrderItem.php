@@ -29,7 +29,35 @@ class OrderItem extends Model
         'toppings' => 'array', // automatically cast selected toppings array to JSON
     ];
 
+    public function getToppingsAttribute($value)
+    {
+        $toppings = is_string($value) ? json_decode($value, true) : $value;
+        if (!is_array($toppings)) {
+            return [];
+        }
+
+        try {
+            static $toppingsCache = null;
+            if ($toppingsCache === null) {
+                $toppingsCache = \App\Models\ProductTopping::all()->keyBy('id');
+            }
+
+            foreach ($toppings as &$topping) {
+                if (isset($topping['id']) && isset($toppingsCache[$topping['id']])) {
+                    $toppingModel = $toppingsCache[$topping['id']];
+                    // Retrieve translation for current locale
+                    $topping['name'] = $toppingModel->name;
+                }
+            }
+        } catch (\Exception $e) {
+            // Keep original if it fails
+        }
+
+        return $toppings;
+    }
+
     public function order()
+
     {
         return $this->belongsTo(Order::class);
     }

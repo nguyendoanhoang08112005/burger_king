@@ -4,9 +4,16 @@ export const useUiStore = create((set, get) => ({
   cartDrawerOpen: false,
   mobileNavOpen: false,
   toast: null, // { message, type: 'success' | 'error' | 'info' }
+  publicSettings: {},
+  maintenanceMessage: null,
 
   setCartDrawerOpen: (isOpen) => set({ cartDrawerOpen: isOpen }),
   setMobileNavOpen: (isOpen) => set({ mobileNavOpen: isOpen }),
+  setPublicSettings: (settings) => set({ publicSettings: settings || {} }),
+  setPublicSetting: (key, value) => set(state => ({
+    publicSettings: { ...state.publicSettings, [key]: value },
+  })),
+  setMaintenanceMessage: (msg) => set({ maintenanceMessage: msg }),
   
   showToast: (message, type = 'success') => {
     // Clear old timer if active

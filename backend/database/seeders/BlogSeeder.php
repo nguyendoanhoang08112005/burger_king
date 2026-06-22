@@ -1,11 +1,12 @@
 <?php
-
+ 
 namespace Database\Seeders;
-
+ 
 use App\Models\Post;
+use App\Models\PostCategory;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
-
+ 
 class BlogSeeder extends Seeder
 {
     private function trans($vi, $en = null)
@@ -15,13 +16,61 @@ class BlogSeeder extends Seeder
             'en' => $en ?? $vi,
         ];
     }
-
+ 
     public function run(): void
     {
+        // 1. Seed Post Categories
+        $categories = [
+            [
+                'name' => $this->trans('Bí Quyết Bếp', 'Kitchen Secrets'),
+                'slug' => 'bi-quyet-bep',
+                'color' => '#D62300',
+                'sort_order' => 1,
+            ],
+            [
+                'name' => $this->trans('Câu Chuyện Thương Hiệu', 'Brand Stories'),
+                'slug' => 'cau-chuyen-thuong-hieu',
+                'color' => '#3B82F6',
+                'sort_order' => 2,
+            ],
+            [
+                'name' => $this->trans('Khuyến Mại', 'Promotions'),
+                'slug' => 'khuyen-mai',
+                'color' => '#F59E0B',
+                'sort_order' => 3,
+            ],
+            [
+                'name' => $this->trans('Chất Lượng', 'Quality'),
+                'slug' => 'chat-luong',
+                'color' => '#10B981',
+                'sort_order' => 4,
+            ],
+            [
+                'name' => $this->trans('Review Món', 'Food Reviews'),
+                'slug' => 'review-mon',
+                'color' => '#8B5CF6',
+                'sort_order' => 5,
+            ],
+        ];
+
+        foreach ($categories as $cat) {
+            PostCategory::updateOrCreate(
+                ['slug' => $cat['slug']],
+                [
+                    'name' => $cat['name'],
+                    'color' => $cat['color'],
+                    'sort_order' => $cat['sort_order'],
+                    'is_active' => true,
+                ]
+            );
+        }
+
+        // 2. Seed Posts
         $posts = [
             [
                 'title' => $this->trans('Bí Quyết Nướng Burger Lửa Hồng Chuẩn Vị', 'Secret to Perfect Flame-Grilled Burgers'),
-                'category' => 'Bí Quyết Bếp',
+                'category' => 'bi-quyet-bep',
+                'tags' => ['burger', 'flame-grilled', 'beef', 'cooking-tips'],
                 'thumbnail' => 'https://images.unsplash.com/photo-1550547660-d9450f859349?auto=format&fit=crop&q=80&w=1200',
                 'video_url' => 'https://www.youtube.com/embed/TVkV2oGPM2k',
                 'excerpt' => $this->trans(
@@ -50,7 +99,8 @@ HTML
             ],
             [
                 'title' => $this->trans('Hành Trình 10 Năm Của Hamburger King Tại Việt Nam', 'Hamburger King\'s 10-Year Journey in Vietnam'),
-                'category' => 'Câu Chuyện Thương Hiệu',
+                'category' => 'cau-chuyen-thuong-hieu',
+                'tags' => ['anniversary', 'milestone', 'brand-story', 'vietnam'],
                 'thumbnail' => 'https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&q=80&w=1200',
                 'excerpt' => $this->trans(
                     'Từ cửa hàng đầu tiên đến mạng lưới chi nhánh trung tâm, Hamburger King xây dựng trải nghiệm burger nướng lửa hồng cho khách Việt.',
@@ -77,7 +127,8 @@ HTML
             ],
             [
                 'title' => $this->trans('Top 5 Combo Tiết Kiệm Nhất Cho Cả Gia Đình', 'Top 5 Best Value Combos for the Whole Family'),
-                'category' => 'Khuyến Mãi',
+                'category' => 'khuyen-mai',
+                'tags' => ['combo', 'discount', 'family-meal', 'promotion'],
                 'thumbnail' => 'https://images.unsplash.com/photo-1594212699903-ec8a3eca50f5?auto=format&fit=crop&q=80&w=1200',
                 'excerpt' => $this->trans(
                     'So sánh nhanh các combo được đặt nhiều nhất để chọn bữa ăn phù hợp cho nhóm bạn hoặc gia đình.',
@@ -98,7 +149,8 @@ HTML
             ],
             [
                 'title' => $this->trans('Nguyên Liệu Sạch - Cam Kết Từ Trang Trại Đến Bàn Ăn', 'Clean Ingredients - From Farm to Table Commitment'),
-                'category' => 'Chất Lượng',
+                'category' => 'chat-luong',
+                'tags' => ['ingredients', 'farm-to-table', 'fresh-veggies', 'quality'],
                 'thumbnail' => 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=1200',
                 'excerpt' => $this->trans(
                     'Một chiếc burger ngon cần nguyên liệu rõ nguồn gốc, rau tươi, thịt ổn định và quy trình bảo quan nghiêm ngặt.',
@@ -121,7 +173,8 @@ HTML
             ],
             [
                 'title' => $this->trans('Review Whopper Double - Chiếc Burger Huyền Thoại', 'Review: Double Whopper - The Legendary Burger'),
-                'category' => 'Review Món',
+                'category' => 'review-mon',
+                'tags' => ['review', 'double-whopper', 'burger-review', 'signature'],
                 'thumbnail' => 'https://images.unsplash.com/photo-1553979459-d2229ba7433b?auto=format&fit=crop&q=80&w=1200',
                 'excerpt' => $this->trans(
                     'Whopper Double nổi bật với hai lớp bò nướng, phô mai tan chảy, rau giòn và hậu vị khói rõ ràng.',
@@ -143,7 +196,7 @@ HTML
                 ),
             ],
         ];
-
+ 
         foreach ($posts as $index => $post) {
             $slugTitle = $post['title']['vi'];
             Post::updateOrCreate(
@@ -151,6 +204,7 @@ HTML
                 [
                     'title' => $post['title'],
                     'category' => $post['category'],
+                    'tags' => $post['tags'],
                     'thumbnail' => $post['thumbnail'],
                     'video_url' => $post['video_url'] ?? null,
                     'excerpt' => $post['excerpt'],

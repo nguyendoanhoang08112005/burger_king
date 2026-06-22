@@ -1,11 +1,27 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
-import './i18n'
+import { initI18n } from './i18n'
 import App from './App.jsx'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
-createRoot(document.getElementById('root')).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-)
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000,   // 5 minutes
+      gcTime: 10 * 60 * 1000,      // 10 minutes  
+      retry: 1,
+      refetchOnWindowFocus: false,
+    }
+  }
+})
+
+initI18n().then(() => {
+  createRoot(document.getElementById('root')).render(
+    <StrictMode>
+      <QueryClientProvider client={queryClient}>
+        <App />
+      </QueryClientProvider>
+    </StrictMode>,
+  )
+})

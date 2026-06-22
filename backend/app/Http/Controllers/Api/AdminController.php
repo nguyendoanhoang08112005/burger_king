@@ -13,6 +13,8 @@ use App\Models\Banner;
 use App\Models\ComboItem;
 use App\Models\ComboSet;
 use App\Models\Post;
+use App\Models\PostCategory;
+use App\Models\PostTag;
 use App\Models\ProductTopping;
 use App\Models\User;
 use App\Models\Review;
@@ -21,7 +23,11 @@ use App\Services\NotificationService;
 use App\Services\LoyaltyService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 use Carbon\Carbon;
 
 class AdminController extends Controller
@@ -46,15 +52,26 @@ class AdminController extends Controller
         ]);
     }
 
+    private function clearPublicCache(): void
+    {
+        try {
+            \Illuminate\Support\Facades\Cache::flush();
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Failed to clear public cache: " . $e->getMessage());
+        }
+    }
+
     // --- DASHBOARD STATS ---
 
     public function dashboardStats()
     {
         // 1. Core Metrics
         $totalSales = (float) Order::where('payment_status', 'paid')->sum('total');
+        $totalOrders = Order::count();
         $pendingOrders = Order::where('status', 'pending')->count();
         $activeCustomers = User::where('role', 'customer')->count();
         $totalProducts = Product::count();
+        $totalReviews = Review::count();
 
         // 2. Sales Trend (Last 7 Days) for Recharts
         $salesTrend = [];
@@ -88,9 +105,11 @@ class AdminController extends Controller
         return $this->ok([
             'metrics' => [
                 'total_sales' => $totalSales,
+                'total_orders' => $totalOrders,
                 'pending_orders' => $pendingOrders,
                 'active_customers' => $activeCustomers,
                 'total_products' => $totalProducts,
+                'total_reviews' => $totalReviews,
             ],
             'sales_trend' => $salesTrend,
             'top_products' => $topProducts,
@@ -106,9 +125,10 @@ class AdminController extends Controller
             '3months' => 90,
             default => 7,
         };
+        $startDate = now()->subDays($days - 1)->startOfDay();
 
-        $data = Order::where('status', 'delivered')
-            ->where('created_at', '>=', now()->subDays($days))
+        $data = Order::where('status', 'completed')
+            ->where('created_at', '>=', $startDate)
             ->selectRaw('DATE(created_at) as date, SUM(total) as revenue, COUNT(*) as orders')
             ->groupBy('date')
             ->orderBy('date')
@@ -132,12 +152,14 @@ class AdminController extends Controller
 
     public function recentOrders()
     {
-        return $this->ok(Order::with(['user', 'items', 'address'])->latest()->limit(10)->get());
+        return $this->ok(Order::with(['user:id,name,email', 'items.product:id,name,thumbnail', 'address'])->latest()->limit(10)->get());
     }
 
-    public function activityLog()
+    public function activityLog(Request $request)
     {
-        $activities = Order::with('user')->latest()->limit(10)->get()->map(fn ($order) => [
+        $paginator = Order::with('user:id,name')->latest()->paginate($request->get('per_page', 5));
+
+        $paginator->getCollection()->transform(fn ($order) => [
             'name' => $order->user?->name ?? __('api.messages.walk_in_customer'),
             'role' => $order->user?->role ?? 'customer',
             'action' => __('api.messages.activity_created_order', ['code' => $order->order_code]),
@@ -145,14 +167,14 @@ class AdminController extends Controller
             'ip' => request()->ip(),
         ]);
 
-        return $this->ok($activities);
+        return $this->page($paginator);
     }
 
     // --- ORDERS MANAGEMENT ---
 
     public function listOrders(Request $request)
     {
-        $query = Order::with(['user', 'items', 'address']);
+        $query = Order::with(['user:id,name,email', 'items.product:id,name,thumbnail', 'address']);
 
         if ($request->filled('status') && $request->status !== 'all') {
             $query->where('status', $request->status);
@@ -193,7 +215,7 @@ class AdminController extends Controller
     public function updateOrderStatus(Request $request, $id, NotificationService $notificationService, LoyaltyService $loyaltyService)
     {
         $request->validate([
-            'status' => 'required|in:pending,confirmed,preparing,delivering,delivered,cancelled',
+            'status' => 'required|in:pending,confirmed,preparing,delivering,completed,cancelled',
             'payment_status' => 'nullable|in:unpaid,paid,refunded'
         ]);
 
@@ -203,8 +225,8 @@ class AdminController extends Controller
             'pending' => ['confirmed', 'cancelled'],
             'confirmed' => ['preparing', 'cancelled'],
             'preparing' => ['delivering', 'cancelled'],
-            'delivering' => ['delivered'],
-            'delivered' => [],
+            'delivering' => ['completed'],
+            'completed' => [],
             'cancelled' => [],
         ];
 
@@ -219,15 +241,15 @@ class AdminController extends Controller
             $updateData['payment_status'] = $request->payment_status;
         }
 
-        // If status becomes delivered, auto mark paid if COD/others
-        if ($request->status === 'delivered' && $order->payment_method === 'cod') {
+        // If status becomes completed, auto mark paid if COD/others
+        if ($request->status === 'completed' && $order->payment_method === 'cod') {
             $updateData['payment_status'] = 'paid';
         }
 
         $order->update($updateData);
 
         // 1. Award loyalty points on order completion
-        if ($request->status === 'delivered' && $order->payment_status === 'paid') {
+        if ($request->status === 'completed' && $order->payment_status === 'paid') {
             $loyaltyService->awardPointsForOrder($order);
         }
 
@@ -248,7 +270,7 @@ class AdminController extends Controller
 
     public function listProducts(Request $request)
     {
-        $query = Product::with(['translations', 'category.translations'])->orderBy('sort_order');
+        $query = Product::with(['translations', 'category.translations', 'sizes:id,product_id,size,extra_price,is_available'])->orderBy('sort_order');
 
         if ($request->filled('search')) {
             $query->where('name', 'like', "%{$request->search}%");
@@ -336,6 +358,8 @@ class AdminController extends Controller
             ]);
         }
 
+        $this->clearPublicCache();
+
         return $this->ok($product->load('category'), __('api.messages.product_created'))->setStatusCode(201);
     }
 
@@ -401,6 +425,8 @@ class AdminController extends Controller
             }
         }
 
+        $this->clearPublicCache();
+
         return $this->ok($product->load(['category', 'sizes']), __('api.messages.product_updated_details'));
     }
 
@@ -430,6 +456,8 @@ class AdminController extends Controller
 
         $product->update($data);
 
+        $this->clearPublicCache();
+
         return $this->ok($product->load('category'), __('api.messages.product_updated'));
     }
 
@@ -437,6 +465,8 @@ class AdminController extends Controller
     {
         $product = Product::findOrFail($id);
         $product->delete();
+
+        $this->clearPublicCache();
 
         return $this->ok(null, __('api.messages.product_deleted'));
     }
@@ -496,6 +526,8 @@ class AdminController extends Controller
             'is_active' => $request->boolean('is_active', true),
         ]);
 
+        $this->clearPublicCache();
+
         return $this->ok($category, __('api.messages.category_created'))->setStatusCode(201);
     }
 
@@ -529,12 +561,16 @@ class AdminController extends Controller
 
         $category->update($data);
 
+        $this->clearPublicCache();
+
         return $this->ok($category->loadCount('products'), __('api.messages.category_updated'));
     }
 
     public function deleteCategory($id)
     {
         Category::findOrFail($id)->delete();
+
+        $this->clearPublicCache();
 
         return $this->ok(null, __('api.messages.category_deleted'));
     }
@@ -558,6 +594,7 @@ class AdminController extends Controller
             'starts_at' => 'nullable|date',
             'expires_at' => 'nullable|date',
             'is_active' => 'nullable|boolean',
+            'show_at_checkout' => 'nullable|boolean',
         ]);
 
         $coupon = Coupon::create([
@@ -568,6 +605,7 @@ class AdminController extends Controller
             'max_discount' => $request->max_discount,
             'usage_limit' => $request->usage_limit,
             'is_active' => $request->boolean('is_active', true),
+            'show_at_checkout' => $request->boolean('show_at_checkout', false),
             'starts_at' => $request->starts_at ?? now(),
             'expires_at' => $request->expires_at ?? now()->addMonths(6)
         ]);
@@ -593,9 +631,11 @@ class AdminController extends Controller
             'starts_at' => 'nullable|date',
             'expires_at' => 'nullable|date',
             'is_active' => 'nullable|boolean',
+            'show_at_checkout' => 'nullable|boolean',
         ]);
 
         $data['code'] = strtoupper($data['code']);
+        $data['show_at_checkout'] = $request->boolean('show_at_checkout');
         $coupon->update($data);
 
         return $this->ok($coupon, __('api.messages.coupon_updated'));
@@ -610,7 +650,7 @@ class AdminController extends Controller
 
     public function listUsers(Request $request)
     {
-        $query = User::withCount('orders')->withTrashed();
+        $query = User::withCount('orders')->with('permissions')->withTrashed();
 
         if ($request->filled('role')) {
             $query->where('role', $request->role);
@@ -628,21 +668,113 @@ class AdminController extends Controller
         return $this->page($query->latest()->paginate($request->get('per_page', 20)));
     }
 
+    public function createStaff(Request $request)
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|max:255|unique:users,email',
+            'phone' => 'nullable|string|max:20',
+            'password' => 'required|string|min:8|confirmed',
+            'permissions' => 'array',
+            'permissions.*' => ['string', Rule::in(config('admin_permissions'))],
+        ]);
+
+        $staff = User::create([
+            'name' => $data['name'],
+            'email' => $data['email'],
+            'phone' => $data['phone'] ?? null,
+            'password' => Hash::make($data['password']),
+            'role' => 'staff',
+        ]);
+        $staff->assignRole(Role::firstOrCreate(['name' => 'staff']));
+        $this->syncStaffPermissions($staff, $data['permissions'] ?? []);
+
+        return $this->ok($staff->load('permissions'), __('api.messages.staff_created'));
+    }
+
+    public function updateStaff(Request $request, $id)
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $staff = User::withTrashed()->where('role', 'staff')->findOrFail($id);
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($staff->id)],
+            'phone' => 'nullable|string|max:20',
+            'permissions' => 'array',
+            'permissions.*' => ['string', Rule::in(config('admin_permissions'))],
+        ]);
+
+        $staff->update([
+            'name' => $data['name'],
+            'email' => $data['email'],
+            'phone' => $data['phone'] ?? null,
+        ]);
+        $this->syncStaffPermissions($staff, $data['permissions'] ?? []);
+
+        return $this->ok($staff->load('permissions'), __('api.messages.staff_updated'));
+    }
+
+    public function updateUser(Request $request, $id)
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+
+        $user = User::withTrashed()->findOrFail($id);
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
+            'phone' => 'nullable|string|max:20',
+        ]);
+
+        $user->update($data);
+
+        return $this->ok($user->load('permissions'), __('api.messages.user_updated'));
+    }
+
+    private function syncStaffPermissions(User $staff, array $modules): void
+    {
+        $permissions = collect($modules)->map(
+            fn (string $module) => Permission::firstOrCreate(['name' => "access.{$module}"])
+        );
+        $staff->syncPermissions($permissions);
+    }
+
     public function updateUserRole(Request $request, $id)
     {
+        abort_unless($request->user()->isAdmin(), 403);
         $request->validate(['role' => 'required|in:customer,admin,staff']);
         $user = User::withTrashed()->findOrFail($id);
         $user->update(['role' => $request->role]);
+        $user->syncRoles([Role::firstOrCreate(['name' => $request->role])]);
+        if ($request->role !== 'staff') {
+            $user->syncPermissions([]);
+        }
 
         return $this->ok($user, __('api.messages.role_updated'));
     }
 
-    public function toggleUserStatus($id)
+    public function toggleUserStatus(Request $request, $id)
     {
+        abort_unless($request->user()->isAdmin(), 403);
         $user = User::withTrashed()->findOrFail($id);
+        abort_if($user->id === $request->user()->id, 422, __('api.messages.current_user_protected'));
+        abort_if($user->isAdmin(), 422, __('api.messages.admin_user_protected'));
         $user->trashed() ? $user->restore() : $user->delete();
 
         return $this->ok(User::withTrashed()->find($id), __('api.messages.account_status_updated'));
+    }
+
+    public function deleteUser(Request $request, $id)
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+        $user = User::withTrashed()->findOrFail($id);
+        abort_if($user->id === $request->user()->id, 422, __('api.messages.current_user_protected'));
+        abort_if($user->isAdmin(), 422, __('api.messages.admin_user_protected'));
+        $user->forceDelete();
+
+        return $this->ok(null, __('api.messages.user_deleted'));
     }
 
     public function listReviews(Request $request)
@@ -657,23 +789,38 @@ class AdminController extends Controller
             }
         }
 
-        return $this->page($query->paginate($request->get('per_page', 20)));
+        $paginator = $query->paginate($request->get('per_page', 20));
+        $locale = $request->header('X-Locale', app()->getLocale());
+
+        $items = collect($paginator->items())->map(function ($review) use ($locale) {
+            $data = $review->toArray();
+            $data['product'] = $review->product ? [
+                'id' => $review->product->id,
+                'name' => $review->product->getTranslation('name', $locale),
+                'sku' => $review->product->sku,
+            ] : null;
+            $data['user'] = $review->user ? [
+                'id' => $review->user->id,
+                'name' => $review->user->name,
+                'email' => $review->user->email,
+            ] : null;
+
+            return $data;
+        })->all();
+
+        return $this->ok($items, 'OK', [
+            'total' => $paginator->total(),
+            'per_page' => $paginator->perPage(),
+            'current_page' => $paginator->currentPage(),
+            'last_page' => $paginator->lastPage(),
+        ]);
     }
 
-    public function approveReview($id)
+    public function showReview(Request $request, $id)
     {
-        $review = Review::findOrFail($id);
-        $review->update(['is_approved' => true]);
+        $review = Review::with(['product', 'user', 'order.items', 'order.address'])->findOrFail($id);
 
-        return $this->ok($review->load(['product', 'user']), __('api.messages.review_approved'));
-    }
-
-    public function hideReview($id)
-    {
-        $review = Review::findOrFail($id);
-        $review->update(['is_approved' => false]);
-
-        return $this->ok($review->load(['product', 'user']), __('api.messages.review_hidden'));
+        return $this->ok($this->serializeReview($review, $request));
     }
 
     public function deleteReview($id)
@@ -683,16 +830,60 @@ class AdminController extends Controller
         return $this->ok(null, __('api.messages.review_deleted'));
     }
 
+    private function serializeReview(Review $review, Request $request): array
+    {
+        $locale = $request->header('X-Locale', app()->getLocale());
+        $data = $review->toArray();
+        $data['product'] = $review->product ? [
+            'id' => $review->product->id,
+            'name' => $review->product->getTranslation('name', $locale),
+            'sku' => $review->product->sku,
+        ] : null;
+        $data['user'] = $review->user ? [
+            'id' => $review->user->id,
+            'name' => $review->user->name,
+            'email' => $review->user->email,
+            'phone' => $review->user->phone,
+        ] : null;
+        $data['order'] = $review->order ? [
+            'id' => $review->order->id,
+            'order_code' => $review->order->order_code,
+            'status' => $review->order->status,
+            'total' => (float) $review->order->total,
+            'created_at' => $review->order->created_at,
+            'items' => $review->order->items,
+            'address' => $review->order->address,
+        ] : null;
+
+        return $data;
+    }
+
     public function reportSummary()
     {
         $start = now()->startOfMonth();
+        $last30Days = now()->subDays(29)->startOfDay();
         $orders = Order::where('created_at', '>=', $start);
+        $counts = Order::select('status', DB::raw('COUNT(*) as total'))->groupBy('status')->pluck('total', 'status');
+        $counts['total'] = $counts->sum();
+        $deliveredOrders = Order::where('status', 'completed');
+        $totalRevenue = (float) (clone $deliveredOrders)->sum('total');
+        $deliveredOrdersCount = (clone $deliveredOrders)->count();
+        $completedOrdersLast30Days = Order::where('status', 'completed')->where('created_at', '>=', $last30Days)->count();
+        $totalReviews = Review::count();
 
         return $this->ok([
-            'month_revenue' => (float) (clone $orders)->where('status', 'delivered')->sum('total'),
+            'month_revenue' => (float) (clone $orders)->where('status', 'completed')->sum('total'),
             'month_orders' => (clone $orders)->count(),
+            'total_revenue' => $totalRevenue,
+            'total_orders' => (int) $counts['total'],
+            'completed_orders_30_days' => $completedOrdersLast30Days,
+            'average_order_value' => $deliveredOrdersCount ? round($totalRevenue / $deliveredOrdersCount) : 0,
+            'total_customers' => User::where('role', 'customer')->count(),
+            'total_products' => Product::count(),
+            'total_reviews' => $totalReviews,
+            'average_rating' => $totalReviews ? round((float) Review::avg('rating'), 1) : 0,
             'newCustomers' => User::where('role', 'customer')->where('created_at', '>=', $start)->count(),
-            'counts' => Order::select('status', DB::raw('COUNT(*) as total'))->groupBy('status')->pluck('total', 'status'),
+            'counts' => $counts,
         ]);
     }
 
@@ -714,6 +905,7 @@ class AdminController extends Controller
             ->select('users.id', 'users.name', 'users.email')
             ->join('orders', 'orders.user_id', '=', 'users.id')
             ->selectRaw('COUNT(orders.id) as orders_count, SUM(orders.total) as total_spent')
+            ->where('orders.status', 'completed')
             ->groupBy('users.id', 'users.name', 'users.email')
             ->orderByDesc('total_spent')
             ->limit(10)
@@ -777,6 +969,9 @@ class AdminController extends Controller
             $combo->update(['sku' => $this->generatedSku('CMB', $combo->slug, $combo->id)]);
         }
         $this->syncComboItems($combo, $request->items ?? []);
+        
+        $this->clearPublicCache();
+
         return $this->ok($combo->load('items.product'), __('api.messages.combo_created'))->setStatusCode(201);
     }
 
@@ -810,12 +1005,18 @@ class AdminController extends Controller
         $data['sku'] = $this->normalizeSku($data['sku'] ?? null) ?: $this->generatedSku('CMB', $data['slug'] ?: $slugName, $combo->id);
         $combo->update($data);
         $this->syncComboItems($combo, $request->items ?? []);
+        
+        $this->clearPublicCache();
+
         return $this->ok($combo->load('items.product'), __('api.messages.combo_updated'));
     }
 
     public function deleteCombo($id)
     {
         ComboSet::findOrFail($id)->delete();
+        
+        $this->clearPublicCache();
+
         return $this->ok(null, __('api.messages.combo_deleted'));
     }
 
@@ -873,6 +1074,9 @@ class AdminController extends Controller
         if (!$topping->sku) {
             $topping->update(['sku' => $this->generatedSku('TOP', $topping->name, $topping->id)]);
         }
+        
+        $this->clearPublicCache();
+
         return $this->ok($topping, __('api.messages.topping_created'))->setStatusCode(201);
     }
 
@@ -904,12 +1108,18 @@ class AdminController extends Controller
         $data['sku'] = $this->normalizeSku($data['sku'] ?? null) ?: $this->generatedSku('TOP', $data['name'], $topping->id);
         $data['category_ids'] = array_values(array_map('intval', $data['category_ids'] ?? []));
         $topping->update($data);
+        
+        $this->clearPublicCache();
+
         return $this->ok($topping, __('api.messages.topping_updated'));
     }
 
     public function deleteTopping($id)
     {
         ProductTopping::findOrFail($id)->delete();
+        
+        $this->clearPublicCache();
+
         return $this->ok(null, __('api.messages.topping_deleted'));
     }
 
@@ -950,14 +1160,18 @@ class AdminController extends Controller
             'subtitle' => 'nullable',
             'image' => 'required|string',
             'link' => 'nullable|string|max:255',
-            'position' => 'required|in:hero,popup,sidebar',
+            'position' => 'required|in:hero,blog_hero,popup,sidebar',
             'sort_order' => 'nullable|integer',
             'starts_at' => 'nullable|date',
             'expires_at' => 'nullable|date',
             'is_active' => 'nullable|boolean',
         ]);
         $data['is_active'] = $request->boolean('is_active', true);
-        return $this->ok(Banner::create($data), __('api.messages.banner_created'))->setStatusCode(201);
+        $banner = Banner::create($data);
+
+        $this->clearPublicCache();
+
+        return $this->ok($banner, __('api.messages.banner_created'))->setStatusCode(201);
     }
 
     public function showBanner($id)
@@ -981,19 +1195,25 @@ class AdminController extends Controller
             'subtitle' => 'nullable',
             'image' => 'required|string',
             'link' => 'nullable|string|max:255',
-            'position' => 'required|in:hero,popup,sidebar',
+            'position' => 'required|in:hero,blog_hero,popup,sidebar',
             'sort_order' => 'nullable|integer',
             'starts_at' => 'nullable|date',
             'expires_at' => 'nullable|date',
             'is_active' => 'nullable|boolean',
         ]);
         $banner->update($data);
+
+        $this->clearPublicCache();
+
         return $this->ok($banner, __('api.messages.banner_updated'));
     }
 
     public function deleteBanner($id)
     {
         Banner::findOrFail($id)->delete();
+
+        $this->clearPublicCache();
+
         return $this->ok(null, __('api.messages.banner_deleted'));
     }
 
@@ -1024,7 +1244,11 @@ class AdminController extends Controller
             'is_active' => 'nullable|boolean',
         ]);
         $data['is_active'] = $request->boolean('is_active', true);
-        return $this->ok(Branch::create($data), __('api.messages.branch_created'))->setStatusCode(201);
+        $branch = Branch::create($data);
+
+        $this->clearPublicCache();
+
+        return $this->ok($branch, __('api.messages.branch_created'))->setStatusCode(201);
     }
 
     public function showBranch($id)
@@ -1054,18 +1278,24 @@ class AdminController extends Controller
             'is_active' => 'nullable|boolean',
         ]);
         $branch->update($data);
+
+        $this->clearPublicCache();
+
         return $this->ok($branch, __('api.messages.branch_updated'));
     }
 
     public function deleteBranch($id)
     {
         Branch::findOrFail($id)->delete();
+
+        $this->clearPublicCache();
+
         return $this->ok(null, __('api.messages.branch_deleted'));
     }
 
     public function listPosts(Request $request)
     {
-        $query = Post::with('translations')->latest('published_at');
+        $query = Post::with(['translations', 'postCategory'])->latest('published_at');
         if ($request->filled('search')) $query->where('title', 'like', "%{$request->search}%");
         if ($request->filled('status')) $query->where('is_published', $request->status === 'published');
         if ($request->filled('category')) $query->where('category', $request->category);
@@ -1074,15 +1304,82 @@ class AdminController extends Controller
 
     public function postCategories()
     {
+        // Return full PostCategory models for admin dropdown
         return $this->ok(
-            Post::query()
-                ->whereNotNull('category')
-                ->select('category')
-                ->distinct()
-                ->orderBy('category')
-                ->pluck('category')
-                ->values()
+            PostCategory::with('translations')
+                ->orderBy('sort_order')
+                ->orderBy('name')
+                ->get()
         );
+    }
+
+    // --- POST CATEGORIES CRUD ---
+
+    public function listPostCategories(Request $request)
+    {
+        $query = PostCategory::with('translations')->withCount('posts')->orderBy('sort_order');
+        if ($request->filled('search')) {
+            $query->where('name', 'like', "%{$request->search}%");
+        }
+        return $this->page($query->paginate($request->get('per_page', 20)));
+    }
+
+    public function createPostCategory(Request $request)
+    {
+        if ($request->has('translations')) {
+            $request->merge(['name' => $request->input('translations.name')]);
+        }
+        $request->validate([
+            'name'       => 'required',
+            'slug'       => 'nullable|string|max:255|unique:post_categories,slug',
+            'color'      => 'nullable|string|max:20',
+            'sort_order' => 'nullable|integer',
+            'is_active'  => 'nullable|boolean',
+        ]);
+        $slugName = is_array($request->name) ? ($request->name['vi'] ?? '') : $request->name;
+        $cat = PostCategory::create([
+            'name'       => $request->name,
+            'slug'       => $request->slug ?: \Illuminate\Support\Str::slug($slugName),
+            'color'      => $request->color ?? '#D62300',
+            'sort_order' => $request->sort_order ?? 0,
+            'is_active'  => $request->boolean('is_active', true),
+        ]);
+        return $this->ok($cat, 'Post category created')->setStatusCode(201);
+    }
+
+    public function showPostCategory($id)
+    {
+        return $this->ok(PostCategory::with('translations')->findOrFail($id));
+    }
+
+    public function updatePostCategory(Request $request, $id)
+    {
+        $cat = PostCategory::findOrFail($id);
+        if ($request->has('translations')) {
+            $request->merge(['name' => $request->input('translations.name')]);
+        }
+        $request->validate([
+            'name'       => 'required',
+            'slug'       => 'nullable|string|max:255|unique:post_categories,slug,' . $cat->id,
+            'color'      => 'nullable|string|max:20',
+            'sort_order' => 'nullable|integer',
+            'is_active'  => 'nullable|boolean',
+        ]);
+        $slugName = is_array($request->name) ? ($request->name['vi'] ?? '') : $request->name;
+        $cat->update([
+            'name'       => $request->name,
+            'slug'       => $request->slug ?: \Illuminate\Support\Str::slug($slugName),
+            'color'      => $request->color ?? $cat->color,
+            'sort_order' => $request->sort_order ?? $cat->sort_order,
+            'is_active'  => $request->boolean('is_active', $cat->is_active),
+        ]);
+        return $this->ok($cat->loadCount('posts'), 'Post category updated');
+    }
+
+    public function deletePostCategory($id)
+    {
+        PostCategory::findOrFail($id)->delete();
+        return $this->ok(null, 'Post category deleted');
     }
 
     public function createPost(Request $request)
@@ -1121,26 +1418,29 @@ class AdminController extends Controller
         }
 
         $data = $request->validate([
-            'title' => 'required',
-            'slug' => 'nullable|string|max:255|unique:posts,slug' . ($ignoreId ? ',' . $ignoreId : ''),
-            'excerpt' => 'required',
-            'content' => 'required',
-            'thumbnail' => 'required|string',
-            'category' => 'required|string|max:255',
-            'author' => 'nullable|string|max:255',
-            'read_time' => 'nullable|integer|min:1',
-            'video_url' => 'nullable|string|max:255',
+            'title'        => 'required',
+            'slug'         => 'nullable|string|max:255|unique:posts,slug' . ($ignoreId ? ',' . $ignoreId : ''),
+            'excerpt'      => 'required',
+            'content'      => 'required',
+            'thumbnail'    => 'required|string',
+            'category'     => 'required|string|max:255',
+            'tags'         => 'nullable|array',
+            'tags.*'       => 'string|max:100',
+            'author'       => 'nullable|string|max:255',
+            'read_time'    => 'nullable|integer|min:1',
+            'video_url'    => 'nullable|string|max:255',
             'is_published' => 'nullable|boolean',
             'published_at' => 'nullable|date',
         ]);
 
         $slugTitle = is_array($data['title']) ? ($data['title']['vi'] ?? '') : $data['title'];
 
-        $data['slug'] = $data['slug'] ?: \Illuminate\Support\Str::slug($slugTitle);
-        $data['author'] = $data['author'] ?? 'Hamburger King Editorial';
-        $data['read_time'] = $data['read_time'] ?? 5;
+        $data['slug']         = $data['slug'] ?: \Illuminate\Support\Str::slug($slugTitle);
+        $data['author']       = $data['author'] ?? 'Hamburger King Editorial';
+        $data['read_time']    = $data['read_time'] ?? 5;
         $data['is_published'] = $request->boolean('is_published', true);
         $data['published_at'] = $data['published_at'] ?? now();
+        $data['tags']         = $data['tags'] ?? [];
         return $data;
     }
 
@@ -1176,5 +1476,115 @@ class AdminController extends Controller
         }
 
         return response()->json(['data' => $result]);
+    }
+
+    // --- POST TAGS CRUD ---
+
+    public function listPostTags(Request $request)
+    {
+        $query = PostTag::latest();
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('slug', 'like', "%{$search}%");
+            });
+        }
+
+        $tags = $query->get();
+
+        $data = $tags->map(function($tag) {
+            $count = Post::whereJsonContains('tags', $tag->slug)->count();
+            return [
+                'id' => $tag->id,
+                'name' => $tag->getTranslations('name'),
+                'slug' => $tag->slug,
+                'posts_count' => $count,
+            ];
+        });
+
+        return $this->ok(array_values($data->toArray()));
+    }
+
+    public function createPostTag(Request $request)
+    {
+        if ($request->has('translations')) {
+            $request->merge(['name' => $request->input('translations.name')]);
+        }
+        $request->validate([
+            'name' => 'required',
+            'slug' => 'nullable|string|max:255|unique:post_tags,slug',
+        ]);
+        
+        $slugName = is_array($request->name) ? ($request->name['vi'] ?? '') : $request->name;
+        $tag = PostTag::create([
+            'name' => $request->name,
+            'slug' => $request->slug ?: \Illuminate\Support\Str::slug($slugName),
+        ]);
+        
+        return $this->ok($tag, 'Post tag created');
+    }
+
+    public function showPostTag($id)
+    {
+        $tag = PostTag::findOrFail($id);
+        return $this->ok([
+            'id' => $tag->id,
+            'name' => $tag->getTranslations('name'),
+            'slug' => $tag->slug,
+        ]);
+    }
+
+    public function updatePostTag(Request $request, $id)
+    {
+        $tag = PostTag::findOrFail($id);
+        if ($request->has('translations')) {
+            $request->merge(['name' => $request->input('translations.name')]);
+        }
+        $request->validate([
+            'name' => 'required',
+            'slug' => 'nullable|string|max:255|unique:post_tags,slug,' . $tag->id,
+        ]);
+        
+        $oldSlug = $tag->slug;
+        $slugName = is_array($request->name) ? ($request->name['vi'] ?? '') : $request->name;
+        $newSlug = $request->slug ?: \Illuminate\Support\Str::slug($slugName);
+
+        $tag->update([
+            'name' => $request->name,
+            'slug' => $newSlug,
+        ]);
+
+        if ($oldSlug !== $newSlug) {
+            $posts = Post::whereJsonContains('tags', $oldSlug)->get();
+            foreach ($posts as $post) {
+                $tags = $post->tags;
+                if (is_array($tags)) {
+                    $tags = array_map(fn($t) => $t === $oldSlug ? $newSlug : $t, $tags);
+                    $post->update(['tags' => array_values(array_unique($tags))]);
+                }
+            }
+        }
+
+        return $this->ok($tag, 'Post tag updated');
+    }
+
+    public function deletePostTag($id)
+    {
+        $tag = PostTag::findOrFail($id);
+        $slug = $tag->slug;
+
+        $posts = Post::whereJsonContains('tags', $slug)->get();
+        foreach ($posts as $post) {
+            $tags = $post->tags;
+            if (is_array($tags)) {
+                $tags = array_filter($tags, fn($t) => $t !== $slug);
+                $post->update(['tags' => array_values($tags)]);
+            }
+        }
+
+        $tag->delete();
+        return $this->ok(null, 'Post tag deleted');
     }
 }

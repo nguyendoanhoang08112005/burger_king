@@ -31,4 +31,18 @@ class Banner extends Model
         'starts_at' => 'datetime',
         'expires_at' => 'datetime',
     ];
+
+    protected static function booted()
+    {
+        static::saved(function () {
+            try {
+                \Illuminate\Support\Facades\Cache::forget('homepage_data');
+            } catch (\Exception $e) {}
+        });
+        static::deleted(function () {
+            try {
+                \Illuminate\Support\Facades\Cache::forget('homepage_data');
+            } catch (\Exception $e) {}
+        });
+    }
 }

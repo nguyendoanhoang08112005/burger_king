@@ -6,7 +6,7 @@
   --bg-main: #FFFAF5;
   --bg-card: #FFFFFF;
   --bg-input: #F8F8F8;
-  --text-primary: #1A1A1A;
+  --text-primary: #2C1A16;
   --text-secondary: #666666;
   --text-muted: #999999;
   --color-primary: #D62300;
@@ -48,7 +48,7 @@
   /* Brand Colors Map for Tailwind v4 */
   --color-primary: var(--color-primary);      /* #D62300 */
   --color-secondary: var(--color-secondary);  /* #FFC72C */
-  --color-dark: #1A1A1A;
+  --color-dark: #2C1A16;
   --color-surface: var(--bg-main);            /* #FFFAF5 */
   --color-card: var(--bg-card);               /* #FFFFFF */
   --color-input-bg: var(--bg-input);          /* #F8F8F8 */

@@ -55,7 +55,7 @@ class BannerSeeder extends Seeder
                 ),
                 'image'      => 'https://images.unsplash.com/photo-1550547660-d9450f859349?auto=format&fit=crop&q=80&w=1200',
                 'link'       => '/menu',
-                'position'   => 'hero',
+                'position'   => 'blog_hero',
                 'sort_order' => 3,
                 'is_active'  => true,
                 'starts_at'  => now(),

@@ -42,4 +42,21 @@ class Category extends Model
     {
         return $this->hasMany(Product::class)->orderBy('sort_order');
     }
+
+    protected static function booted()
+    {
+        static::saved(function () {
+            try {
+                \Illuminate\Support\Facades\Cache::forget('homepage_data');
+                // Also clear public categories cache
+                \Illuminate\Support\Facades\Cache::forget('public_categories');
+            } catch (\Exception $e) {}
+        });
+        static::deleted(function () {
+            try {
+                \Illuminate\Support\Facades\Cache::forget('homepage_data');
+                \Illuminate\Support\Facades\Cache::forget('public_categories');
+            } catch (\Exception $e) {}
+        });
+    }
 }

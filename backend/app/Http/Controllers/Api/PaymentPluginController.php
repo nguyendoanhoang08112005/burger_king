@@ -18,8 +18,20 @@ class PaymentPluginController extends Controller
                 ->toArray();
         });
 
+        $translatedPlugins = array_map(function ($plugin) {
+            $nameKey = "api.payments.{$plugin['key']}_name";
+            $descKey = "api.payments.{$plugin['key']}_description";
+            if (\Illuminate\Support\Facades\Lang::has($nameKey)) {
+                $plugin['name'] = __($nameKey);
+            }
+            if (\Illuminate\Support\Facades\Lang::has($descKey)) {
+                $plugin['description'] = __($descKey);
+            }
+            return $plugin;
+        }, $plugins);
+
         return response()->json([
-            'data' => array_merge($this->defaultMethods(), $plugins),
+            'data' => array_merge($this->defaultMethods(), $translatedPlugins),
         ]);
     }
 
@@ -27,6 +39,16 @@ class PaymentPluginController extends Controller
     {
         $plugins = PaymentPlugin::orderBy('sort_order')->get()->map(function (PaymentPlugin $plugin) {
             $plugin->config = $this->maskConfig($plugin->config ?? []);
+
+            $nameKey = "api.payments.{$plugin->key}_name";
+            $descKey = "api.payments.{$plugin->key}_description";
+            if (\Illuminate\Support\Facades\Lang::has($nameKey)) {
+                $plugin->name = __($nameKey);
+            }
+            if (\Illuminate\Support\Facades\Lang::has($descKey)) {
+                $plugin->description = __($descKey);
+            }
+
             return $plugin;
         });
 

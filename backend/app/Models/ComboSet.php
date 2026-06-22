@@ -32,4 +32,18 @@ class ComboSet extends Model
     {
         return $this->hasMany(ComboItem::class, 'combo_id');
     }
+
+    protected static function booted()
+    {
+        static::saved(function () {
+            try {
+                \Illuminate\Support\Facades\Cache::forget('homepage_data');
+            } catch (\Exception $e) {}
+        });
+        static::deleted(function () {
+            try {
+                \Illuminate\Support\Facades\Cache::forget('homepage_data');
+            } catch (\Exception $e) {}
+        });
+    }
 }
