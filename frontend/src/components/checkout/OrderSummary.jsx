@@ -102,7 +102,11 @@ export default function OrderSummary({
                     }`}
                   >
                     <span>{c.code}</span>
-                    {c.value && <span className="opacity-75">({c.type === 'percent' ? `-${c.value}%` : `-${formatVND(c.value)}`})</span>}
+                    {c.type === 'free_ship' ? (
+                      <span className="opacity-75">({t('cart.free_shipping')})</span>
+                    ) : (
+                      c.value && <span className="opacity-75">({c.type === 'percent' ? `-${c.value}%` : `-${formatVND(c.value)}`})</span>
+                    )}
                   </button>
                 )
               })}
@@ -116,16 +120,16 @@ export default function OrderSummary({
             <span>{t('cart.subtotal')}</span>
             <span className="text-[#1A1A1A] font-semibold">{formatVND(totals.subtotal)}</span>
           </div>
+          <div className="flex justify-between">
+            <span>{t('cart.shipping')}</span>
+            <span className="text-[#1A1A1A] font-semibold">{displayShippingFee === 0 ? t('cart.free_shipping') : formatVND(displayShippingFee)}</span>
+          </div>
           {coupon && (
             <div className="flex justify-between text-primary font-bold">
               <span>{t('cart.discount')} ({coupon.code})</span>
               <span>-{formatVND(totals.couponDiscount)}</span>
             </div>
           )}
-          <div className="flex justify-between">
-            <span>{t('cart.shipping')}</span>
-            <span className="text-[#1A1A1A] font-semibold">{displayShippingFee === 0 ? t('cart.free_shipping') : formatVND(displayShippingFee)}</span>
-          </div>
           
           <div className="flex justify-between border-t border-[#E8E8E8] pt-3 text-sm font-bold text-[#1A1A1A] mt-2">
             <span className="font-semibold text-sm">{t('cart.total')}</span>

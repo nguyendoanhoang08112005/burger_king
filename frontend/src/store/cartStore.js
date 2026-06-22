@@ -99,6 +99,8 @@ export const useCartStore = create((set, get) => ({
 
     // Calculate coupon discount
     let couponDiscount = 0
+    const baseShippingFee = deliveryType === 'pickup' || subtotal >= 300000 ? 0 : 15000
+
     if (coupon) {
       if (coupon.type === 'fixed') {
         couponDiscount = Math.min(parseFloat(coupon.value), subtotal)
@@ -108,12 +110,12 @@ export const useCartStore = create((set, get) => ({
         if (coupon.max_discount) {
           couponDiscount = Math.min(couponDiscount, parseFloat(coupon.max_discount))
         }
+      } else if (coupon.type === 'free_ship') {
+        couponDiscount = baseShippingFee
       }
     }
 
-    const shippingFee = deliveryType === 'pickup' || subtotal >= 300000 || coupon?.type === 'free_ship'
-      ? 0
-      : 15000
+    const shippingFee = baseShippingFee
     const total = Math.max(0, subtotal - couponDiscount + shippingFee)
 
     return {

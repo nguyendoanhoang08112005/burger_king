@@ -30,6 +30,13 @@ class AuthController extends Controller
 
         $user->assignRole('customer');
 
+        // Send registration emails
+        try {
+            app(\App\Services\NotificationService::class)->sendNewUserNotification($user);
+        } catch (\Exception $e) {
+            \Log::error("Failed to send welcome/registration emails: " . $e->getMessage());
+        }
+
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([

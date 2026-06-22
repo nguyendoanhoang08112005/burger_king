@@ -28,21 +28,23 @@ class ContactController extends Controller
         ]);
 
         try {
-            $admins = \App\Models\User::where('role', 'admin')->get();
-            foreach ($admins as $admin) {
-                $admin->notifications()->create([
-                    'id' => (string) \Illuminate\Support\Str::uuid(),
-                    'type' => 'App\Notifications\AdminNewContact',
-                    'data' => json_encode([
-                        'contact_id' => $contact->id,
-                        'customer_name' => $contact->name,
-                        'customer_phone' => $contact->phone,
-                        'customer_email' => $contact->email,
-                        'title' => 'Liên hệ mới',
-                        'body' => "Khách hàng {$contact->name} vừa gửi yêu cầu liên hệ hỗ trợ.",
-                        'event_at' => now()->toISOString(),
-                    ]),
-                ]);
+            if (\App\Models\Setting::get('notification.bell_new_contact', true)) {
+                $admins = \App\Models\User::where('role', 'admin')->get();
+                foreach ($admins as $admin) {
+                    $admin->notifications()->create([
+                        'id' => (string) \Illuminate\Support\Str::uuid(),
+                        'type' => 'App\Notifications\AdminNewContact',
+                        'data' => json_encode([
+                            'contact_id' => $contact->id,
+                            'customer_name' => $contact->name,
+                            'customer_phone' => $contact->phone,
+                            'customer_email' => $contact->email,
+                            'title' => 'Liên hệ mới',
+                            'body' => "Khách hàng {$contact->name} vừa gửi yêu cầu liên hệ hỗ trợ.",
+                            'event_at' => now()->toISOString(),
+                        ]),
+                    ]);
+                }
             }
         } catch (\Exception $e) {
             \Log::error("Failed to create admin notification for contact: " . $e->getMessage());
@@ -81,19 +83,21 @@ class ContactController extends Controller
         ]);
 
         try {
-            $admins = \App\Models\User::where('role', 'admin')->get();
-            foreach ($admins as $admin) {
-                $admin->notifications()->create([
-                    'id' => (string) \Illuminate\Support\Str::uuid(),
-                    'type' => 'App\Notifications\AdminNewNewsletter',
-                    'data' => json_encode([
-                        'contact_id' => $newsletter->id,
-                        'customer_email' => $newsletter->email,
-                        'title' => 'Đăng ký nhận tin',
-                        'body' => "Email {$newsletter->email} vừa đăng ký nhận bản tin.",
-                        'event_at' => now()->toISOString(),
-                    ]),
-                ]);
+            if (\App\Models\Setting::get('notification.bell_new_newsletter', true)) {
+                $admins = \App\Models\User::where('role', 'admin')->get();
+                foreach ($admins as $admin) {
+                    $admin->notifications()->create([
+                        'id' => (string) \Illuminate\Support\Str::uuid(),
+                        'type' => 'App\Notifications\AdminNewNewsletter',
+                        'data' => json_encode([
+                            'contact_id' => $newsletter->id,
+                            'customer_email' => $newsletter->email,
+                            'title' => 'Đăng ký nhận tin',
+                            'body' => "Email {$newsletter->email} vừa đăng ký nhận bản tin.",
+                            'event_at' => now()->toISOString(),
+                        ]),
+                    ]);
+                }
             }
         } catch (\Exception $e) {
             \Log::error("Failed to create admin notification for newsletter: " . $e->getMessage());

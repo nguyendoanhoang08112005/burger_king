@@ -1,5 +1,5 @@
 import React from 'react'
-import { Plus, ChevronRight } from 'lucide-react'
+import { Plus, ChevronRight, Store, Compass, Clock, Loader2, AlertTriangle } from 'lucide-react'
 import VietnamAddressSelector from '../../components/VietnamAddressSelector'
 
 export default function CheckoutInfo({
@@ -126,30 +126,55 @@ export default function CheckoutInfo({
 
           {/* Shipping status/warnings */}
           {calculatingShipping && (
-            <div className="p-3 bg-blue-50 border border-blue-200 text-blue-700 text-xs rounded-xl mt-3 animate-pulse font-semibold">
-              🔄 {t('checkout.calculating')}
+            <div className="p-3 bg-blue-50/50 border border-blue-100 text-blue-700 text-xs rounded-xl mt-3 flex items-center gap-2 font-semibold">
+              <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
+              <span>{t('checkout.calculating')}</span>
             </div>
           )}
           {shippingError && (
-            <div className="p-3 bg-amber-50 border border-amber-200 text-amber-700 text-xs rounded-xl mt-3 font-semibold">
-              ⚠️ {shippingError}
+            <div className="p-3 bg-amber-50/50 border border-amber-100 text-amber-700 text-xs rounded-xl mt-3 flex items-center gap-2 font-semibold">
+              <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
+              <span>{shippingError}</span>
             </div>
           )}
           {shippingCalculation?.out_of_range && (
-            <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl mt-3 font-semibold">
-              ⚠️ {shippingCalculation.message || t('checkout.out_of_range_error')}
+            <div className="p-3 bg-red-50/50 border border-red-100 text-red-700 text-xs rounded-xl mt-3 flex items-center gap-2 font-semibold">
+              <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
+              <span>{shippingCalculation.message || t('checkout.out_of_range_error')}</span>
             </div>
           )}
           {shippingCalculation && !shippingCalculation.out_of_range && shippingCalculation.distance_km && (
-            <div className="p-3 bg-green-50 border border-green-200 text-green-700 text-xs rounded-xl mt-3 font-semibold space-y-1">
-              {shippingCalculation.nearest_branch_name && (
-                <p>🏪 {t('checkout.fulfilled_by')}: <span className="font-bold text-[#1A1A1A]">{shippingCalculation.nearest_branch_name}</span></p>
-              )}
-              <p>📍 {t('checkout.distance')}: {shippingCalculation.distance_km}km. {t('checkout.estimated')}: {
-                typeof shippingCalculation.estimated === 'object'
-                  ? (shippingCalculation.estimated[i18n.language] || shippingCalculation.estimated.vi || t('checkout.fallback_estimated'))
-                  : (shippingCalculation.estimated || t('checkout.fallback_estimated'))
-              }</p>
+            <div className="p-4 rounded-xl bg-orange-50/30 border border-orange-100/80 mt-4 space-y-3">
+              <div className="flex items-start gap-3 text-left">
+                <div className="p-2 rounded-lg bg-orange-100/50 text-primary">
+                  <Store className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">{t('checkout.fulfilled_by')}</p>
+                  <p className="text-sm font-bold text-gray-800 mt-0.5">{shippingCalculation.nearest_branch_name}</p>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4 pt-3 border-t border-orange-100/50">
+                <div className="flex items-center gap-2 text-left">
+                  <Compass className="w-4 h-4 text-primary opacity-80" />
+                  <div>
+                    <p className="text-[10px] text-gray-400 font-semibold">{t('checkout.distance')}</p>
+                    <p className="text-xs font-bold text-gray-800">{shippingCalculation.distance_km} km</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 text-left">
+                  <Clock className="w-4 h-4 text-primary opacity-80" />
+                  <div>
+                    <p className="text-[10px] text-gray-400 font-semibold">{t('checkout.estimated')}</p>
+                    <p className="text-xs font-bold text-gray-800">
+                      {typeof shippingCalculation.estimated === 'object'
+                        ? (shippingCalculation.estimated[i18n.language] || shippingCalculation.estimated.vi || t('checkout.fallback_estimated'))
+                        : (shippingCalculation.estimated || t('checkout.fallback_estimated'))}
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </div>

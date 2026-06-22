@@ -307,16 +307,23 @@ class CustomerController extends Controller
     {
         $request->validate([
             'code' => 'required|string',
-            'subtotal' => 'required|numeric|min:0'
+            'subtotal' => 'required|numeric|min:0',
+            'shipping_fee' => 'nullable|numeric|min:0'
         ]);
 
         $coupon = Coupon::where('code', $request->code)->first();
 
-        if (!$coupon || !$coupon->isValidFor($request->subtotal)) {
+        if (!$coupon) {
             return response()->json(['message' => __('api.messages.coupon_invalid')], 422);
         }
 
-        $discount = $coupon->calculateDiscount($request->subtotal);
+        $error = $coupon->getValidationError($request->subtotal);
+        if ($error) {
+            return response()->json(['message' => $error], 422);
+        }
+
+        $shippingFee = (float) $request->input('shipping_fee', 0.0);
+        $discount = $coupon->calculateDiscount($request->subtotal, $shippingFee);
 
         return response()->json([
             'code' => $coupon->code,

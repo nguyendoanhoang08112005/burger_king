@@ -65,6 +65,11 @@ class SettingController extends Controller
         'appearance.footer_newsletter_desc'  => ['type' => 'json',   'is_public' => true],
         'appearance.footer_copyright'        => ['type' => 'text',   'is_public' => true],
         'appearance.footer_credit'           => ['type' => 'text',   'is_public' => true],
+        'notification.bell_new_order'        => ['type' => 'boolean', 'is_public' => false],
+        'notification.bell_new_review'       => ['type' => 'boolean', 'is_public' => false],
+        'notification.bell_new_contact'      => ['type' => 'boolean', 'is_public' => false],
+        'notification.bell_new_newsletter'   => ['type' => 'boolean', 'is_public' => false],
+        'notification.bell_new_complaint'    => ['type' => 'boolean', 'is_public' => false],
     ];
 
     private const LANGUAGE_CATALOG = [
