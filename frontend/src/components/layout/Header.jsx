@@ -1,6 +1,7 @@
+import { useState, useEffect } from 'react'
 import { useLocation, useNavigate, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { ShoppingBag, User as UserIcon } from 'lucide-react'
+import { ShoppingBag, Menu, X } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { useCartStore } from '../../store/cartStore'
 import { useUiStore } from '../../store/uiStore'
@@ -52,101 +53,196 @@ export function BrandLogo({
 
 export default function Header() {
   const { t } = useTranslation()
-  const { user, isAuthenticated, setLogout } = useAuthStore()
-  const { cartItems } = useCartStore()
-  const { setCartDrawerOpen } = useUiStore()
-  const publicSettings = useUiStore(state => state.publicSettings) || {}
-  const navigate = useNavigate()
+  const publicSettings = useUiStore(s => s.publicSettings) || {}
+  const { user, setLogout } = useAuthStore()
+  const cartCount = useCartStore(s => s.cartItems.reduce((sum, item) => sum + item.quantity, 0))
   const location = useLocation()
+  const navigate = useNavigate()
+  const [scrolled, setScrolled] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
   const { prefetchMenu } = usePrefetch()
 
-  const totalQuantity = cartItems.reduce((sum, item) => sum + item.quantity, 0)
-  const navClass = (path) => (
-    location.pathname === path
-      ? 'text-primary font-bold transition'
-      : 'text-[#2C1A16] hover:text-primary transition'
-  )
+  // Scroll effect to transition header background
+  useEffect(() => {
+    const handler = () => setScrolled(window.scrollY > 20)
+    window.addEventListener('scroll', handler, { passive: true })
+    return () => window.removeEventListener('scroll', handler)
+  }, [])
+
+  // Home URL resolves from appearance settings
   const homeUrl = publicSettings['appearance.header_nav_home_url'] || '/'
   const menuUrl = publicSettings['appearance.header_nav_menu_url'] || '/menu'
   const branchesUrl = publicSettings['appearance.header_nav_branches_url'] || '/branches'
   const blogUrl = publicSettings['appearance.header_nav_blog_url'] || '/blog'
 
-  const handleHomeClick = (event) => {
-    event.preventDefault()
+  const navItems = [
+    {
+      label: publicSettings['appearance.header_nav_home'] || t('nav.home'),
+      path: homeUrl,
+    },
+    {
+      label: publicSettings['appearance.header_nav_menu'] || t('nav.menu'),
+      path: menuUrl,
+      prefetch: true,
+    },
+    {
+      label: publicSettings['appearance.header_nav_branches'] || t('nav.branches'),
+      path: branchesUrl,
+    },
+    {
+      label: publicSettings['appearance.header_nav_blog'] || t('nav.blog'),
+      path: blogUrl,
+    },
+  ]
+
+  const handleHomeClick = (e) => {
+    e.preventDefault()
     if (location.pathname === homeUrl) {
       window.scrollTo({ top: 0, behavior: 'smooth' })
-      return
+    } else {
+      navigate(homeUrl)
     }
-    navigate(homeUrl)
   }
 
-  const homeLabel = publicSettings['appearance.header_nav_home'] || t('nav.home')
-  const menuLabel = publicSettings['appearance.header_nav_menu'] || t('nav.menu')
-  const branchesLabel = publicSettings['appearance.header_nav_branches'] || t('nav.branches')
-  const blogLabel = publicSettings['appearance.header_nav_blog'] || t('nav.blog')
+  const handleLogout = () => {
+    setLogout()
+    navigate('/')
+  }
 
   return (
-    <header className="sticky top-0 z-40 w-full bg-white shadow-premium border-b border-[#E8E8E8] py-4 px-6 md:px-12 flex items-center justify-between">
-      <a href={homeUrl} onClick={handleHomeClick} className="flex h-16 items-center gap-2 overflow-hidden">
-        <BrandLogo containerClassName="h-16 w-[220px] sm:w-[280px] max-w-[38vw]" />
-      </a>
+    <header className={`fixed top-0 left-0 right-0 z-50 pointer-events-none transition-all duration-300
+      ${scrolled ? 'pt-2 px-4 md:px-8' : 'pt-4 px-4 md:px-8'}`}>
+      <div className={`w-full max-w-7xl mx-auto flex items-center justify-between pointer-events-auto transition-all duration-300 px-6 md:px-8 bg-[#FDF6EC] rounded-b-[28px] rounded-t-[16px] border border-[#FBE3B5]/30 shadow-md ${scrolled ? 'py-2.5 shadow-lg' : 'py-4'}`}>
 
-      <nav className="hidden md:flex items-center gap-8 font-semibold text-sm tracking-wide">
-        <a href={homeUrl} onClick={handleHomeClick} className={navClass(homeUrl)}>{homeLabel}</a>
-        <Link to={menuUrl} onMouseEnter={prefetchMenu} className={navClass(menuUrl)}>{menuLabel}</Link>
-        <Link to={branchesUrl} className={navClass(branchesUrl)}>{branchesLabel}</Link>
-        <Link to={blogUrl} className={location.pathname.startsWith(blogUrl) ? 'text-primary font-bold transition' : 'text-[#2C1A16] hover:text-primary transition'}>{blogLabel}</Link>
-      </nav>
+        {/* Logo */}
+        <a href={homeUrl} onClick={handleHomeClick}
+          className="flex items-center gap-2 flex-shrink-0">
+          <img
+            src={publicSettings['general.logo'] ? assetUrl(publicSettings['general.logo']) : '/logo.svg'}
+            alt={publicSettings['general.store_name'] || 'Hamburger King'}
+            className="h-10 w-auto object-contain"
+          />
+        </a>
 
-      <div className="flex items-center gap-4">
-        {/* Language Switcher */}
-        <LanguageSwitcher variant="default" />
+        {/* Desktop Nav — center */}
+        <nav className="hidden lg:flex items-center gap-8">
+          {navItems.map(item => {
+            const isHome = item.path === homeUrl
+            const isActive = isHome 
+              ? location.pathname === homeUrl 
+              : location.pathname.startsWith(item.path)
 
-        {/* Cart Trigger */}
-        <button 
-          onClick={() => setCartDrawerOpen(true)}
-          className="relative p-2.5 rounded-full bg-[#F5F5F5] hover:bg-[#E8E8E8] text-[#2C1A16] transition hover:-translate-y-[1px] active:translate-y-0"
-        >
-          <ShoppingBag className="w-5.5 h-5.5" />
-          {totalQuantity > 0 && (
-            <span className="absolute -top-1 -right-1 bg-primary text-white font-semibold text-xs w-5 h-5 rounded-full flex items-center justify-center border border-white animate-pulse-gold">
-              {totalQuantity}
-            </span>
-          )}
-        </button>
-
-        {/* User Account / Login */}
-        {isAuthenticated ? (
-          <div className="flex items-center gap-3">
-            <Link to="/profile" className="flex items-center gap-2 hover:text-primary transition text-[#2C1A16] text-sm bg-[#F5F5F5] hover:bg-[#E8E8E8] px-4 py-2 rounded-full border border-[#E8E8E8]">
-              {user?.avatar ? (
-                <img src={assetUrl(user.avatar)} alt={user.name} className="w-5 h-5 rounded-full object-cover" />
-              ) : (
-                <UserIcon className="w-4 h-4 text-primary" />
-              )}
-              <span className="hidden sm:inline font-semibold">{user.name}</span>
-            </Link>
-            {['admin', 'staff'].includes(user.role) && (
-              <Link to="/admin" className="bg-[#FFC72C] text-[#2C1A16] px-4 py-2 rounded-[8px] text-xs font-semibold hover:opacity-90 hover:-translate-y-[1px] transition">
-                {t('nav.admin').toUpperCase()}
+            return (
+              <Link 
+                key={item.path}
+                to={item.path}
+                onClick={isHome ? handleHomeClick : undefined}
+                onMouseEnter={item.prefetch ? prefetchMenu : undefined}
+                className={`text-sm font-bold tracking-wide
+                  transition-colors duration-200
+                  ${isActive
+                    ? 'text-[#C8102E]'
+                    : 'text-[#5C1A16] hover:text-[#C8102E]'
+                  }`}
+              >
+                {item.label}
               </Link>
+            )
+          })}
+        </nav>
+
+        {/* Right side controls */}
+        <div className="flex items-center gap-3">
+
+          {/* Language Switcher */}
+          <LanguageSwitcher variant="header" scrolled={true} />
+
+          {/* Cart */}
+          <button
+            onClick={() => useUiStore.getState().setCartDrawerOpen(true)}
+            className="relative p-2 rounded-full cursor-pointer transition-colors hover:bg-black/5 text-[#5C1A16]">
+            <ShoppingBag size={20} />
+            {cartCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5
+                w-5 h-5 bg-[#F5A623] text-[#1A0A00] text-[10px]
+                rounded-full flex items-center justify-center
+                font-bold border border-white">
+                {cartCount > 9 ? '9+' : cartCount}
+              </span>
             )}
-            <button 
-              onClick={() => {
-                setLogout()
-                navigate('/')
-              }} 
-              className="text-[#666666] hover:text-primary transition text-xs font-semibold"
-            >
-              {t('nav.logout')}
-            </button>
-          </div>
-        ) : (
-          <Link to="/login" className="bg-primary hover:opacity-90 text-white font-semibold px-6 py-2 rounded-[8px] tracking-wide text-sm transition hover:-translate-y-[1px] active:translate-y-0">
-            {t('nav.login').toUpperCase()}
-          </Link>
-        )}
+          </button>
+
+          {/* User */}
+          {user ? (
+            <div className="flex items-center gap-3">
+              {/* Profile Link (Avatar + Name) */}
+              <Link to="/profile" className="flex items-center gap-2 group cursor-pointer">
+                {user.avatar ? (
+                  <img
+                    src={assetUrl(user.avatar)}
+                    alt={user.name}
+                    className="w-8 h-8 rounded-full object-cover border-2 border-[#C8102E]/20 group-hover:border-[#C8102E] transition-all"
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-[#C8102E] text-white flex items-center justify-center font-bold text-sm group-hover:bg-[#8A151B] transition-colors">
+                    {user.name.charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <span className="text-sm font-semibold hidden xl:block text-[#5C1A16] group-hover:text-[#C8102E] transition-colors">
+                  {user.name}
+                </span>
+              </Link>
+              
+              {/* Admin badge */}
+              {(user.role === 'admin' || user.role === 'staff') && (
+                <Link to="/admin"
+                  className="bg-[#F5A623] text-[#1A0A00]
+                    text-xs font-bold px-3 py-1.5 rounded-full
+                    hover:opacity-90 transition uppercase
+                    tracking-wide">
+                  Admin
+                </Link>
+              )}
+
+              <button onClick={handleLogout}
+                className="text-sm font-medium cursor-pointer text-[#5C1A16]/80 hover:text-[#C8102E] transition-colors ml-1">
+                {t('nav.logout')}
+              </button>
+            </div>
+          ) : (
+            <Link to="/login"
+              className="bg-[#C8102E] hover:bg-[#8A151B]
+                text-white text-sm font-bold px-6 py-2.5
+                rounded-full transition-all
+                hover:-translate-y-0.5 tracking-wide shadow-md">
+              {t('nav.login')}
+            </Link>
+          )}
+
+          {/* Mobile menu toggle */}
+          <button
+            onClick={() => setMobileOpen(!mobileOpen)}
+            className="lg:hidden p-2 rounded-lg cursor-pointer transition text-[#5C1A16] hover:bg-black/5">
+            {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+        </div>
       </div>
+
+      {/* Mobile Nav Drawer */}
+      {mobileOpen && (
+        <div className="lg:hidden bg-[#FDF6EC] border-t border-[#FBE3B5]/30
+          rounded-b-[20px] shadow-lg px-6 py-4 space-y-2 pointer-events-auto mt-1">
+          {navItems.map(item => (
+            <Link key={item.path} to={item.path}
+              onClick={() => setMobileOpen(false)}
+              className="block py-3 text-sm font-semibold
+                text-[#5C1A16] hover:text-[#C8102E]
+                border-b border-[#FBE3B5]/20 transition-colors">
+              {item.label}
+            </Link>
+          ))}
+        </div>
+      )}
     </header>
   )
 }

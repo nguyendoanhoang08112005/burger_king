@@ -30,7 +30,12 @@
     "add_to_cart_error": "Failed to add item to cart",
     "cancel_order_success": "Order cancelled successfully!",
     "cancel_order_chat_success": "Order {{code}} has been successfully cancelled.",
-    "cancel_order_error": "Could not cancel this order."
+    "cancel_order_error": "Could not cancel this order.",
+    "qty": "Quantity:",
+    "open_chat": "Chat with AI Assistant",
+    "clear_history": "Clear history",
+    "error_session_expired": "Session expired, creating a new one...",
+    "error_quota": "Assistant is busy, please try again in a few minutes"
   },
   "nav": {
     "home": "Home",
@@ -60,7 +65,11 @@
     "branch_title": "Branches",
     "branch_subtitle": "Find a store near you",
     "featured_title": "FEATURED PRODUCTS",
-    "featured_subtitle": "Most recommended by our chefs."
+    "featured_subtitle": "Most recommended by our chefs.",
+    "cta_badge": "What to eat today?",
+    "testimonials_badge": "Customer Reviews",
+    "testimonials_title": "WHAT OUR CUSTOMERS SAY",
+    "explore_menu": "Explore Menu"
   },
   "product": {
     "add_to_cart": "Add to Cart",
@@ -78,7 +87,9 @@
     "anonymous_customer": "Customer",
     "related": "Related Products",
     "buy_combo": "Buy Combo",
-    "customize_hint": "Tap to customize size & toppings"
+    "customize_hint": "Tap to customize size & toppings",
+    "ordered": "Ordered",
+    "verified_buyer": "Verified Buyer"
   },
   "cart": {
     "title": "Cart",
@@ -265,7 +276,7 @@
     "password": "Password",
     "confirm_password": "Confirm Password",
     "name": "Full Name",
-    "forgot_password": "Forgot Password?",
+    "forgot_password": "Forgot password?",
     "no_account": "Don't have an account?",
     "has_account": "Already have an account?",
     "login_success": "Login successful!",
@@ -287,7 +298,6 @@
     "confirm_password_placeholder": "Enter password again",
     "registering": "REGISTERING...",
     "register_new_account": "REGISTER NEW ACCOUNT",
-    "forgot_password": "Forgot password?",
     "forgot_password_title": "FORGOT PASSWORD",
     "forgot_password_desc": "Enter your email address, and we will send you an OTP verification code to reset your password.",
     "send_otp": "SEND VERIFICATION CODE",
@@ -434,7 +444,9 @@
     "slider_title": "FROM FLAME GRILL TO TABLE",
     "slide_to": "Go to post {{index}}",
     "previous": "Previous post",
-    "next": "Next post"
+    "next": "Next post",
+    "no_posts_title": "NO POSTS YET",
+    "no_posts_desc": "We will update interesting stories about Hamburger King here soon. Please check back later!"
   },
   "common": {
     "search": "Search",
@@ -495,10 +507,10 @@
     "loading": "Loading..."
   },
   "crud": {
-    "load_error": "Unable to load data",
+    "load_error": "Failed to load data.",
     "created": "Created successfully!",
     "updated": "Updated successfully!",
-    "deleted": "Deleted!"
+    "deleted": "Deleted successfully!"
   },
   "footer": {
     "about": "About Us",
@@ -519,10 +531,17 @@
     "newsletter": "Newsletter",
     "newsletter_placeholder": "Enter your email...",
     "newsletter_button": "Subscribe",
-    "credit": "Designed by Senior Full-stack Team."
+    "credit": "Designed by Senior Full-stack Team.",
+    "about_us": "About Us",
+    "privacy_policy": "Privacy Policy",
+    "terms_of_service": "Terms of Service",
+    "delivery_policy": "Delivery Policy"
   },
   "adminPanel": {
     "chatbot_sidebar": "AI Chatbot",
+    "banner_position_gallery": "Gallery Collage",
+    "banner_position_cta": "CTA Banner",
+    "homepage_tab": "Homepage Settings",
     "show_at_checkout": "Show at checkout",
     "show_at_checkout_th": "Show at checkout",
     "coupon_shown_checkout": "Coupon shown at checkout",
@@ -644,7 +663,7 @@
     "bell_new_contact": "Bell alert when new contact is submitted",
     "bell_new_newsletter": "Bell alert when new newsletter subscription is made",
     "bell_new_complaint": "Bell alert when new complaint is submitted",
-    "email_driver": "Mail Protocol",
+    "email_driver": "Email driver",
     "smtp_host": "SMTP Host",
     "smtp_port": "SMTP Port",
     "smtp_username": "SMTP Username",
@@ -740,10 +759,10 @@
     "complaint_evidence_images": "Evidence Images (Click to zoom)",
     "issue_wrong_item": "Wrong item delivered",
     "issue_missing_item": "Missing item",
-    "issue_bad_quality": "Bad quality",
+    "issue_bad_quality": "Poor quality",
     "issue_late_delivery": "Late delivery",
-    "issue_shipper_attitude": "Shipper attitude",
-    "issue_other": "Other",
+    "issue_shipper_attitude": "Bad shipper attitude",
+    "issue_other": "Other issues",
     "resolution_redeliver": "Redeliver new item (HBK-REDEL)",
     "resolution_refund": "Refund & Deduct Loyalty",
     "resolution_voucher": "Compensation Voucher",
@@ -775,7 +794,7 @@
     "download_language": "Download language file",
     "delete_language": "Delete language",
     "no_languages": "No languages yet.",
-    "localization_breadcrumb": "Admin / Settings / Localization",
+    "localization_breadcrumb": "Localization settings",
     "all": "All",
     "reset": "Reset",
     "edit_vi": "Edit Vietnamese",
@@ -976,7 +995,6 @@
     "view_original_vi": "View original Vietnamese",
     "view": "View",
     "view_details": "View details",
-    "close": "Close",
     "quantity": "Qty",
     "subtotal": "Subtotal",
     "discount": "Discount",
@@ -1084,7 +1102,6 @@
     "admin_logo": "Admin Logo",
     "admin_favicon": "Admin Favicon",
     "admin_email": "Admin email",
-    "email_driver": "Email driver",
     "account_number": "Account number",
     "bank_code": "Bank code",
     "environment": "Environment",
@@ -1185,14 +1202,15 @@
       "password_label": "Admin Password",
       "password_placeholder": "Enter password to continue...",
       "confirm_purge_btn": "Confirm Clear Cache",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "seconds_unit": "seconds",
+      "close": "Close"
     },
     "translation_title": "Translations",
     "translation_title_with_code": "Translation: {{code}}",
     "back_to_locales": "Back to languages list",
     "progress_completed": "completed",
     "progress_completed_with_percent": "{{percent}}% completed",
-    "save_changes": "Save changes",
     "key_column": "Key",
     "original_lang": "Original language",
     "translation_input": "Translation",
@@ -1200,9 +1218,6 @@
     "untranslated_hint": "Untranslated (will fallback to default)",
     "dirty_hint": "Edited (unsaved)",
     "search_placeholder": "Search keys or values...",
-    "localization_breadcrumb": "Localization settings",
-    "all": "All",
-    "translated": "Translated",
     "untranslated": "Untranslated",
     "showing_from": "Showing from",
     "showing_to": "to",
@@ -1242,10 +1257,6 @@
     "notification_new_order_body": "{{customer}} placed order {{code}} for a total of {{total}} đ.",
     "issue_missing": "Missing item",
     "issue_wrong": "Wrong item",
-    "issue_bad_quality": "Poor quality",
-    "issue_late_delivery": "Late delivery",
-    "issue_shipper_attitude": "Bad shipper attitude",
-    "issue_other": "Other issues",
     "contacts": "Contact Management",
     "contact_type": "Contact Type",
     "contact_status": "Status",
@@ -1261,7 +1272,32 @@
     "new_contact": "New Contact",
     "new_newsletter": "New Newsletter",
     "notification_new_contact_body": "Customer {{customer}} has just sent a support request.",
-    "notification_new_newsletter_body": "Email {{email}} has just subscribed to the newsletter."
+    "notification_new_contact_body": "Customer {{customer}} has just sent a support request.",
+    "notification_new_newsletter_body": "Email {{email}} has just subscribed to the newsletter.",
+    "homepage_categories_title": "Categories",
+    "homepage_deals_title": "Special Offers",
+    "homepage_featured_section": "Chef's Recommendations",
+    "homepage_gallery_section": "Space & Dishes Gallery",
+    "homepage_blog_section": "News & Articles",
+    "homepage_faqs_title": "Frequently Asked Questions",
+    "homepage_cta_title": "Call to Action Banner",
+    "subtitle_label": "Subtitle",
+    "title_label": "Title",
+    "desc_label": "Description",
+    "deal_cards_config": "Deals Configuration & Card Images",
+    "deal_type": "Deal Type",
+    "deal_target": "Linked Target",
+    "select_target_placeholder": "-- Select target --",
+    "add_faq_btn": "Add FAQ",
+    "image_gallery_mgmt": "Image Gallery Management",
+    "image_gallery_drag": "Drag & drop images or click to select",
+    "image_gallery_hint": "Supports uploading multiple image files at once",
+    "image_description": "Image description / Caption",
+    "cta_banner_title": "CTA Banner Title",
+    "cta_banner_btn": "CTA Button Text",
+    "faq_question_label": "Question",
+    "faq_answer_label": "Answer",
+    "change_image": "Change image"
   },
   "review": {
     "invitation_desc": "Please share your experience with delivery and packaging to get loyalty points!"
@@ -1300,12 +1336,6 @@
     "select_faulty_product": "Please select at least one faulty product.",
     "describe_issue_required": "Please enter a description of the issue."
   },
-  "crud": {
-    "load_error": "Failed to load data.",
-    "created": "Created successfully!",
-    "updated": "Updated successfully!",
-    "deleted": "Deleted successfully!"
-  },
   "offers": {
     "title": "SPECIAL OFFERS",
     "subtitle": "Use the promo codes below to enjoy delicious meals at the best prices!",
@@ -1333,5 +1363,13 @@
     "error": "An error occurred, please try again later.",
     "info_title": "Customer Support",
     "info_subtitle": "Contact us directly through the following channels:"
+  },
+  "toast_newsletter_success": "Subscribed to newsletter successfully!",
+  "toast_newsletter_error": "Failed to subscribe to newsletter.",
+  "combo": {
+    "chef_selection": "Chef's Selection",
+    "best_value": "BEST VALUE",
+    "special_discount": "Special Discount",
+    "limited_offer": "Limited Offer"
   }
 }

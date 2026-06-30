@@ -88,7 +88,7 @@ export default function OrderTrackingPage() {
   const isCancelled = order.status === 'cancelled'
 
   return (
-    <div className="max-w-4xl mx-auto py-10 px-6 bg-[#FFFAF5] text-[#1A1A1A]">
+    <div className="max-w-4xl mx-auto pt-24 md:pt-32 pb-16 px-6 bg-[#FFFAF5] text-[#1A1A1A]">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-[#E8E8E8] pb-6 mb-8 gap-4">
         <div>
           <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">{t('order.your_order')}</span>

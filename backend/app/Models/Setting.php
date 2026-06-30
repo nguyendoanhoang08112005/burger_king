@@ -85,6 +85,22 @@ class Setting extends Model
         } catch (\Throwable $e) {}
         Cache::forget("public_settings_vi");
         Cache::forget("public_settings_en");
+        static::clearHomepageCache();
+    }
+
+    public static function clearHomepageCache(): void
+    {
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('locales')) {
+                $locales = \App\Models\Locale::pluck('code')->toArray();
+                foreach ($locales as $locale) {
+                    Cache::forget("homepage_data_{$locale}");
+                }
+            }
+        } catch (\Throwable $e) {}
+        Cache::forget("homepage_data_vi");
+        Cache::forget("homepage_data_en");
+        Cache::forget("homepage_data");
     }
 
     // ─── Accessors ─────────────────────────────────────────────────────────────

@@ -30,7 +30,12 @@
     "add_to_cart_error": "Không thể thêm món vào giỏ",
     "cancel_order_success": "Hủy đơn hàng thành công!",
     "cancel_order_chat_success": "Đã hủy thành công đơn hàng {{code}}.",
-    "cancel_order_error": "Không thể hủy đơn hàng này."
+    "cancel_order_error": "Không thể hủy đơn hàng này.",
+    "qty": "Số lượng:",
+    "open_chat": "Chat với trợ lý AI",
+    "clear_history": "Xóa lịch sử",
+    "error_session_expired": "Session hết hạn, đang tạo mới...",
+    "error_quota": "Trợ lý đang bận, thử lại sau ít phút"
   },
   "nav": {
     "home": "Trang Chủ",
@@ -60,7 +65,11 @@
     "branch_title": "Chi Nhánh",
     "branch_subtitle": "Tìm cửa hàng gần bạn",
     "featured_title": "SẢN PHẨM NỔI BẬT",
-    "featured_subtitle": "Được đề xuất nhiều nhất từ các đầu bếp danh tiếng."
+    "featured_subtitle": "Được đề xuất nhiều nhất từ các đầu bếp danh tiếng.",
+    "cta_badge": "Hôm nay ăn gì?",
+    "testimonials_badge": "Ý kiến khách hàng",
+    "testimonials_title": "WHAT OUR CUSTOMERS SAY",
+    "explore_menu": "Khám Phá Menu"
   },
   "product": {
     "add_to_cart": "Thêm vào giỏ",
@@ -78,7 +87,9 @@
     "anonymous_customer": "Khách hàng",
     "related": "Sản phẩm liên quan",
     "buy_combo": "Mua Combo",
-    "customize_hint": "Bấm để tuỳ chỉnh size & toppings"
+    "customize_hint": "Bấm để tuỳ chỉnh size & toppings",
+    "ordered": "Đã mua",
+    "verified_buyer": "Khách hàng thân thiết"
   },
   "cart": {
     "title": "Giỏ hàng",
@@ -287,7 +298,6 @@
     "confirm_password_placeholder": "Nhập lại mật khẩu",
     "registering": "ĐANG ĐĂNG KÝ...",
     "register_new_account": "ĐĂNG KÝ TÀI KHOẢN MỚI",
-    "forgot_password": "Quên mật khẩu?",
     "forgot_password_title": "QUÊN MẬT KHẨU",
     "forgot_password_desc": "Nhập địa chỉ email của bạn, chúng tôi sẽ gửi mã xác minh OTP để đặt lại mật khẩu.",
     "send_otp": "GỬI MÃ XÁC MINH",
@@ -434,7 +444,9 @@
     "slider_title": "TỪ BẾP LỬA ĐẾN BÀN ĂN",
     "slide_to": "Chuyển đến bài {{index}}",
     "previous": "Bài trước",
-    "next": "Bài tiếp theo"
+    "next": "Bài tiếp theo",
+    "no_posts_title": "CHƯA CÓ BÀI VIẾT NÀO",
+    "no_posts_desc": "Chúng tôi sẽ sớm cập nhật những câu chuyện thú vị về Hamburger King tại đây. Hãy quay lại sau nhé!"
   },
   "common": {
     "search": "Tìm kiếm",
@@ -495,10 +507,10 @@
     "loading": "Đang tải..."
   },
   "crud": {
-    "load_error": "Lỗi tải dữ liệu",
-    "created": "Thêm thành công!",
+    "load_error": "Không thể tải dữ liệu.",
+    "created": "Tạo mới thành công!",
     "updated": "Cập nhật thành công!",
-    "deleted": "Đã xoá!"
+    "deleted": "Xóa thành công!"
   },
   "footer": {
     "about": "Về chúng tôi",
@@ -519,10 +531,17 @@
     "newsletter": "Bản tin",
     "newsletter_placeholder": "Nhập email của bạn...",
     "newsletter_button": "Đăng ký",
-    "credit": "Thiết kế bởi Đội ngũ Senior Full-stack."
+    "credit": "Thiết kế bởi Đội ngũ Senior Full-stack.",
+    "about_us": "Về Chúng Tôi",
+    "privacy_policy": "Chính Sách Bảo Mật",
+    "terms_of_service": "Điều Khoản Sử Dụng",
+    "delivery_policy": "Chính Sách Giao Hàng"
   },
   "adminPanel": {
     "chatbot_sidebar": "AI Chatbot",
+    "banner_position_gallery": "Bộ Sưu Tập (Gallery)",
+    "banner_position_cta": "Banner CTA",
+    "homepage_tab": "Trang Chủ",
     "show_at_checkout": "Hiện ở checkout",
     "show_at_checkout_th": "Hiện ở checkout",
     "coupon_shown_checkout": "Đã hiện mã giảm giá ở checkout",
@@ -644,7 +663,7 @@
     "bell_new_contact": "Chuông báo khi có liên hệ mới",
     "bell_new_newsletter": "Chuông báo khi có đăng ký nhận tin",
     "bell_new_complaint": "Chuông báo khi có khiếu nại mới",
-    "email_driver": "Giao thức gửi mail",
+    "email_driver": "Email driver",
     "smtp_host": "SMTP Host",
     "smtp_port": "SMTP Port",
     "smtp_username": "SMTP Username",
@@ -743,7 +762,7 @@
     "issue_bad_quality": "Chất lượng kém",
     "issue_late_delivery": "Giao hàng trễ",
     "issue_shipper_attitude": "Thái độ shipper",
-    "issue_other": "Khác",
+    "issue_other": "Vấn đề khác",
     "resolution_redeliver": "Giao lại món mới (HBK-REDEL)",
     "resolution_refund": "Hoàn tiền & Khấu trừ Loyalty",
     "resolution_voucher": "Tặng Voucher bồi thường",
@@ -775,7 +794,7 @@
     "download_language": "Tải tệp ngôn ngữ",
     "delete_language": "Xoá ngôn ngữ",
     "no_languages": "Chưa có ngôn ngữ nào.",
-    "localization_breadcrumb": "Trang quản trị / Cài đặt / Bản địa hoá",
+    "localization_breadcrumb": "Cài đặt ngôn ngữ",
     "all": "Tất cả",
     "reset": "Đặt lại",
     "edit_vi": "Chỉnh sửa Tiếng Việt",
@@ -978,7 +997,6 @@
     "view_original_vi": "Xem bản gốc tiếng Việt",
     "view": "Xem",
     "view_details": "Xem chi tiết",
-    "close": "Đóng",
     "quantity": "SL",
     "subtotal": "Tạm tính",
     "discount": "Giảm giá",
@@ -1075,7 +1093,6 @@
     "admin_logo": "Logo Admin",
     "admin_favicon": "Favicon Admin",
     "admin_email": "Admin email",
-    "email_driver": "Email driver",
     "account_number": "Số tài khoản",
     "bank_code": "Mã ngân hàng",
     "environment": "Môi trường",
@@ -1187,14 +1204,15 @@
       "password_label": "Mật khẩu Admin",
       "password_placeholder": "Nhập mật khẩu để tiếp tục...",
       "confirm_purge_btn": "Xác nhận xóa cache",
-      "cancel": "Hủy"
+      "cancel": "Hủy",
+      "seconds_unit": "giây",
+      "close": "Đóng"
     },
     "translation_title": "Dịch thuật",
     "translation_title_with_code": "Dịch thuật: {{code}}",
     "back_to_locales": "Quay lại danh sách ngôn ngữ",
     "progress_completed": "hoàn thành",
     "progress_completed_with_percent": "{{percent}}% hoàn thành",
-    "save_changes": "Lưu thay đổi",
     "key_column": "Từ khóa",
     "original_lang": "Tiếng Việt gốc",
     "translation_input": "Bản dịch ngôn ngữ",
@@ -1202,9 +1220,6 @@
     "untranslated_hint": "Chưa được dịch (sẽ tự động dùng mặc định)",
     "dirty_hint": "Đã chỉnh sửa (chưa lưu)",
     "search_placeholder": "Tìm key hoặc nội dung...",
-    "localization_breadcrumb": "Cài đặt ngôn ngữ",
-    "all": "Tất cả",
-    "translated": "Đã dịch",
     "untranslated": "Chưa dịch",
     "showing_from": "Hiển thị từ",
     "showing_to": "đến",
@@ -1244,10 +1259,6 @@
     "notification_new_order_body": "{{customer}} vừa đặt đơn {{code}}, tổng tiền {{total}} đ.",
     "issue_missing": "Thiếu món",
     "issue_wrong": "Giao sai món",
-    "issue_bad_quality": "Chất lượng kém",
-    "issue_late_delivery": "Giao hàng trễ",
-    "issue_shipper_attitude": "Thái độ shipper",
-    "issue_other": "Vấn đề khác",
     "contacts": "Liên hệ",
     "contact_type": "Loại liên hệ",
     "contact_status": "Trạng thái",
@@ -1263,7 +1274,32 @@
     "new_contact": "Liên hệ mới",
     "new_newsletter": "Đăng ký nhận tin",
     "notification_new_contact_body": "Khách hàng {{customer}} vừa gửi yêu cầu liên hệ hỗ trợ.",
-    "notification_new_newsletter_body": "Email {{email}} vừa đăng ký nhận bản tin."
+    "notification_new_contact_body": "Khách hàng {{customer}} vừa gửi yêu cầu liên hệ hỗ trợ.",
+    "notification_new_newsletter_body": "Email {{email}} vừa đăng ký nhận bản tin.",
+    "homepage_categories_title": "Danh mục món ăn",
+    "homepage_deals_title": "Ưu đãi đặc biệt",
+    "homepage_featured_section": "Gợi ý từ bếp trưởng",
+    "homepage_gallery_section": "Không gian & món ăn",
+    "homepage_blog_section": "Tin tức & bài viết",
+    "homepage_faqs_title": "Câu hỏi thường gặp",
+    "homepage_cta_title": "Banner kêu gọi hành động",
+    "subtitle_label": "Tiêu đề phụ",
+    "title_label": "Tiêu đề chính",
+    "desc_label": "Mô tả ngắn",
+    "deal_cards_config": "Cấu hình liên kết Deals & Hình ảnh các Card Deals",
+    "deal_type": "Loại Ưu Đãi",
+    "deal_target": "Đối Tượng Liên Kết",
+    "select_target_placeholder": "-- Chọn đối tượng --",
+    "add_faq_btn": "Thêm Câu Hỏi",
+    "image_gallery_mgmt": "Quản lý hình ảnh trưng bày",
+    "image_gallery_drag": "Kéo thả ảnh hoặc nhấp để chọn",
+    "image_gallery_hint": "Hỗ trợ tải lên nhiều tệp ảnh cùng lúc",
+    "image_description": "Mô tả ảnh / Chú thích",
+    "cta_banner_title": "Tiêu đề banner kêu gọi",
+    "cta_banner_btn": "Văn bản nút bấm kêu gọi",
+    "faq_question_label": "Câu hỏi",
+    "faq_answer_label": "Trả lời",
+    "change_image": "Đổi ảnh"
   },
   "review": {
     "invitation_desc": "Hãy chia sẻ cảm nhận của bạn về dịch vụ giao hàng, đóng gói để nhận ngay điểm tích lũy nhé!"
@@ -1302,12 +1338,6 @@
     "select_faulty_product": "Vui lòng chọn ít nhất một sản phẩm bị lỗi.",
     "describe_issue_required": "Vui lòng nhập mô tả sự cố."
   },
-  "crud": {
-    "load_error": "Không thể tải dữ liệu.",
-    "created": "Tạo mới thành công!",
-    "updated": "Cập nhật thành công!",
-    "deleted": "Xóa thành công!"
-  },
   "offers": {
     "title": "ƯU ĐÃI ĐẶC BIỆT",
     "subtitle": "Sử dụng các mã giảm giá dưới đây để tận hưởng bữa ăn ngon với giá ưu đãi nhất!",
@@ -1335,5 +1365,13 @@
     "error": "Có lỗi xảy ra, vui lòng thử lại sau.",
     "info_title": "Tổng Đài Hỗ Trợ",
     "info_subtitle": "Liên hệ trực tiếp với chúng tôi qua các kênh sau:"
+  },
+  "toast_newsletter_success": "Đăng ký nhận tin thành công!",
+  "toast_newsletter_error": "Không thể đăng ký nhận tin lúc này.",
+  "combo": {
+    "chef_selection": "Đầu bếp gợi ý",
+    "best_value": "TIẾT KIỆM NHẤT",
+    "special_discount": "Khuyến Mãi Đặc Biệt",
+    "limited_offer": "Số Lượng Có Hạn"
   }
 }

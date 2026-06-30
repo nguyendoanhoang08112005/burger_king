@@ -74,7 +74,7 @@ function BlogPage() {
  
   return (
     <div className="bg-[#FFFAF5] text-[#2C1A16]">
-      <section className="relative min-h-[360px] flex items-center overflow-hidden bg-black py-12">
+      <section className="relative min-h-[360px] flex items-center overflow-hidden bg-black pt-24 md:pt-32 pb-12">
         <div className="absolute inset-0 z-0">
           {heroImage && (
             <LazyImage

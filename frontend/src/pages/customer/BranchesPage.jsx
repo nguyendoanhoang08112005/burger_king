@@ -75,7 +75,7 @@ export default function BranchesPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto py-12 px-6 md:px-12 bg-[#FFFAF5] text-[#1A1A1A]">
+    <div className="max-w-7xl mx-auto pt-24 md:pt-32 pb-16 px-6 md:px-12 bg-[#FFFAF5] text-[#1A1A1A]">
       {/* Header section */}
       <div className="text-center mb-16">
         <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold uppercase tracking-wider mb-3">

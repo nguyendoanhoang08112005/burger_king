@@ -270,7 +270,11 @@ class AdminController extends Controller
 
     public function listProducts(Request $request)
     {
-        $query = Product::with(['translations', 'category.translations', 'sizes:id,product_id,size,extra_price,is_available'])->orderBy('sort_order');
+        $query = Product::with(['translations', 'category.translations', 'sizes:id,product_id,size,extra_price,is_available'])
+            ->whereHas('category', function ($q) {
+                $q->where('slug', '!=', 'combo-meals');
+            })
+            ->orderBy('sort_order');
 
         if ($request->filled('search')) {
             $query->where('name', 'like', "%{$request->search}%");
@@ -358,6 +362,7 @@ class AdminController extends Controller
             ]);
         }
 
+        $this->syncMatchingComboPrice($product);
         $this->clearPublicCache();
 
         return $this->ok($product->load('category'), __('api.messages.product_created'))->setStatusCode(201);
@@ -425,6 +430,7 @@ class AdminController extends Controller
             }
         }
 
+        $this->syncMatchingComboPrice($product);
         $this->clearPublicCache();
 
         return $this->ok($product->load(['category', 'sizes']), __('api.messages.product_updated_details'));
@@ -456,6 +462,7 @@ class AdminController extends Controller
 
         $product->update($data);
 
+        $this->syncMatchingComboPrice($product);
         $this->clearPublicCache();
 
         return $this->ok($product->load('category'), __('api.messages.product_updated'));
@@ -947,6 +954,7 @@ class AdminController extends Controller
             'description' => 'nullable',
             'image' => 'nullable|string',
             'price' => 'required|numeric|min:0',
+            'sale_price' => 'nullable|numeric|min:0',
             'is_active' => 'nullable|boolean',
             'items' => 'nullable|array',
             'items.*.product_id' => 'required_with:items|exists:products,id',
@@ -963,12 +971,14 @@ class AdminController extends Controller
             'description' => $request->description,
             'image' => $request->image,
             'price' => $request->price,
+            'sale_price' => $request->sale_price,
             'is_active' => $request->boolean('is_active', true),
         ]);
         if (!$combo->sku) {
             $combo->update(['sku' => $this->generatedSku('CMB', $combo->slug, $combo->id)]);
         }
         $this->syncComboItems($combo, $request->items ?? []);
+        $this->syncMatchingProductPrice($combo);
         
         $this->clearPublicCache();
 
@@ -993,6 +1003,7 @@ class AdminController extends Controller
             'description' => 'nullable',
             'image' => 'nullable|string',
             'price' => 'required|numeric|min:0',
+            'sale_price' => 'nullable|numeric|min:0',
             'is_active' => 'nullable|boolean',
             'items' => 'nullable|array',
             'items.*.product_id' => 'required_with:items|exists:products,id',
@@ -1005,6 +1016,7 @@ class AdminController extends Controller
         $data['sku'] = $this->normalizeSku($data['sku'] ?? null) ?: $this->generatedSku('CMB', $data['slug'] ?: $slugName, $combo->id);
         $combo->update($data);
         $this->syncComboItems($combo, $request->items ?? []);
+        $this->syncMatchingProductPrice($combo);
         
         $this->clearPublicCache();
 
@@ -1029,6 +1041,30 @@ class AdminController extends Controller
                 'product_id' => $item['product_id'],
                 'quantity' => $item['quantity'] ?? 1,
                 'size' => $item['size'] ?? 'S',
+            ]);
+        }
+    }
+
+    private function syncMatchingProductPrice(ComboSet $combo): void
+    {
+        $productSlug = str($combo->slug)->replaceLast('-set', '')->toString();
+        $product = Product::where('slug', $productSlug)->first();
+        if ($product) {
+            $product->update([
+                'base_price' => $combo->price,
+                'sale_price' => $combo->sale_price,
+            ]);
+        }
+    }
+
+    private function syncMatchingComboPrice(Product $product): void
+    {
+        $comboSlug = $product->slug . '-set';
+        $combo = ComboSet::where('slug', $comboSlug)->first();
+        if ($combo) {
+            $combo->update([
+                'price' => $product->base_price,
+                'sale_price' => $product->sale_price,
             ]);
         }
     }

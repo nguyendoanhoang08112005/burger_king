@@ -3,19 +3,24 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --bg-main: #FFFAF5;
+  --bg-main: #FDF6EC;
   --bg-card: #FFFFFF;
   --bg-input: #F8F8F8;
-  --text-primary: #2C1A16;
+  --text-primary: #1A1A1A;
   --text-secondary: #666666;
   --text-muted: #999999;
-  --color-primary: #D62300;
-  --color-secondary: #FFC72C;
+  --color-primary: #C8102E;
+  --color-secondary: #F5A623;
+  --color-cream: #FDF6EC;
+  --color-dark: #1A0A00;
+  --color-dark-green: #2D5016;
+  --color-text: #1A1A1A;
+  --color-text-muted: #666666;
   --border-color: #E8E8E8;
-  --radius-card: 16px;
+  --radius-card: 20px;
   --radius-input: 10px;
-  --radius-btn: 8px;
-  --shadow-card: 0 2px 12px rgba(0,0,0,0.08);
+  --radius-btn: 10px;
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.08);
   --font-display: 'DM Sans', sans-serif;
   --font-body: 'DM Sans', sans-serif;
 }
@@ -24,9 +29,9 @@
   --sidebar-bg: #FFFFFF;
   --sidebar-border: #F0F0F0;
   --sidebar-text: #4B5563;
-  --sidebar-text-active: #D62300;
+  --sidebar-text-active: #C8102E;
   --sidebar-icon: #9CA3AF;
-  --sidebar-icon-active: #D62300;
+  --sidebar-icon-active: #C8102E;
   --sidebar-active-bg: #FFF5F5;
   --sidebar-hover-bg: #F9FAFB;
   --sidebar-group-label: #9CA3AF;
@@ -37,61 +42,93 @@
   --admin-topbar-h: 60px;
   --admin-content-bg: #F4F6F8;
   --admin-card-bg: #FFFFFF;
-  --admin-primary: #D62300;
+  --admin-primary: #C8102E;
   --admin-border: #E8E8E8;
   --admin-text: #1A1F2E;
   --admin-text-muted: #6B7280;
-  --admin-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  --admin-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 @theme {
   /* Brand Colors Map for Tailwind v4 */
-  --color-primary: var(--color-primary);      /* #D62300 */
-  --color-secondary: var(--color-secondary);  /* #FFC72C */
-  --color-dark: #2C1A16;
-  --color-surface: var(--bg-main);            /* #FFFAF5 */
-  --color-card: var(--bg-card);               /* #FFFFFF */
-  --color-input-bg: var(--bg-input);          /* #F8F8F8 */
-  --color-border-line: var(--border-color);   /* #E8E8E8 */
-  
+  --color-primary: var(--color-primary);
+  /* #C8102E */
+  --color-secondary: var(--color-secondary);
+  /* #F5A623 */
+  --color-cream: var(--color-cream);
+  /* #FDF6EC */
+  --color-dark: var(--color-dark);
+  /* #1A0A00 */
+  --color-dark-green: var(--color-dark-green);
+  /* #2D5016 */
+  --color-text-main: var(--color-text);
+  /* #1A1A1A */
+  --color-text-muted: var(--color-text-muted);
+  /* #666666 */
+  --color-surface: var(--bg-main);
+  --color-card: var(--bg-card);
+  --color-input-bg: var(--bg-input);
+  --color-border-line: var(--border-color);
+
   /* Brand Fonts Map */
   --font-bebas: var(--font-body);
   --font-sans: var(--font-body);
-  
+
   /* Styling Tokens */
   --shadow-premium: var(--shadow-card);
   --shadow-glass: 0 4px 16px 0 rgba(0, 0, 0, 0.04);
 }
 
 /* Scrollbars for Light Theme */
-::-webkit-scrollbar {
+/* Admin panel scrollbar overrides */
+html.admin-page ::-webkit-scrollbar,
+html.admin-page::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
-::-webkit-scrollbar-track {
-  background: var(--bg-main);
+html.admin-page ::-webkit-scrollbar-track,
+html.admin-page::-webkit-scrollbar-track {
+  background: #F4F6F8 !important; /* Grey track matching admin content */
 }
-::-webkit-scrollbar-thumb {
+html.admin-page aside ::-webkit-scrollbar-track {
+  background: #FFFFFF !important; /* White track matching admin sidebar */
+}
+html.admin-page ::-webkit-scrollbar-thumb,
+html.admin-page::-webkit-scrollbar-thumb {
   background: var(--color-primary);
   border-radius: 4px;
 }
-::-webkit-scrollbar-thumb:hover {
+html.admin-page ::-webkit-scrollbar-thumb:hover,
+html.admin-page::-webkit-scrollbar-thumb:hover {
   background: var(--color-secondary);
 }
 
 /* Global Reset & Base Light Styling */
-html, body {
+html,
+body {
   margin: 0;
   padding: 0;
-  background-color: var(--bg-main); /* Warm cream background */
-  color: var(--text-primary);       /* #1A1A1A */
-  font-family: var(--font-body);    /* 'DM Sans' default for body */
+  background-color: var(--bg-main);
+  /* Warm cream background */
+  color: var(--text-primary);
+  /* #1A1A1A */
+  font-family: var(--font-body);
+  /* 'DM Sans' default for body */
   font-size: 15px;
   line-height: 1.6;
   scroll-behavior: smooth;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   transition: background-color 0.2s ease, color 0.2s ease;
+  overflow-x: hidden;
+}
+
+html {
+  overflow-y: auto;
+}
+
+body {
+  overflow-y: visible;
 }
 
 /* Transition Utilities */
@@ -109,7 +146,13 @@ html, body {
   font-family: 'DM Sans', sans-serif;
 }
 
-h1, h2, h3, h4, h5, h6, .font-heading {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.font-heading {
   font-family: 'DM Sans', sans-serif;
   font-weight: 700;
   color: var(--text-primary);

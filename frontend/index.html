@@ -14,6 +14,31 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap" rel="stylesheet">
+    <!-- Custom Scrollbar Styles -->
+    <style>
+      /* Admin pages scrollbar (with admin-page class) */
+      html.admin-page ::-webkit-scrollbar,
+      html.admin-page::-webkit-scrollbar {
+        width: 8px !important;
+        height: 8px !important;
+      }
+      html.admin-page ::-webkit-scrollbar-track,
+      html.admin-page::-webkit-scrollbar-track {
+        background: #F4F6F8 !important; /* Grey track for admin content */
+      }
+      html.admin-page aside ::-webkit-scrollbar-track {
+        background: #FFFFFF !important; /* White track for admin sidebar */
+      }
+      html.admin-page ::-webkit-scrollbar-thumb,
+      html.admin-page::-webkit-scrollbar-thumb {
+        background: #C8102E !important; /* Primary red thumb */
+        border-radius: 4px !important;
+      }
+      html.admin-page ::-webkit-scrollbar-thumb:hover,
+      html.admin-page::-webkit-scrollbar-thumb:hover {
+        background: #F5A623 !important; /* Secondary yellow thumb on hover */
+      }
+    </style>
   </head>
   <body class="bg-[#F9F5F0] text-[#1A1A1A]">
     <div id="root"></div>

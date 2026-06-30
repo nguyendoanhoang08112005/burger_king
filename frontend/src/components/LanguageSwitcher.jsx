@@ -3,8 +3,8 @@ import { useState, useRef, useEffect } from 'react'
 import { useUiStore } from '../store/uiStore'
 import { renderFlag } from '../utils/adminUtils'
 
-const LanguageSwitcher = ({ variant = 'default' }) => {
-  // variant: 'default' (customer) | 'compact' (admin)
+const LanguageSwitcher = ({ variant = 'default', scrolled = false }) => {
+  // variant: 'default' (customer) | 'compact' (admin) | 'header' (transparent header)
   const { i18n } = useTranslation()
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
@@ -32,8 +32,8 @@ const LanguageSwitcher = ({ variant = 'default' }) => {
   }, [])
 
   const handleChange = (langCode) => {
-    i18n.changeLanguage(langCode)
     localStorage.setItem('hk_language', langCode)
+    i18n.changeLanguage(langCode)
     setOpen(false)
   }
 
@@ -46,7 +46,13 @@ const LanguageSwitcher = ({ variant = 'default' }) => {
           transition-colors font-semibold cursor-pointer
           ${variant === 'compact'
             ? 'px-2 py-1.5 text-xs hover:bg-gray-100 text-gray-600 dark:hover:bg-gray-700 dark:text-gray-300'
-            : 'px-3.5 py-2 text-sm border border-gray-200 hover:bg-gray-50 text-gray-700 dark:border-gray-700 dark:hover:bg-gray-800 dark:text-gray-200'
+            : variant === 'header'
+              ? `px-3.5 py-2 text-sm border transition-colors ${
+                  scrolled
+                    ? 'border-gray-200 hover:bg-gray-50 text-gray-700 dark:border-gray-700 dark:hover:bg-gray-800 dark:text-gray-200'
+                    : 'border-white/20 hover:bg-white/10 text-white'
+                }`
+              : 'px-3.5 py-2 text-sm border border-gray-200 hover:bg-gray-50 text-gray-700 dark:border-gray-700 dark:hover:bg-gray-800 dark:text-gray-200'
           }`}
         aria-label="Change language"
       >

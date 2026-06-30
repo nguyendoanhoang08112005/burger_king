@@ -40,6 +40,10 @@ const Profile = lazy(() => import('./pages/customer/ProfilePage'))
 const BlogPage = lazy(() => import('./pages/customer/BlogPage'))
 const BlogDetailPage = lazy(() => import('./pages/customer/BlogDetailPage'))
 const AdminPanel = lazy(() => import('./admin/AdminPanel'))
+const About = lazy(() => import('./pages/customer/AboutPage'))
+const Privacy = lazy(() => import('./pages/customer/PrivacyPage'))
+const Terms = lazy(() => import('./pages/customer/TermsPage'))
+const Delivery = lazy(() => import('./pages/customer/DeliveryPage'))
 
 const PageLoader = () => (
   <div className="min-h-screen flex items-center justify-center bg-[#FFFAF5]">
@@ -99,6 +103,16 @@ function AppShell({ selectedProduct, setSelectedProduct }) {
   const location = useLocation()
   const isAdminRoute = location.pathname.startsWith('/admin')
 
+  useEffect(() => {
+    if (isAdminRoute) {
+      document.documentElement.classList.add('admin-page')
+      document.body.classList.add('admin-page')
+    } else {
+      document.documentElement.classList.remove('admin-page')
+      document.body.classList.remove('admin-page')
+    }
+  }, [isAdminRoute])
+
   return (
     <div className={`min-h-screen text-[#1A1A1A] flex flex-col antialiased selection:bg-primary selection:text-white ${isAdminRoute ? 'bg-[#F4F6F8]' : 'bg-[#FFFAF5] pb-16 md:pb-0'}`}>
         <AosRefresh />
@@ -148,6 +162,12 @@ function AppShell({ selectedProduct, setSelectedProduct }) {
               
               {/* Customer & Admin panels */}
               <Route path="/profile" element={<Profile onSelectProduct={setSelectedProduct} />} />
+              
+              {/* Policies & Info */}
+              <Route path="/about" element={<About />} />
+              <Route path="/privacy" element={<Privacy />} />
+              <Route path="/terms" element={<Terms />} />
+              <Route path="/delivery" element={<Delivery />} />
             </Routes>
           </Suspense>
         </div>

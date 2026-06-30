@@ -65,11 +65,44 @@ class SettingController extends Controller
         'appearance.footer_newsletter_desc'  => ['type' => 'json',   'is_public' => true],
         'appearance.footer_copyright'        => ['type' => 'text',   'is_public' => true],
         'appearance.footer_credit'           => ['type' => 'text',   'is_public' => true],
+        'appearance.footer_link1_text'       => ['type' => 'json',   'is_public' => true],
+        'appearance.footer_link1_url'        => ['type' => 'text',   'is_public' => true],
+        'appearance.footer_link2_text'       => ['type' => 'json',   'is_public' => true],
+        'appearance.footer_link2_url'        => ['type' => 'text',   'is_public' => true],
+        'appearance.footer_link3_text'       => ['type' => 'json',   'is_public' => true],
+        'appearance.footer_link3_url'        => ['type' => 'text',   'is_public' => true],
+        'appearance.footer_link4_text'       => ['type' => 'json',   'is_public' => true],
+        'appearance.footer_link4_url'        => ['type' => 'text',   'is_public' => true],
         'notification.bell_new_order'        => ['type' => 'boolean', 'is_public' => false],
         'notification.bell_new_review'       => ['type' => 'boolean', 'is_public' => false],
         'notification.bell_new_contact'      => ['type' => 'boolean', 'is_public' => false],
         'notification.bell_new_newsletter'   => ['type' => 'boolean', 'is_public' => false],
         'notification.bell_new_complaint'    => ['type' => 'boolean', 'is_public' => false],
+        'homepage.categories_subtitle' => ['type' => 'json',   'is_public' => true],
+        'homepage.categories_title'    => ['type' => 'json',   'is_public' => true],
+        'homepage.deal_subtitle'       => ['type' => 'json',   'is_public' => true],
+        'homepage.deal_title'          => ['type' => 'json',   'is_public' => true],
+        'homepage.deal_desc'           => ['type' => 'json',   'is_public' => true],
+        'homepage.deal1_image'         => ['type' => 'image',  'is_public' => true],
+        'homepage.deal1_type'          => ['type' => 'text',   'is_public' => true],
+        'homepage.deal1_id'            => ['type' => 'number', 'is_public' => true],
+        'homepage.deal2_image'         => ['type' => 'image',  'is_public' => true],
+        'homepage.deal2_type'          => ['type' => 'text',   'is_public' => true],
+        'homepage.deal2_id'            => ['type' => 'number', 'is_public' => true],
+        'homepage.deal3_image'         => ['type' => 'image',  'is_public' => true],
+        'homepage.deal3_type'          => ['type' => 'text',   'is_public' => true],
+        'homepage.deal3_id'            => ['type' => 'number', 'is_public' => true],
+        'homepage.featured_subtitle'   => ['type' => 'json',   'is_public' => true],
+        'homepage.featured_title'      => ['type' => 'json',   'is_public' => true],
+        'homepage.gallery_badge'       => ['type' => 'json',   'is_public' => true],
+        'homepage.gallery_title'       => ['type' => 'json',   'is_public' => true],
+        'homepage.gallery_images'      => ['type' => 'json',   'is_public' => true],
+        'homepage.blog_badge'          => ['type' => 'json',   'is_public' => true],
+        'homepage.blog_title'          => ['type' => 'json',   'is_public' => true],
+        'homepage.faqs'                => ['type' => 'json',   'is_public' => true],
+        'homepage.cta_title'           => ['type' => 'json',   'is_public' => true],
+        'homepage.cta_image'           => ['type' => 'image',  'is_public' => true],
+        'homepage.cta_btn'             => ['type' => 'json',   'is_public' => true],
     ];
 
     private const LANGUAGE_CATALOG = [
@@ -193,7 +226,7 @@ class SettingController extends Controller
                 ->mapWithKeys(function (Setting $setting) use ($locale) {
                     $value = $setting->parsed_value;
                     if (is_array($value) && (isset($value['vi']) || isset($value['en']))) {
-                        $value = $value[$locale] ?? $value['vi'] ?? reset($value) ?? '';
+                        $value = $value[$locale] ?? '';
                     }
                     return [$setting->key => $value];
                 })

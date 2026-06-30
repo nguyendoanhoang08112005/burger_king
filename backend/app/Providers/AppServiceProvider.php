@@ -30,6 +30,28 @@ class AppServiceProvider extends ServiceProvider
                 return;
             }
 
+            // Register global homepage cache clearing listeners on key models
+            $homepageModels = [
+                \App\Models\Banner::class,
+                \App\Models\Category::class,
+                \App\Models\Product::class,
+                \App\Models\ComboSet::class,
+                \App\Models\Post::class,
+                \App\Models\Branch::class,
+                \App\Models\Review::class,
+            ];
+
+            foreach ($homepageModels as $modelClass) {
+                if (class_exists($modelClass)) {
+                    $modelClass::saved(function () {
+                        Setting::clearHomepageCache();
+                    });
+                    $modelClass::deleted(function () {
+                        Setting::clearHomepageCache();
+                    });
+                }
+            }
+
             $host = Setting::get('notification.smtp_host');
             if (!$host) {
                 return;

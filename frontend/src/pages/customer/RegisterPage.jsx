@@ -47,7 +47,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-[70vh] bg-[#FFFAF5] flex items-center justify-center p-6 text-[#1A1A1A]">
+    <div className="min-h-[70vh] bg-[#FFFAF5] flex items-center justify-center pt-28 pb-16 px-6 text-[#1A1A1A]">
       <div className="w-full max-w-md p-8 rounded-2xl bg-white border border-[#E8E8E8] shadow-premium text-left">
         <div className="text-center mb-8">
           <BrandLogo className="justify-center mx-auto" containerClassName="h-16 w-[260px]" />

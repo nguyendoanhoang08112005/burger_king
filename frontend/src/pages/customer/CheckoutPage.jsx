@@ -297,7 +297,7 @@ export default function CheckoutPage() {
   }
 
   return (
-    <div className="max-w-[1200px] mx-auto py-10 px-6 bg-[#FFFAF5] text-[#1A1A1A]">
+    <div className="max-w-[1200px] mx-auto pt-24 md:pt-32 pb-16 px-6 bg-[#FFFAF5] text-[#1A1A1A]">
       
       {/* Refactored Light Progress Stepper */}
       <div className="flex items-center justify-center gap-4 mb-10 max-w-md mx-auto">

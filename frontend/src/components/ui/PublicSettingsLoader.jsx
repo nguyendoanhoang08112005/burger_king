@@ -10,6 +10,7 @@ const apiOrigin = (apiClient.defaults.baseURL || 'http://localhost:8000/api').re
 const assetUrl = value => {
   if (!value) return ''
   if (/^(https?:)?\/\//.test(value) || value.startsWith('data:') || value.startsWith('blob:')) return value
+  if (value.startsWith('/') && !value.startsWith('/storage') && !value.startsWith('/uploads')) return value
   return `${apiOrigin}${value.startsWith('/') ? value : `/${value}`}`
 }
 

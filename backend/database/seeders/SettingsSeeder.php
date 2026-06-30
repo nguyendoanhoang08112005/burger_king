@@ -95,6 +95,57 @@ class SettingsSeeder extends Seeder
             ['loyalty', 'loyalty.vnd_per_point', 100, 'number', true],
             ['loyalty', 'loyalty.min_redeem_points', 50, 'number', true],
             ['loyalty', 'loyalty.expiry_days', 365, 'number', true],
+
+            // Stats section
+            ['homepage', 'homepage.stats', [
+                ['label_vi' => 'Khách hàng', 'label_en' => 'Customers', 'value' => '8K+', 'icon' => 'users'],
+                ['label_vi' => 'Món ăn', 'label_en' => 'Menu Items', 'value' => '60+', 'icon' => 'utensils'],
+                ['label_vi' => 'Hài lòng', 'label_en' => 'Satisfaction', 'value' => '80%', 'icon' => 'star'],
+                ['label_vi' => 'Đánh giá', 'label_en' => 'Reviews', 'value' => '600+', 'icon' => 'message'],
+            ], 'json', true],
+
+            // Experience section
+            ['homepage', 'homepage.exp_image', '', 'text', true],
+            ['homepage', 'homepage.exp_title_vi', 'Trải Nghiệm Tuyệt Vời Với Chất Lượng Cao Cấp', 'text', true],
+            ['homepage', 'homepage.exp_title_en', 'Exceptional Experience With Premium Quality', 'text', true],
+            ['homepage', 'homepage.exp_desc_vi', 'Mỗi chiếc burger được làm thủ công từ nguyên liệu tươi ngon nhất...', 'text', true],
+            ['homepage', 'homepage.exp_desc_en', 'Every burger is handcrafted from the freshest ingredients...', 'text', true],
+            ['homepage', 'homepage.exp_person_name', 'Nguyễn Văn A', 'text', true],
+            ['homepage', 'homepage.exp_person_role_vi', 'Bếp trưởng', 'text', true],
+            ['homepage', 'homepage.exp_person_role_en', 'Head Chef', 'text', true],
+
+            // Features section (4 icons)
+            ['homepage', 'homepage.features', [
+                ['icon' => 'flame', 'title_vi' => 'Đồ Ăn Ngon', 'title_en' => 'Delicious Food', 'desc_vi' => 'Burger nướng lửa hồng chuẩn vị', 'desc_en' => 'Flame grilled to perfection'],
+                ['icon' => 'leaf', 'title_vi' => 'Nguyên Liệu Tươi', 'title_en' => 'Fresh Ingredients', 'desc_vi' => '100% nguyên liệu tươi sạch', 'desc_en' => '100% fresh and clean ingredients'],
+                ['icon' => 'smile', 'title_vi' => 'Phục Vụ Tận Tâm', 'title_en' => 'Friendly Service', 'desc_vi' => 'Đội ngũ nhiệt tình, chuyên nghiệp', 'desc_en' => 'Enthusiastic and professional team'],
+                ['icon' => 'zap', 'title_vi' => 'Giao Hàng Nhanh', 'title_en' => 'Fast Delivery', 'desc_vi' => 'Giao hàng trong 30-45 phút', 'desc_en' => 'Delivery in 30-45 minutes'],
+            ], 'json', true],
+
+            // Celebration/Catering section
+            ['homepage', 'homepage.catering_title_vi', 'Phục Vụ Mọi Dịp Đặc Biệt', 'text', true],
+            ['homepage', 'homepage.catering_title_en', 'Catering For Every Celebration', 'text', true],
+            ['homepage', 'homepage.catering_desc_vi', 'Từ tiệc sinh nhật đến sự kiện công ty...', 'text', true],
+            ['homepage', 'homepage.catering_desc_en', 'From birthday parties to corporate events...', 'text', true],
+            ['homepage', 'homepage.catering_images', [], 'json', true],
+            ['homepage', 'homepage.catering_btn_vi', 'Đặt Tiệc Ngay', 'text', true],
+            ['homepage', 'homepage.catering_btn_en', 'Book Now', 'text', true],
+            ['homepage', 'homepage.catering_btn_link', '/contact', 'text', true],
+
+            // FAQ
+            ['homepage', 'homepage.faqs', [
+                ['q_vi' => 'Có giao hàng tận nơi không?', 'q_en' => 'Do you offer home delivery?', 'a_vi' => 'Có, chúng tôi giao hàng trong bán kính 20km...', 'a_en' => 'Yes, we deliver within 20km radius...'],
+                ['q_vi' => 'Nguyên liệu có tươi không?', 'q_en' => 'Are your ingredients fresh?', 'a_vi' => '100% nguyên liệu được nhập hàng ngày...', 'a_en' => '100% ingredients are sourced daily...'],
+                ['q_vi' => 'Có thể tùy chỉnh món không?', 'q_en' => 'Can I customize my meal?', 'a_vi' => 'Có, bạn có thể chọn size và topping...', 'a_en' => 'Yes, you can choose size and toppings...'],
+                ['q_vi' => 'Có phục vụ tiệc không?', 'q_en' => 'Do you offer catering services?', 'a_vi' => 'Có, liên hệ hotline để đặt tiệc...', 'a_en' => 'Yes, contact our hotline to book...'],
+            ], 'json', true],
+
+            // CTA Banner
+            ['homepage', 'homepage.cta_title_vi', 'ĐÓI BỤNG RỒI? CHÚNG TÔI SẴN SÀNG!', 'text', true],
+            ['homepage', 'homepage.cta_title_en', 'HUNGRY? WE\'RE READY!', 'text', true],
+            ['homepage', 'homepage.cta_image', '', 'text', true],
+            ['homepage', 'homepage.cta_btn_vi', 'Đặt Hàng Ngay', 'text', true],
+            ['homepage', 'homepage.cta_btn_en', 'Order Now', 'text', true],
         ];
 
         foreach ($settings as [$group, $key, $value, $type, $isPublic]) {

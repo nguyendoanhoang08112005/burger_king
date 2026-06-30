@@ -312,11 +312,11 @@ class LocaleController extends Controller
         $enFile = public_path('locales/en/translation.json');
         if (file_exists($enFile)) {
             $enContent = json_decode(file_get_contents($enFile), true);
-            $template = $this->emptyValues($enContent);
+            $template = $enContent;
         } else {
             $viFile = public_path('locales/vi/translation.json');
             $viContent = json_decode(file_get_contents($viFile), true);
-            $template = $this->emptyValues($viContent);
+            $template = $viContent;
         }
 
         file_put_contents(

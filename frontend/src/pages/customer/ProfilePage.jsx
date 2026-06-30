@@ -122,7 +122,7 @@ export default function ProfilePage({ onSelectProduct }) {
   }
 
   return (
-    <div className="max-w-7xl mx-auto py-10 px-6 md:px-12 bg-[#FFFAF5] text-[#1A1A1A] flex flex-col md:flex-row gap-8">
+    <div className="max-w-7xl mx-auto pt-24 md:pt-32 pb-16 px-6 md:px-12 bg-[#FFFAF5] text-[#1A1A1A] flex flex-col md:flex-row gap-8">
       {/* Side Tabs */}
       <aside className="w-full md:w-64 md:self-start md:sticky md:top-28 shrink-0 p-6 rounded-2xl bg-white border border-[#E8E8E8] flex flex-col shadow-glass">
         <div className="space-y-2">
