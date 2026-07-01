@@ -38,10 +38,11 @@ import {
 } from '../layout/AdminLayout'
 
 export const bannerPositionOptions = [
-  { value: 'hero', labelKey: 'banner_position_home_hero' },
   { value: 'blog_hero', labelKey: 'banner_position_blog_hero' },
   { value: 'popup', labelKey: 'banner_position_popup' },
   { value: 'sidebar', labelKey: 'banner_position_sidebar' },
+  { value: 'gallery', labelKey: 'banner_position_gallery' },
+  { value: 'cta',     labelKey: 'banner_position_cta' },
 ]
 
 export const toppingIcon = category => category === 'cheese' ? '🧀' : category === 'meat' ? '🥓' : category === 'veggie' ? '🧅' : '🏺'
@@ -266,12 +267,13 @@ export const crudPages = {
   combos: {
     title: 'Combo Sets',
     endpoint: '/admin/combos',
-    defaults: { name: { vi: '', en: '' }, slug: '', sku: '', description: { vi: '', en: '' }, image: '', price: '', is_active: true, items: [] },
+    defaults: { name: { vi: '', en: '' }, slug: '', sku: '', description: { vi: '', en: '' }, image: '', price: '', sale_price: '', is_active: true, items: [] },
     columns: [
       { key: 'image', labelKey: 'image', render: item => imageThumb(item.image) },
       { key: 'name', labelKey: 'combo_name', render: item => <div><p className="font-semibold">{item.name}</p><p className="text-xs text-gray-400">{item.slug}</p></div> },
       { key: 'sku', labelKey: 'sku' },
-      { key: 'price', labelKey: 'combo_price', render: item => formatVND(item.price) },
+      { key: 'price', labelKey: 'base_price', render: item => formatVND(item.price) },
+      { key: 'sale_price', labelKey: 'sale_price', render: item => item.sale_price ? <span className="text-[#D62300] font-semibold">{formatVND(item.sale_price)}</span> : '-' },
       { key: 'items_count', labelKey: 'items_count' },
       { key: 'is_active', labelKey: 'active', toggleKey: 'is_active' },
     ],
@@ -281,6 +283,7 @@ export const crudPages = {
       { key: 'sku', labelKey: 'sku' },
       { key: 'description', labelKey: 'description', type: 'textarea', translatable: true },
       { key: 'price', labelKey: 'price', type: 'number', required: true },
+      { key: 'sale_price', labelKey: 'sale_price', type: 'number' },
       { key: 'image', labelKey: 'image', type: 'image' },
       { key: 'items', labelKey: 'combo_items', type: 'comboItems' },
       { key: 'is_active', labelKey: 'active', type: 'checkbox' },
@@ -322,7 +325,7 @@ export const crudPages = {
   },
   banners: {
     endpoint: '/admin/banners',
-    defaults: { title: { vi: '', en: '' }, subtitle: { vi: '', en: '' }, image: '', link: '', position: 'hero', sort_order: 0, starts_at: '', expires_at: '', is_active: true },
+    defaults: { title: { vi: '', en: '' }, subtitle: { vi: '', en: '' }, image: '', link: '', position: 'blog_hero', sort_order: 0, starts_at: '', expires_at: '', is_active: true },
     filters: [{ key: 'position', labelKey: 'all_positions', options: bannerPositionOptions }],
     columns: [
       { key: 'image', labelKey: 'preview', render: item => imageThumb(item.image, 'w-20 h-12') },
@@ -675,10 +678,10 @@ export function GenericCrudPage({ title, endpoint, columns, fields, filters = []
   return (
     <AdminPageShell title={titleText || title} action={hasAddAction ? tAdmin('add_new') : undefined} onAction={hasAddAction ? () => navigate(`/admin/${resourceKey}/create`) : undefined}>
       <div className="bg-white dark:bg-[#1E2130] rounded-2xl p-6 shadow-sm space-y-5">
-        <div className="flex flex-col md:flex-row gap-3 items-center">
-          <AdminSearch value={search} onChange={value => { setSearch(value); setPage(1) }} placeholder={tAdmin('search_resource', { title: titleText.toLowerCase() })} className="relative flex-1 min-w-[260px]" />
+        <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center w-full">
+          <AdminSearch value={search} onChange={value => { setSearch(value); setPage(1) }} placeholder={tAdmin('search_resource', { title: titleText.toLowerCase() })} className="relative w-full md:w-auto md:flex-1 min-w-0 md:min-w-[260px]" />
           {filters.map(filter => (
-            <select key={filter.key} value={filterValues[filter.key] || ''} onChange={e => { setFilterValues(prev => ({ ...prev, [filter.key]: e.target.value })); setPage(1) }} className={`${fieldInputClass} flex-1 min-w-[220px]`}>
+            <select key={filter.key} value={filterValues[filter.key] || ''} onChange={e => { setFilterValues(prev => ({ ...prev, [filter.key]: e.target.value })); setPage(1) }} className={`${fieldInputClass} w-full md:w-auto md:flex-1 min-w-0 md:min-w-[220px]`}>
               <option value="">{filterLabel(filter)}</option>
               {(typeof filter.options === 'function' ? filter.options({ categories, products, postCategories, data: crud.data }) : filter.options).map(option => {
                 const rawLabel = option.label && typeof option.label === 'object' ? (option.label[tableLocale] || Object.values(option.label)[0] || '') : option.label
@@ -687,7 +690,7 @@ export function GenericCrudPage({ title, endpoint, columns, fields, filters = []
               })}
             </select>
           ))}
-          <button type="button" onClick={() => { setSearch(''); setFilterValues({}); setPage(1) }} className="px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors cursor-pointer">{tAdmin('reset')}</button>
+          <button type="button" onClick={() => { setSearch(''); setFilterValues({}); setPage(1) }} className="w-full md:w-auto px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors cursor-pointer">{tAdmin('reset')}</button>
         </div>
         {crud.error && <p className="text-sm text-red-500">{crud.error}</p>}
         <AdminTable
@@ -1232,8 +1235,12 @@ export function GenericCrudFormPage({ config, products = [], categories = [], po
               <input
                 disabled={!isDefault}
                 type="number"
-                value={item.quantity || 1}
-                onChange={e => updateField('items', items.map((row, i) => i === index ? { ...row, quantity: Number(e.target.value) } : row))}
+                min="1"
+                value={item.quantity ?? 1}
+                onChange={e => {
+                  const val = Math.max(1, parseInt(e.target.value) || 1)
+                  updateField('items', items.map((row, i) => i === index ? { ...row, quantity: val } : row))
+                }}
                 className={inputClass}
               />
               {isDefault && (

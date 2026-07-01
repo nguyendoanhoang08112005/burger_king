@@ -12,6 +12,7 @@ export const apiOrigin = (apiClient.defaults.baseURL || 'http://localhost:8000/a
 export const assetUrl = value => {
   if (!value) return ''
   if (/^(https?:)?\/\//.test(value) || value.startsWith('data:') || value.startsWith('blob:')) return value
+  if (value.startsWith('/') && !value.startsWith('/storage') && !value.startsWith('/uploads')) return value
   return `${apiOrigin}${value.startsWith('/') ? value : `/${value}`}`
 }
 
@@ -136,7 +137,6 @@ export const adminPathModule = path => {
 }
 
 export const bannerPositionOptions = [
-  { value: 'hero',      labelKey: 'banner_position_home_hero' },
   { value: 'blog_hero', labelKey: 'banner_position_blog_hero' },
   { value: 'popup',     labelKey: 'banner_position_popup' },
   { value: 'sidebar',   labelKey: 'banner_position_sidebar' },

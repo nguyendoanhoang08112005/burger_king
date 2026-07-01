@@ -258,7 +258,7 @@ export function OrdersTable({ orders, compact = false, onStatusChange, onView })
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-left text-sm">
+      <table className="w-full min-w-[800px] text-left text-sm">
         <thead>
           <tr className="text-xs uppercase text-gray-400 border-b border-gray-100 dark:border-gray-700">
             <th className="py-3">{tAdmin('order_code')}</th>
@@ -335,7 +335,7 @@ export default function AdminOrders({ orders, counts, loading, meta, filters, se
             </button>
           ))}
         </div>
-        <div className="relative max-w-sm">
+        <div className="relative w-full md:max-w-sm">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             value={filters.search}

@@ -29,7 +29,7 @@ export default function AdminTable({ columns, data = [], loading, onEdit, onDele
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-left text-sm">
+      <table className="w-full min-w-[800px] text-left text-sm">
         <thead>
           <tr className="text-xs uppercase text-gray-400 border-b border-gray-100 dark:border-gray-700">
             {columns.map(column => (

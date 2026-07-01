@@ -30,7 +30,7 @@ function ScrollToTopButton() {
     <button
       type="button"
       onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-      className="fixed bottom-8 right-6 z-40 w-[52px] h-[52px] flex items-center justify-center group"
+      className="fixed bottom-20 md:bottom-8 right-6 z-40 w-[52px] h-[52px] flex items-center justify-center group"
       aria-label="Scroll to top"
       style={{ background: 'none', border: 'none', padding: 0 }}
     >

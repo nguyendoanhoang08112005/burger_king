@@ -321,6 +321,9 @@ class ComplaintController extends Controller
     // Helper: Notify admins of new complaint
     private function notifyAdminsNewComplaint(Order $order, Complaint $complaint, NotificationService $notificationService)
     {
+        if (!\App\Models\Setting::get('notification.bell_new_complaint', true)) {
+            return;
+        }
         $customerName = $order->address?->recipient_name ?? $order->user?->name ?? 'Khách hàng';
         $admins = User::where('role', 'admin')->get()
             ->merge(User::permission('access.orders')->where('role', 'staff')->get())

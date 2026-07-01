@@ -26,6 +26,7 @@ Route::get('/homepage', [HomepageController::class, 'index']);
 Route::get('/products', [CustomerController::class, 'products']);
 Route::get('/products/{slug}', [CustomerController::class, 'productDetail']);
 Route::get('/products/{productId}/reviews', [ReviewController::class, 'getProductReviews']);
+Route::get('/reviews/featured', [ReviewController::class, 'featured']);
 Route::get('/categories', [CustomerController::class, 'categories']);
 Route::get('/toppings', [CustomerController::class, 'toppings']);
 Route::get('/combos', [CustomerController::class, 'combos']);

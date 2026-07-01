@@ -120,10 +120,48 @@ export default function AppearanceSettings({
   const footerHoursVal = getTransValue(settings['appearance.footer_hours']) || '08:00 - 23:00'
   const footerBrandDescVal = getTransValue(settings['appearance.footer_brand_desc']) || t('footer.brand_desc', { lng: refLang })
   
-  const footerMenuTitleVal = getTransValue(settings['appearance.footer_menu_title']) || t('nav.menu', { lng: refLang }).toUpperCase()
+  const footerMenuTitleVal = getTransValue(settings['appearance.footer_menu_title']) || (refLang === 'vi' ? 'QUY ĐỊNH & CHÍNH SÁCH' : 'LEGAL & POLICIES')
   const footerContactTitleVal = getTransValue(settings['appearance.footer_contact_title']) || t('footer.contact', { lng: refLang }).toUpperCase()
   const footerNewsletterTitleVal = getTransValue(settings['appearance.footer_newsletter_title']) || t('footer.newsletter', { lng: refLang }).toUpperCase()
   const footerNewsletterDescVal = getTransValue(settings['appearance.footer_newsletter_desc']) || t('footer.newsletter_desc', { lng: refLang })
+
+  const footerLink1TextVal = getTransValue(settings['appearance.footer_link1_text']) || (refLang === 'vi' ? 'Về Chúng Tôi' : 'About Us')
+  const footerLink1UrlVal = settings['appearance.footer_link1_url'] || '/about'
+
+  const footerLink2TextVal = getTransValue(settings['appearance.footer_link2_text']) || (refLang === 'vi' ? 'Chính Sách Bảo Mật' : 'Privacy Policy')
+  const footerLink2UrlVal = settings['appearance.footer_link2_url'] || '/privacy'
+
+  const footerLink3TextVal = getTransValue(settings['appearance.footer_link3_text']) || (refLang === 'vi' ? 'Điều Khoản Sử Dụng' : 'Terms of Service')
+  const footerLink3UrlVal = settings['appearance.footer_link3_url'] || '/terms'
+
+  const footerLink4TextVal = getTransValue(settings['appearance.footer_link4_text']) || (refLang === 'vi' ? 'Chính Sách Giao Hàng' : 'Delivery Policy')
+  const footerLink4UrlVal = settings['appearance.footer_link4_url'] || '/delivery'
+
+  const renderUrlHint = (onChange) => (
+    <div className="mt-1.5 flex flex-wrap items-center gap-1 text-[11px] text-gray-400">
+      <span className="font-medium mr-1">{refLang === 'vi' ? 'Gợi ý:' : 'Suggest:'}</span>
+      {[
+        { path: '/', label: refLang === 'vi' ? 'Trang chủ' : 'Home' },
+        { path: '/menu', label: refLang === 'vi' ? 'Thực đơn' : 'Menu' },
+        { path: '/branches', label: refLang === 'vi' ? 'Chi nhánh' : 'Branches' },
+        { path: '/blog', label: refLang === 'vi' ? 'Blog' : 'Blog' },
+        { path: '/about', label: refLang === 'vi' ? 'Về chúng tôi' : 'About Us' },
+        { path: '/privacy', label: refLang === 'vi' ? 'Bảo mật' : 'Privacy' },
+        { path: '/terms', label: refLang === 'vi' ? 'Điều khoản' : 'Terms' },
+        { path: '/delivery', label: refLang === 'vi' ? 'Giao hàng' : 'Delivery' },
+      ].map(item => (
+        <button
+          key={item.path}
+          type="button"
+          onClick={() => onChange(item.path)}
+          className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 hover:bg-red-50 dark:hover:bg-red-500/10 text-gray-500 hover:text-[#D62300] transition font-semibold"
+          title={item.label}
+        >
+          {item.path}
+        </button>
+      ))}
+    </div>
+  )
 
   return (
     <div className="space-y-6 text-left">
@@ -175,6 +213,7 @@ export default function AppearanceSettings({
               label={tAdmin('header_nav_home_url', 'Đường dẫn: Trang Chủ')} 
               value={headerHomeUrlVal} 
               onChange={value => updateSetting('appearance.header_nav_home_url', value)} 
+              hint={renderUrlHint(val => updateSetting('appearance.header_nav_home_url', val))}
             />
           </div>
 
@@ -189,6 +228,7 @@ export default function AppearanceSettings({
               label={tAdmin('header_nav_menu_url', 'Đường dẫn: Thực Đơn')} 
               value={headerMenuUrlVal} 
               onChange={value => updateSetting('appearance.header_nav_menu_url', value)} 
+              hint={renderUrlHint(val => updateSetting('appearance.header_nav_menu_url', val))}
             />
           </div>
 
@@ -203,6 +243,7 @@ export default function AppearanceSettings({
               label={tAdmin('header_nav_branches_url', 'Đường dẫn: Chi Nhánh & Liên Hệ')} 
               value={headerBranchesUrlVal} 
               onChange={value => updateSetting('appearance.header_nav_branches_url', value)} 
+              hint={renderUrlHint(val => updateSetting('appearance.header_nav_branches_url', val))}
             />
           </div>
 
@@ -217,6 +258,7 @@ export default function AppearanceSettings({
               label={tAdmin('header_nav_blog_url', 'Đường dẫn: Blog')} 
               value={headerBlogUrlVal} 
               onChange={value => updateSetting('appearance.header_nav_blog_url', value)} 
+              hint={renderUrlHint(val => updateSetting('appearance.header_nav_blog_url', val))}
             />
           </div>
         </div>
@@ -285,6 +327,75 @@ export default function AppearanceSettings({
             value={settings['appearance.footer_credit'] || t('footer.credit', { lng: refLang })}
             onChange={value => updateSetting('appearance.footer_credit', value)}
           />
+        </div>
+      </div>
+
+      <hr className="border-[#E8E8E8] my-6" />
+
+      <div>
+        <h3 className="font-bold text-sm text-[#2C1A16] uppercase tracking-wider mb-4 border-b border-[#E8E8E8] pb-2">
+          {tAdmin('footer_links_settings_title', 'CẤU HÌNH LIÊN KẾT FOOTER')}
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Link 1 */}
+          <div className="space-y-4 p-4 bg-gray-50/50 dark:bg-gray-800/20 border border-gray-150/80 dark:border-gray-800/50 rounded-2xl shadow-sm">
+            <SettingInput 
+              label={tAdmin('footer_link1_text', 'Liên kết 1: Tiêu đề')} 
+              value={footerLink1TextVal} 
+              onChange={value => updateTransSetting('appearance.footer_link1_text', value)} 
+            />
+            <SettingInput 
+              label={tAdmin('footer_link1_url', 'Liên kết 1: Đường dẫn')} 
+              value={footerLink1UrlVal} 
+              onChange={value => updateSetting('appearance.footer_link1_url', value)} 
+              hint={renderUrlHint(val => updateSetting('appearance.footer_link1_url', val))}
+            />
+          </div>
+
+          {/* Link 2 */}
+          <div className="space-y-4 p-4 bg-gray-50/50 dark:bg-gray-800/20 border border-gray-150/80 dark:border-gray-800/50 rounded-2xl shadow-sm">
+            <SettingInput 
+              label={tAdmin('footer_link2_text', 'Liên kết 2: Tiêu đề')} 
+              value={footerLink2TextVal} 
+              onChange={value => updateTransSetting('appearance.footer_link2_text', value)} 
+            />
+            <SettingInput 
+              label={tAdmin('footer_link2_url', 'Liên kết 2: Đường dẫn')} 
+              value={footerLink2UrlVal} 
+              onChange={value => updateSetting('appearance.footer_link2_url', value)} 
+              hint={renderUrlHint(val => updateSetting('appearance.footer_link2_url', val))}
+            />
+          </div>
+
+          {/* Link 3 */}
+          <div className="space-y-4 p-4 bg-gray-50/50 dark:bg-gray-800/20 border border-gray-150/80 dark:border-gray-800/50 rounded-2xl shadow-sm">
+            <SettingInput 
+              label={tAdmin('footer_link3_text', 'Liên kết 3: Tiêu đề')} 
+              value={footerLink3TextVal} 
+              onChange={value => updateTransSetting('appearance.footer_link3_text', value)} 
+            />
+            <SettingInput 
+              label={tAdmin('footer_link3_url', 'Liên kết 3: Đường dẫn')} 
+              value={footerLink3UrlVal} 
+              onChange={value => updateSetting('appearance.footer_link3_url', value)} 
+              hint={renderUrlHint(val => updateSetting('appearance.footer_link3_url', val))}
+            />
+          </div>
+
+          {/* Link 4 */}
+          <div className="space-y-4 p-4 bg-gray-50/50 dark:bg-gray-800/20 border border-gray-150/80 dark:border-gray-800/50 rounded-2xl shadow-sm">
+            <SettingInput 
+              label={tAdmin('footer_link4_text', 'Liên kết 4: Tiêu đề')} 
+              value={footerLink4TextVal} 
+              onChange={value => updateTransSetting('appearance.footer_link4_text', value)} 
+            />
+            <SettingInput 
+              label={tAdmin('footer_link4_url', 'Liên kết 4: Đường dẫn')} 
+              value={footerLink4UrlVal} 
+              onChange={value => updateSetting('appearance.footer_link4_url', value)} 
+              hint={renderUrlHint(val => updateSetting('appearance.footer_link4_url', val))}
+            />
+          </div>
         </div>
       </div>
     </div>

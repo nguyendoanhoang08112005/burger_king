@@ -20,11 +20,13 @@ class ComboSet extends Model
         'description',
         'image',
         'price',
+        'sale_price',
         'is_active',
     ];
 
     protected $casts = [
         'price' => 'decimal:2',
+        'sale_price' => 'decimal:2',
         'is_active' => 'boolean',
     ];
 

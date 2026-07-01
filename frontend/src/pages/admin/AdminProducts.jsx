@@ -50,8 +50,8 @@ export function AdminProductsPage({ products, categories, loading, meta, filters
   return (
     <AdminPageShell title={tAdmin('products')} action={tAdmin('add_product')} onAction={() => navigate('/admin/products/create')}>
       <div className="bg-white dark:bg-[#1E2130] rounded-2xl p-6 shadow-sm space-y-5">
-        <div className="flex flex-col md:flex-row gap-3 items-center">
-          <div className="relative flex-1 min-w-[260px]">
+        <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center w-full">
+          <div className="relative w-full md:w-auto md:flex-1 min-w-0 md:min-w-[260px]">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               value={filters.search}
@@ -63,7 +63,7 @@ export function AdminProductsPage({ products, categories, loading, meta, filters
           <select
             value={filters.categoryId}
             onChange={event => setFilters(prev => ({ ...prev, categoryId: event.target.value, page: 1 }))}
-            className="flex-1 min-w-[220px] border border-gray-200 dark:border-gray-700 dark:bg-[#161825] rounded-lg px-3 py-2 text-sm"
+            className="w-full md:w-auto md:flex-1 min-w-0 md:min-w-[220px] border border-gray-200 dark:border-gray-700 dark:bg-[#161825] rounded-lg px-3 py-2 text-sm"
           >
             <option value="">{tAdmin('all_categories')}</option>
             {categories.map(category => {
@@ -74,7 +74,7 @@ export function AdminProductsPage({ products, categories, loading, meta, filters
           <select
             value={filters.available}
             onChange={event => setFilters(prev => ({ ...prev, available: event.target.value, page: 1 }))}
-            className="flex-1 min-w-[180px] border border-gray-200 dark:border-gray-700 dark:bg-[#161825] rounded-lg px-3 py-2 text-sm"
+            className="w-full md:w-auto md:flex-1 min-w-0 md:min-w-[180px] border border-gray-200 dark:border-gray-700 dark:bg-[#161825] rounded-lg px-3 py-2 text-sm"
           >
             <option value="">{tAdmin('all_statuses')}</option>
             <option value="true">{tAdmin('available')}</option>
@@ -83,7 +83,7 @@ export function AdminProductsPage({ products, categories, loading, meta, filters
           <button
             type="button"
             onClick={() => setFilters({ search: '', categoryId: '', available: '', page: 1 })}
-            className="px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors cursor-pointer"
+            className="w-full md:w-auto px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors cursor-pointer"
           >
             {tAdmin('reset')}
           </button>
@@ -91,7 +91,7 @@ export function AdminProductsPage({ products, categories, loading, meta, filters
 
         {loading ? <TableSkeleton rows={6} cols={9} /> : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
+            <table className="w-full min-w-[900px] text-left text-sm">
               <thead>
                 <tr className="text-xs uppercase text-gray-400 border-b border-gray-100 dark:border-gray-700">
                   <th className="py-3">{tAdmin('product')}</th>

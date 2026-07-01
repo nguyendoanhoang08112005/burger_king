@@ -16,14 +16,9 @@ use Exception;
 
 class OrderService
 {
-    public function calculateShippingFee($subtotal, ?Coupon $coupon, $deliveryType, ?array $address = null): float
+    public function calculateShippingFee($subtotal, $deliveryType, ?array $address = null): float
     {
         if ($deliveryType === 'pickup') {
-            return 0.00;
-        }
-
-        // Free shipping coupon
-        if ($coupon && $coupon->type === 'free_ship' && $coupon->isValidFor($subtotal)) {
             return 0.00;
         }
 
@@ -108,19 +103,25 @@ class OrderService
                 ];
             }
 
-            // 2. Validate Coupon and calculate discount
+            // 2. Calculate shipping fee
+            $shippingFee = $this->calculateShippingFee($subtotal, $data['delivery_type'], $data['address'] ?? null);
+
+            // 3. Validate Coupon and calculate discount
             $discount = 0.00;
             $couponModel = null;
             if (!empty($data['coupon_code'])) {
                 $couponModel = Coupon::where('code', $data['coupon_code'])->first();
-                if ($couponModel && $couponModel->isValidFor($subtotal)) {
-                    $discount = $couponModel->calculateDiscount($subtotal);
+                if ($couponModel) {
+                    $error = $couponModel->getValidationError($subtotal);
+                    if ($error) {
+                        throw new Exception($error);
+                    }
+                    $discount = $couponModel->calculateDiscount($subtotal, $shippingFee);
                     $couponModel->increment('used_count');
+                } else {
+                    throw new Exception(__('api.messages.coupon_invalid'));
                 }
             }
-
-            // 3. Calculate shipping fee
-            $shippingFee = $this->calculateShippingFee($subtotal, $couponModel, $data['delivery_type'], $data['address'] ?? null);
 
             // 4. Calculate total
             $total = max(0.00, $subtotal - $discount + $shippingFee);

@@ -67,7 +67,13 @@ export default function CheckoutPage() {
 
   const totals = getCartTotals(deliveryType)
   const displayShippingFee = deliveryType === 'pickup' ? 0 : (shippingCalculation?.fee ?? (totals.subtotal >= 300000 ? 0 : 15000))
-  const displayTotal = Math.max(0, totals.subtotal - totals.couponDiscount + displayShippingFee)
+  
+  let displayCouponDiscount = totals.couponDiscount
+  if (coupon && coupon.type === 'free_ship') {
+    displayCouponDiscount = displayShippingFee
+  }
+
+  const displayTotal = Math.max(0, totals.subtotal - displayCouponDiscount + displayShippingFee)
 
   const loyaltyPointValue = Math.max(1, Number(loyaltyInfo.vnd_per_point) || 100)
   const loyaltyBalance = Math.max(0, Number(loyaltyInfo.balance) || 0)
@@ -181,7 +187,7 @@ export default function CheckoutPage() {
 
   const handleApplyCouponCode = (code) => {
     if (!code) return
-    apiClient.post('/cart/apply-coupon', { code: code, subtotal: totals.subtotal })
+    apiClient.post('/cart/apply-coupon', { code: code, subtotal: totals.subtotal, shipping_fee: displayShippingFee })
       .then(res => {
         applyCoupon(res.data)
         showToast(t('checkout.coupon_applied'))
@@ -291,7 +297,7 @@ export default function CheckoutPage() {
   }
 
   return (
-    <div className="max-w-[1200px] mx-auto py-10 px-6 bg-[#FFFAF5] text-[#1A1A1A]">
+    <div className="max-w-[1200px] mx-auto pt-24 md:pt-32 pb-16 px-6 bg-[#FFFAF5] text-[#1A1A1A]">
       
       {/* Refactored Light Progress Stepper */}
       <div className="flex items-center justify-center gap-4 mb-10 max-w-md mx-auto">
@@ -366,7 +372,7 @@ export default function CheckoutPage() {
 
         <OrderSummary
           cartItems={cartItems}
-          totals={totals}
+          totals={{ ...totals, couponDiscount: displayCouponDiscount }}
           coupon={coupon}
           couponInput={couponInput}
           setCouponInput={setCouponInput}

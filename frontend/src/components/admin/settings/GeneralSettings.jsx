@@ -57,7 +57,7 @@ export default function GeneralSettings({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <AdminImageInput
           label={tAdmin('logo')}
-          value={settings['general.logo']}
+          value={settings['general.logo'] || '/logo.svg'}
           uploadType="logo"
           width={settings['general.logo_width'] ?? 260}
           height={settings['general.logo_height'] ?? 64}
@@ -67,7 +67,7 @@ export default function GeneralSettings({
         />
         <AdminImageInput
           label={tAdmin('favicon')}
-          value={settings['general.favicon']}
+          value={settings['general.favicon'] || '/favicon.svg'}
           uploadType="favicon"
           width={settings['general.favicon_width'] ?? 56}
           height={settings['general.favicon_height'] ?? 56}
@@ -77,7 +77,7 @@ export default function GeneralSettings({
         />
         <AdminImageInput
           label={tAdmin('admin_logo') || 'Admin Logo'}
-          value={settings['general.admin_logo']}
+          value={settings['general.admin_logo'] || '/logo.svg'}
           uploadType="admin_logo"
           width={settings['general.admin_logo_width'] ?? 260}
           height={settings['general.admin_logo_height'] ?? 64}
@@ -87,7 +87,7 @@ export default function GeneralSettings({
         />
         <AdminImageInput
           label={tAdmin('admin_favicon') || 'Admin Favicon'}
-          value={settings['general.admin_favicon']}
+          value={settings['general.admin_favicon'] || '/favicon.svg'}
           uploadType="admin_favicon"
           width={settings['general.admin_favicon_width'] ?? 56}
           height={settings['general.admin_favicon_height'] ?? 56}

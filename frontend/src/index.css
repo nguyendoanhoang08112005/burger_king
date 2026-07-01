@@ -3,19 +3,24 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --bg-main: #FFFAF5;
+  --bg-main: #FDF6EC;
   --bg-card: #FFFFFF;
   --bg-input: #F8F8F8;
-  --text-primary: #2C1A16;
+  --text-primary: #1A1A1A;
   --text-secondary: #666666;
   --text-muted: #999999;
-  --color-primary: #D62300;
-  --color-secondary: #FFC72C;
+  --color-primary: #C8102E;
+  --color-secondary: #F5A623;
+  --color-cream: #FDF6EC;
+  --color-dark: #1A0A00;
+  --color-dark-green: #2D5016;
+  --color-text: #1A1A1A;
+  --color-text-muted: #666666;
   --border-color: #E8E8E8;
-  --radius-card: 16px;
+  --radius-card: 20px;
   --radius-input: 10px;
-  --radius-btn: 8px;
-  --shadow-card: 0 2px 12px rgba(0,0,0,0.08);
+  --radius-btn: 10px;
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.08);
   --font-display: 'DM Sans', sans-serif;
   --font-body: 'DM Sans', sans-serif;
 }
@@ -24,9 +29,9 @@
   --sidebar-bg: #FFFFFF;
   --sidebar-border: #F0F0F0;
   --sidebar-text: #4B5563;
-  --sidebar-text-active: #D62300;
+  --sidebar-text-active: #C8102E;
   --sidebar-icon: #9CA3AF;
-  --sidebar-icon-active: #D62300;
+  --sidebar-icon-active: #C8102E;
   --sidebar-active-bg: #FFF5F5;
   --sidebar-hover-bg: #F9FAFB;
   --sidebar-group-label: #9CA3AF;
@@ -37,61 +42,96 @@
   --admin-topbar-h: 60px;
   --admin-content-bg: #F4F6F8;
   --admin-card-bg: #FFFFFF;
-  --admin-primary: #D62300;
+  --admin-primary: #C8102E;
   --admin-border: #E8E8E8;
   --admin-text: #1A1F2E;
   --admin-text-muted: #6B7280;
-  --admin-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  --admin-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 @theme {
   /* Brand Colors Map for Tailwind v4 */
-  --color-primary: var(--color-primary);      /* #D62300 */
-  --color-secondary: var(--color-secondary);  /* #FFC72C */
-  --color-dark: #2C1A16;
-  --color-surface: var(--bg-main);            /* #FFFAF5 */
-  --color-card: var(--bg-card);               /* #FFFFFF */
-  --color-input-bg: var(--bg-input);          /* #F8F8F8 */
-  --color-border-line: var(--border-color);   /* #E8E8E8 */
-  
+  --color-primary: var(--color-primary);
+  /* #C8102E */
+  --color-secondary: var(--color-secondary);
+  /* #F5A623 */
+  --color-cream: var(--color-cream);
+  /* #FDF6EC */
+  --color-dark: var(--color-dark);
+  /* #1A0A00 */
+  --color-dark-green: var(--color-dark-green);
+  /* #2D5016 */
+  --color-text-main: var(--color-text);
+  /* #1A1A1A */
+  --color-text-muted: var(--color-text-muted);
+  /* #666666 */
+  --color-surface: var(--bg-main);
+  --color-card: var(--bg-card);
+  --color-input-bg: var(--bg-input);
+  --color-border-line: var(--border-color);
+
   /* Brand Fonts Map */
   --font-bebas: var(--font-body);
   --font-sans: var(--font-body);
-  
+
   /* Styling Tokens */
   --shadow-premium: var(--shadow-card);
   --shadow-glass: 0 4px 16px 0 rgba(0, 0, 0, 0.04);
+
+  /* Custom breakpoint for iPhone SE (375px) */
+  --breakpoint-xs: 375px;
 }
 
 /* Scrollbars for Light Theme */
-::-webkit-scrollbar {
+/* Admin panel scrollbar overrides */
+html.admin-page ::-webkit-scrollbar,
+html.admin-page::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
-::-webkit-scrollbar-track {
-  background: var(--bg-main);
+html.admin-page ::-webkit-scrollbar-track,
+html.admin-page::-webkit-scrollbar-track {
+  background: #F4F6F8 !important; /* Grey track matching admin content */
 }
-::-webkit-scrollbar-thumb {
+html.admin-page aside ::-webkit-scrollbar-track {
+  background: #FFFFFF !important; /* White track matching admin sidebar */
+}
+html.admin-page ::-webkit-scrollbar-thumb,
+html.admin-page::-webkit-scrollbar-thumb {
   background: var(--color-primary);
   border-radius: 4px;
 }
-::-webkit-scrollbar-thumb:hover {
+html.admin-page ::-webkit-scrollbar-thumb:hover,
+html.admin-page::-webkit-scrollbar-thumb:hover {
   background: var(--color-secondary);
 }
 
 /* Global Reset & Base Light Styling */
-html, body {
+html,
+body {
   margin: 0;
   padding: 0;
-  background-color: var(--bg-main); /* Warm cream background */
-  color: var(--text-primary);       /* #1A1A1A */
-  font-family: var(--font-body);    /* 'DM Sans' default for body */
+  background-color: var(--bg-main);
+  /* Warm cream background */
+  color: var(--text-primary);
+  /* #1A1A1A */
+  font-family: var(--font-body);
+  /* 'DM Sans' default for body */
   font-size: 15px;
   line-height: 1.6;
   scroll-behavior: smooth;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   transition: background-color 0.2s ease, color 0.2s ease;
+  overflow-x: hidden;
+}
+
+html {
+  overflow-y: auto;
+}
+
+body {
+  overflow-y: visible;
 }
 
 /* Transition Utilities */
@@ -106,10 +146,16 @@ html, body {
 
 /* Typography Overrides */
 * {
-  font-family: 'DM Sans', sans-serif;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
 
-h1, h2, h3, h4, h5, h6, .font-heading {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.font-heading {
   font-family: 'DM Sans', sans-serif;
   font-weight: 700;
   color: var(--text-primary);
@@ -167,4 +213,232 @@ h1, h2, h3, h4, h5, h6, .font-heading {
 
 .blog-content th {
   background: #FFFAF5;
+}
+
+/* Firefox scrollbar compatibility fallback */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-primary) transparent;
+}
+
+/* iOS zoom fix: Inputs, selects, and textareas must be at least 16px on mobile viewports */
+@media screen and (max-width: 768px) {
+  input[type="text"],
+  input[type="email"],
+  input[type="tel"],
+  input[type="password"],
+  input[type="number"],
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* 100dvh Dynamic Viewport Height helpers */
+.min-h-screen-dynamic {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+.h-screen-dynamic {
+  height: 100vh;
+  height: 100dvh;
+}
+
+/* Safe Area variables and classes */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom) !important;
+}
+.pt-safe {
+  padding-top: env(safe-area-inset-top) !important;
+}
+.mb-safe {
+  margin-bottom: env(safe-area-inset-bottom) !important;
+}
+
+/* Touch targets and interactions */
+button, 
+a, 
+input[type="button"], 
+input[type="submit"],
+.interactive-target {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Disable context menu triggers on long press iOS for link images */
+img, 
+a img {
+  -webkit-touch-callout: none;
+}
+
+/* Reduced motion media query */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-delay: 0s !important;
+    animation-duration: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0s !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Unified Sliding Login / Sign Up Panel styles */
+.auth-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 75vh;
+  background-color: #FFFAF5;
+  padding: 8rem 1.5rem 4rem 1.5rem;
+}
+
+.auth-card-container {
+  background-color: #fff;
+  border-radius: 24px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.02), 0 20px 50px rgba(0, 0, 0, 0.06);
+  position: relative;
+  overflow: hidden;
+  width: 1000px;
+  max-width: 100%;
+  min-height: 640px;
+  transition: all 0.6s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+}
+
+.auth-form-container {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  transition: all 0.6s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+}
+
+.auth-sign-in-container {
+  left: 0;
+  width: 50%;
+  z-index: 2;
+}
+
+.auth-card-container.right-panel-active .auth-sign-in-container {
+  transform: translateX(100%);
+  opacity: 0;
+  z-index: 1;
+}
+
+.auth-sign-up-container {
+  left: 0;
+  width: 50%;
+  opacity: 0;
+  z-index: 1;
+}
+
+.auth-card-container.right-panel-active .auth-sign-up-container {
+  transform: translateX(100%);
+  opacity: 1;
+  z-index: 5;
+  animation: auth-show-fade 0.6s;
+}
+
+@keyframes auth-show-fade {
+  0%, 49.99% {
+    opacity: 0;
+    z-index: 1;
+  }
+  50%, 100% {
+    opacity: 1;
+    z-index: 5;
+  }
+}
+
+/* Overlay Wrapper */
+.auth-overlay-container {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 50%;
+  height: 100%;
+  overflow: hidden;
+  transition: transform 0.6s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+  z-index: 10;
+}
+
+.auth-card-container.right-panel-active .auth-overlay-container {
+  transform: translateX(-100%);
+}
+
+.auth-overlay {
+  background: linear-gradient(135deg, #F5A623 0%, #C8102E 100%);
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center;
+  color: #FFFFFF;
+  position: relative;
+  left: -100%;
+  height: 100%;
+  width: 200%;
+  transform: translateX(0);
+  transition: transform 0.6s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+}
+
+.auth-card-container.right-panel-active .auth-overlay {
+  transform: translateX(50%);
+}
+
+.auth-overlay-panel {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  padding: 0 40px;
+  text-align: center;
+  top: 0;
+  height: 100%;
+  width: 50%;
+  transform: translateX(0);
+  transition: transform 0.6s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+}
+
+.auth-overlay-left {
+  transform: translateX(-20%);
+}
+
+.auth-card-container.right-panel-active .auth-overlay-left {
+  transform: translateX(0);
+}
+
+.auth-overlay-right {
+  right: 0;
+  transform: translateX(0);
+}
+
+.auth-card-container.right-panel-active .auth-overlay-right {
+  transform: translateX(20%);
+}
+
+/* Mobile responsive override */
+@media (max-width: 767px) {
+  .auth-wrapper {
+    padding: 7rem 1rem 3rem 1rem;
+    min-height: auto;
+  }
+  .auth-card-container {
+    min-height: auto;
+    box-shadow: none;
+    background-color: transparent;
+    border-radius: 0;
+    overflow: visible;
+  }
+  .auth-form-container {
+    position: relative;
+    width: 100% !important;
+    height: auto;
+    opacity: 1 !important;
+    transform: none !important;
+    z-index: 2 !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+    border-radius: 20px;
+    border: 1px solid #E8E8E8;
+  }
+  .auth-overlay-container {
+    display: none !important;
+  }
 }

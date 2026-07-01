@@ -40,7 +40,13 @@ export default function ChatWindow({
   if (!isOpen) return null
 
   return (
-    <div className="fixed bottom-24 right-6 z-50 flex flex-col w-[380px] max-w-[calc(100vw-32px)] h-[580px] max-h-[calc(100vh-120px)] bg-white rounded-3xl border border-[#E8E8E8] shadow-premium overflow-hidden transition-all duration-300 animate-in fade-in slide-in-from-bottom-6">
+    <>
+      {/* Click outside backdrop container */}
+      <div 
+        onClick={onClose}
+        className="fixed inset-0 z-40 bg-transparent pointer-events-auto"
+      />
+      <div className="fixed bottom-36 md:bottom-24 right-6 z-50 flex flex-col w-[380px] max-w-[calc(100vw-32px)] h-[580px] max-h-[calc(100vh-120px)] bg-white rounded-3xl border border-[#E8E8E8] shadow-premium overflow-hidden transition-all duration-300 animate-in fade-in slide-in-from-bottom-6 z-50">
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 bg-primary text-white">
         <div className="flex items-center gap-2.5">
@@ -127,5 +133,6 @@ export default function ChatWindow({
       {/* Input Form */}
       <ChatInput onSend={sendMessage} isLoading={isLoading} initialized={initialized} cooldown={cooldown} />
     </div>
+    </>
   )
 }

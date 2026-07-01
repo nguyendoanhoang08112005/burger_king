@@ -131,7 +131,7 @@ export default function AdminReportsPage({ stats, chartData = [], reportData = {
 
       <div className="bg-white dark:bg-[#1E2130] rounded-2xl p-6 shadow-sm overflow-x-auto">
         <h3 className="font-bold text-gray-800 dark:text-gray-100 mb-4">{tAdmin('top_customers')}</h3>
-        <table className="w-full text-left text-sm">
+        <table className="w-full min-w-[600px] text-left text-sm">
           <thead>
             <tr className="text-xs uppercase text-gray-400 border-b border-gray-100 dark:border-gray-700">
               <th className="py-3">{tAdmin('customer')}</th>

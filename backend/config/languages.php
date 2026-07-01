@@ -46,4 +46,79 @@ return [
         'native' => 'Беларуская',
         'flag'   => '🇧🇾',
     ],
+    'de' => [
+        'name'   => 'Deutsch',
+        'native' => 'Deutsch',
+        'flag'   => '🇩🇪',
+    ],
+    'es' => [
+        'name'   => 'Español',
+        'native' => 'Español',
+        'flag'   => '🇪🇸',
+    ],
+    'it' => [
+        'name'   => 'Italiano',
+        'native' => 'Italiano',
+        'flag'   => '🇮🇹',
+    ],
+    'ru' => [
+        'name'   => 'Русский',
+        'native' => 'Русский',
+        'flag'   => '🇷🇺',
+    ],
+    'pt' => [
+        'name'   => 'Português',
+        'native' => 'Português',
+        'flag'   => '🇵🇹',
+    ],
+    'in' => [
+        'name'   => 'Bahasa Indonesia',
+        'native' => 'Bahasa Indonesia',
+        'flag'   => '🇮🇩',
+    ],
+    'ms' => [
+        'name'   => 'Bahasa Melayu',
+        'native' => 'Bahasa Melayu',
+        'flag'   => '🇲🇾',
+    ],
+    'hi' => [
+        'name'   => 'हिन्दी',
+        'native' => 'हिन्दी',
+        'flag'   => '🇮🇳',
+    ],
+    'km' => [
+        'name'   => 'ភាសាខ្មែរ',
+        'native' => 'ភាសាខ្មែរ',
+        'flag'   => '🇰🇭',
+    ],
+    'lo' => [
+        'name'   => 'ພາສາລາວ',
+        'native' => 'ພາສາລາວ',
+        'flag'   => '🇱🇦',
+    ],
+    'ph' => [
+        'name'   => 'Filipino',
+        'native' => 'Filipino',
+        'flag'   => '🇵🇭',
+    ],
+    'tr' => [
+        'name'   => 'Türkçe',
+        'native' => 'Türkçe',
+        'flag'   => '🇹🇷',
+    ],
+    'nl' => [
+        'name'   => 'Nederlands',
+        'native' => 'Nederlands',
+        'flag'   => '🇳🇱',
+    ],
+    'pl' => [
+        'name'   => 'Polski',
+        'native' => 'Polski',
+        'flag'   => '🇵🇱',
+    ],
+    'sv' => [
+        'name'   => 'Svenska',
+        'native' => 'Svenska',
+        'flag'   => '🇸🇪',
+    ],
 ];

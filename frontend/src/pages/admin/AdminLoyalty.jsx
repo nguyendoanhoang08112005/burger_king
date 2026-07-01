@@ -35,7 +35,7 @@ export default function AdminLoyaltyPage({ users = [], loading = false }) {
       <div className="bg-white dark:bg-[#1E2130] rounded-2xl p-6 shadow-sm overflow-x-auto">
         <h3 className="font-bold mb-4">{tAdmin('top_points_customers')}</h3>
         {loading ? <TableSkeleton rows={6} cols={5} /> : (
-          <table className="w-full text-left text-sm">
+          <table className="w-full min-w-[700px] text-left text-sm">
             <thead>
               <tr className="text-xs uppercase text-gray-400 border-b border-gray-100 dark:border-gray-700">
                 <th className="py-3">{tAdmin('customer')}</th>

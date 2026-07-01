@@ -36,40 +36,45 @@ class Coupon extends Model
         'expires_at' => 'datetime',
     ];
 
-    public function isValidFor($subtotal): bool
+    public function getValidationError($subtotal): ?string
     {
         if (!$this->is_active) {
-            return false;
+            return __('api.messages.coupon_invalid');
         }
 
         $now = Carbon::now();
         if ($this->starts_at && $now->lt($this->starts_at)) {
-            return false;
+            return __('api.messages.coupon_not_started');
         }
 
         if ($this->expires_at && $now->gt($this->expires_at)) {
-            return false;
+            return __('api.messages.coupon_expired');
         }
 
         if ($this->usage_limit !== null && $this->used_count >= $this->usage_limit) {
-            return false;
+            return __('api.messages.coupon_limit_reached');
         }
 
         if ($subtotal < $this->min_order) {
-            return false;
+            return __('api.messages.coupon_min_order', ['min' => number_format($this->min_order) . 'đ']);
         }
 
-        return true;
+        return null;
     }
 
-    public function calculateDiscount($subtotal): float
+    public function isValidFor($subtotal): bool
+    {
+        return $this->getValidationError($subtotal) === null;
+    }
+
+    public function calculateDiscount($subtotal, $shippingFee = 0.0): float
     {
         if (!$this->isValidFor($subtotal)) {
             return 0.0;
         }
 
         if ($this->type === 'free_ship') {
-            return 0.0; // Handled separately in shipping fee
+            return (float) $shippingFee;
         }
 
         if ($this->type === 'fixed') {

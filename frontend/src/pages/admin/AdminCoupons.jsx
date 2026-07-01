@@ -68,7 +68,7 @@ export function AdminCouponsPage({ coupons, loading, onRefresh }) {
   const payload = () => ({
     ...form,
     code: form.code.trim().toUpperCase(),
-    value: Number(form.value || 0),
+    value: form.type === 'free_ship' ? 0 : Number(form.value || 0),
     min_order: Number(form.min_order || 0),
     max_discount: form.type === 'percent' && form.max_discount !== '' ? Number(form.max_discount) : null,
     usage_limit: form.usage_limit !== '' ? Number(form.usage_limit) : null,
@@ -160,7 +160,9 @@ export function AdminCouponsPage({ coupons, loading, onRefresh }) {
             <option value="fixed">{tAdmin('fixed')}</option>
             <option value="free_ship">{tAdmin('free_ship')}</option>
           </select>
-          <input required type="number" value={form.value} onChange={e => setForm({ ...form, value: e.target.value })} placeholder={tAdmin('value')} className={inputClass} />
+          {form.type !== 'free_ship' && (
+            <input required type="number" value={form.value} onChange={e => setForm({ ...form, value: e.target.value })} placeholder={tAdmin('value')} className={inputClass} />
+          )}
           <input type="number" value={form.min_order} onChange={e => setForm({ ...form, min_order: e.target.value })} placeholder={tAdmin('min_order')} className={inputClass} />
           {form.type === 'percent' && <input type="number" value={form.max_discount} onChange={e => setForm({ ...form, max_discount: e.target.value })} placeholder={tAdmin('max_discount')} className={inputClass} />}
           <input type="number" value={form.usage_limit} onChange={e => setForm({ ...form, usage_limit: e.target.value })} placeholder={tAdmin('usage_limit')} className={inputClass} />
@@ -202,7 +204,12 @@ export function AdminCouponsPage({ coupons, loading, onRefresh }) {
                   <tr key={coupon.id} className="text-gray-700 dark:text-gray-200">
                     <td className="py-3 px-3 font-bold text-[#D62300] break-all">{coupon.code}</td>
                     <td className="py-3 px-3">{tAdmin(coupon.type)}</td>
-                    <td className="py-3 px-3">{coupon.type === 'percent' ? `${Number(coupon.value).toFixed(2)}%` : formatVND(coupon.value)}</td>
+                    <td className="py-3 px-3">
+                      {coupon.type === 'free_ship' 
+                        ? (isEn ? '100% Off' : 'Miễn phí 100%') 
+                        : (coupon.type === 'percent' ? `${Number(coupon.value).toFixed(2)}%` : formatVND(coupon.value))
+                      }
+                    </td>
                     <td className="py-3 px-3">{formatVND(coupon.min_order)}</td>
                     <td className="py-3 px-3">{coupon.used_count || 0}/{coupon.usage_limit || '∞'}</td>
                     <td className="py-3 px-3 text-xs">{coupon.expires_at ? formatDate(coupon.expires_at) : '-'}</td>

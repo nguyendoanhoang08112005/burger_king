@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { useAuthStore } from '../store/authStore'
 import { useUiStore } from '../store/uiStore'
+import i18n from '../i18n'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
 
@@ -20,7 +21,7 @@ apiClient.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
-    const lang = localStorage.getItem('hk_language') || 'vi'
+    const lang = i18n?.language || localStorage.getItem('hk_language') || 'vi'
     config.headers['Accept-Language'] = lang
     return config
   },

@@ -142,7 +142,7 @@ export default function CartDrawer() {
 
         {/* Cart Summary */}
         {cartItems.length > 0 && (
-          <div className="p-6 border-t border-[#E8E8E8] bg-[#FDFDFD] space-y-4">
+          <div className="p-6 pb-safe border-t border-[#E8E8E8] bg-[#FDFDFD] space-y-4">
             <div className="space-y-2 text-sm text-[#666666]">
               <div className="flex justify-between">
                 <span>{t('cart.subtotal')}</span>

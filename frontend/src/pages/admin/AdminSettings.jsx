@@ -11,9 +11,10 @@ const LocalizationSettings = lazy(() => import('../../components/admin/settings/
 const SeoSettings = lazy(() => import('../../components/admin/settings/SeoSettings'))
 const LoyaltySettings = lazy(() => import('../../components/admin/settings/LoyaltySettings'))
 const ReviewComplaintSettings = lazy(() => import('../../components/admin/settings/ReviewComplaintSettings'))
+const HomepageSettings = lazy(() => import('../../components/admin/settings/HomepageSettings'))
 import {
   Bell, Download, Gift, Globe, Loader2, MapPin, Palette,
-  Save, Search, Settings, Star, Store, Trash2, Truck, X, ChevronRight, Mail,
+  Save, Search, Settings, Star, Store, Trash2, Truck, X, ChevronRight, Mail, Home,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAdminText, renderFlag } from '../../utils/adminUtils'
@@ -30,6 +31,7 @@ import apiClient from '../../api/axios'
 
 const settingTabs = [
   { key: 'general', labelKey: 'general', icon: Store },
+  { key: 'homepage', labelKey: 'homepage_tab', icon: Home },
   { key: 'shipping', labelKey: 'shipping', icon: Truck },
   { key: 'appearance', labelKey: 'appearance', icon: Palette },
   { key: 'mail', labelKey: 'mail', icon: Mail },
@@ -271,6 +273,32 @@ export function AdminLanguageLocalesPage() {
   )
 }
 
+const HOMEPAGE_DEFAULTS = {
+  'homepage.categories_subtitle': { vi: 'Danh Mục Món Ăn', en: 'Categories' },
+  'homepage.categories_title': { vi: 'KHÁM PHÁ CÁC MÓN ĂN PHỔ BIẾN', en: 'EXPLORE OUR POPULAR DISHES' },
+  'homepage.deal_subtitle': { vi: 'Ưu Đãi Đặc Biệt', en: 'Special Offers' },
+  'homepage.deal_title': { vi: 'ƯU ĐÃI THƠM NGON DÀNH CHO BẠN', en: 'DELICIOUS DEALS FOR YOU' },
+  'homepage.deal_desc': { 
+    vi: 'Thưởng thức những món ăn yêu thích với mức giá không thể bỏ lỡ — luôn tươi ngon và đậm đà hương vị.', 
+    en: 'Enjoy your favorite meals at unbeatable prices — freshly made and full of flavor with delicious ingredients, great quality, amazing taste.' 
+  },
+  'homepage.featured_subtitle': { vi: 'Gợi ý từ bếp trưởng', en: "Chef's Recommendation" },
+  'homepage.featured_title': { vi: 'GỢI Ý TỪ BẾP TRƯỞNG', en: "CHEF'S RECOMMENDATION" },
+  'homepage.gallery_badge': { vi: 'KHÔNG GIAN & MÓN ĂN', en: 'SPACE & DISHES' },
+  'homepage.gallery_title': { vi: 'MÃN NHÃN VỚI HƯƠNG VỊ', en: 'A FEAST FOR YOUR EYES' },
+  'homepage.blog_badge': { vi: 'Tin Tức', en: 'News' },
+  'homepage.blog_title': { vi: 'CÔNG THỨC, CÂU CHUYỆN & BÀI VIẾT ẨM THỰC', en: 'RECIPES, STORIES & FOOD ARTICLES' },
+  'homepage.cta_title': { 
+    vi: 'Đặt hàng ngay để trải nghiệm vị ngon đỉnh cao giao tận cửa!', 
+    en: 'Order now to experience the ultimate taste delivered to your door!' 
+  },
+  'homepage.cta_btn': { vi: 'Đặt Hàng Ngay', en: 'Order Now' },
+  'homepage.deal1_image': '/hero-burger-3d.webp',
+  'homepage.deal2_image': '/hero-chicken-3d.webp',
+  'homepage.deal3_image': '/hero-family-3d.png',
+  'homepage.cta_image': '/hero-burger-3d.webp'
+}
+
 // ─── AdminSettingsDatabasePage (main Settings page) ───────────────────────────
 
 export default function AdminSettingsDatabasePage() {
@@ -384,6 +412,16 @@ export default function AdminSettingsDatabasePage() {
     return flat
   }
 
+  const mergeSettingsWithDefaults = flat => {
+    const merged = { ...flat }
+    Object.entries(HOMEPAGE_DEFAULTS).forEach(([key, defaultValue]) => {
+      if (merged[key] === undefined || merged[key] === null || merged[key] === '') {
+        merged[key] = defaultValue
+      }
+    })
+    return merged
+  }
+
   const loadSettings = async () => {
     setLoading(true)
     try {
@@ -391,7 +429,7 @@ export default function AdminSettingsDatabasePage() {
         apiClient.get('/admin/settings'),
         apiClient.get('/admin/branches', { params: { per_page: 100 } }).catch(() => ({ data: { data: [] } })),
       ])
-      setSettings(flattenSettings(settingsRes.data.data || {}))
+      setSettings(mergeSettingsWithDefaults(flattenSettings(settingsRes.data.data || {})))
       setBranches(normalizeListResponse(branchesRes.data))
       setDirty(false)
     } catch {
@@ -409,7 +447,7 @@ export default function AdminSettingsDatabasePage() {
     ])
       .then(([settingsRes, branchesRes]) => {
         if (ignore) return
-        setSettings(flattenSettings(settingsRes.data.data || {}))
+        setSettings(mergeSettingsWithDefaults(flattenSettings(settingsRes.data.data || {})))
         setBranches(normalizeListResponse(branchesRes.data))
         setDirty(false)
       })
@@ -540,6 +578,17 @@ export default function AdminSettingsDatabasePage() {
             tAdmin={tAdmin}
           />
         )
+      case 'homepage':
+        return (
+          <HomepageSettings
+            settings={settings}
+            updateSetting={updateSetting}
+            updateTransSetting={updateTransSetting}
+            getTransValue={getTransValue}
+            refLang={refLang}
+            tAdmin={tAdmin}
+          />
+        )
       default:
         return null
     }
@@ -577,7 +626,7 @@ export default function AdminSettingsDatabasePage() {
         <div className="bg-white dark:bg-[#1E2130] rounded-2xl p-6 shadow-sm">
           <div className="flex items-center justify-between mb-5 border-b border-gray-100 dark:border-gray-700 pb-4">
             <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">{tAdmin(settingTabs.find(tab => tab.key === activeTab)?.labelKey)}</h2>
-            {['general', 'seo', 'appearance'].includes(activeTab) && (
+            {['general', 'seo', 'appearance', 'homepage'].includes(activeTab) && (
               <div className="relative" ref={dropdownRef}>
                 <button
                   type="button"

@@ -8,6 +8,7 @@ use App\Models\OrderReview;
 use App\Models\ProductReview;
 use App\Models\LoyaltyPoint;
 use App\Models\Setting;
+use App\Models\Review;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -247,5 +248,30 @@ class ReviewController extends Controller
                 'breakdown' => $breakdown,
             ]
         ]);
+    }
+
+    // GET /api/reviews/featured
+    // Lấy reviews để hiện testimonials
+    public function featured()
+    {
+        $reviews = Review::where('is_approved', true)
+            ->whereNotNull('comment')
+            ->where('rating', '>=', 4)
+            ->with(['user:id,name,avatar', 'product:id,name,thumbnail'])
+            ->orderBy('rating', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->limit(6)
+            ->get()
+            ->map(fn($r) => [
+                'id'           => $r->id,
+                'rating'       => $r->rating,
+                'comment'      => $r->comment,
+                'user_name'    => $r->user?->name ?? 'Khách',
+                'user_avatar'  => $r->user?->avatar,
+                'product_name' => $r->product?->name,
+                'created_at'   => $r->created_at ? $r->created_at->format('d/m/Y') : '',
+            ]);
+
+        return response()->json(['data' => $reviews]);
     }
 }
