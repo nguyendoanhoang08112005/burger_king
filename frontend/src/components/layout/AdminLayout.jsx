@@ -38,6 +38,7 @@ import {
   Mail,
   Bot,
   X,
+  Menu,
 } from 'lucide-react'
 import {
   assetUrl,
@@ -178,7 +179,7 @@ export function ConfirmDialog({ open, title, message, onConfirm, onCancel, loadi
   )
 }
 
-export function AdminSidebar({ collapsed, onToggle, badges }) {
+export function AdminSidebar({ collapsed, onToggle, badges, mobileOpen, onClose }) {
   const tAdmin = useAdminText()
   const { user } = useAuthStore()
   const logo = useUiStore(state => state.publicSettings['general.admin_logo'])
@@ -187,9 +188,9 @@ export function AdminSidebar({ collapsed, onToggle, badges }) {
   const storeName = useUiStore(state => state.publicSettings['general.store_name'])
 
   return (
-    <aside className={`fixed left-0 top-0 z-40 h-screen bg-white dark:bg-[#1E2130] border-r border-[#F0F0F0] dark:border-gray-700 shadow-[2px_0_8px_rgba(0,0,0,0.04)] transition-all duration-300 ${collapsed ? 'w-[70px]' : 'w-[260px]'}`}>
+    <aside className={`fixed left-0 top-0 h-screen bg-white dark:bg-[#1E2130] border-r border-[#F0F0F0] dark:border-gray-700 shadow-[2px_0_8px_rgba(0,0,0,0.04)] transition-all duration-300 z-50 lg:z-40 ${mobileOpen ? 'translate-x-0 w-[260px]' : '-translate-x-full lg:translate-x-0'} ${collapsed ? 'lg:w-[70px]' : 'lg:w-[260px]'}`}>
       <div className="h-[60px] flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-700">
-        {!collapsed && (
+        {(!collapsed || mobileOpen) && (
           <Link to="/admin" className="inline-flex h-10 w-[190px] min-w-0 items-center overflow-hidden text-[#D62300] font-bold text-lg tracking-wide">
             {logo ? (
               <img
@@ -216,11 +217,11 @@ export function AdminSidebar({ collapsed, onToggle, badges }) {
         )}
         <button
           type="button"
-          onClick={onToggle}
+          onClick={mobileOpen ? onClose : onToggle}
           className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-300 hover:text-gray-700 dark:hover:text-white transition-colors ml-auto"
-          aria-label="Toggle sidebar"
+          aria-label={mobileOpen ? "Close menu" : "Toggle sidebar"}
         >
-          {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+          {mobileOpen ? <X size={18} /> : collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
         </button>
       </div>
 
@@ -274,7 +275,7 @@ export function AdminSidebar({ collapsed, onToggle, badges }) {
   )
 }
 
-export function AdminTopbar({ notifications = [], unreadCount = 0 }) {
+export function AdminTopbar({ notifications = [], unreadCount = 0, onMenuToggle }) {
   const { user, setLogout } = useAuthStore()
   const navigate = useNavigate()
   const tAdmin = useAdminText()
@@ -397,10 +398,29 @@ export function AdminTopbar({ notifications = [], unreadCount = 0 }) {
   const recentNotifications = notifications.slice(0, 5)
 
   return (
-    <header className="h-[60px] bg-white dark:bg-[#1E2130] border-b border-gray-100 dark:border-gray-700 flex items-center px-6 gap-4 sticky top-0 z-30">
+    <header className="h-[60px] bg-white dark:bg-[#1E2130] border-b border-gray-100 dark:border-gray-700 flex items-center px-4 md:px-6 gap-3 md:gap-4 sticky top-0 z-30">
+      {/* 3-gạch Hamburger menu toggle on mobile */}
+      <button
+        type="button"
+        onClick={onMenuToggle}
+        className="lg:hidden p-2 rounded-lg text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
+        aria-label="Open navigation menu"
+      >
+        <Menu size={20} />
+      </button>
+
+      {/* Brand logo only visible on mobile topbar */}
+      <Link to="/admin" className="lg:hidden flex items-center h-8 flex-shrink-0 mr-1">
+        <img
+          src="/logo.svg"
+          alt="Hamburger King"
+          className="h-8 w-auto object-contain"
+        />
+      </Link>
+
       <div
         ref={searchContainerRef}
-        className="relative flex-1 max-w-sm"
+        className="hidden md:block relative flex-1 max-w-[140px] sm:max-w-sm"
       >
         <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
         <input
@@ -574,14 +594,22 @@ export function AdminTopbar({ notifications = [], unreadCount = 0 }) {
 
 export function AdminLayout({ children, badges, notifications, unreadNotifications }) {
   const [collapsed, setCollapsed] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
   const location = useLocation()
 
   return (
     <div className="admin-layout min-h-screen bg-[#F4F6F8] dark:bg-[#161825] text-gray-900 dark:text-gray-100">
-      <AdminSidebar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} badges={badges} />
-      <div className={`min-h-screen flex flex-col transition-all duration-300 ${collapsed ? 'ml-[70px]' : 'ml-[260px]'}`}>
-        <AdminTopbar notifications={notifications} unreadCount={unreadNotifications} />
-        <main key={location.pathname} className="flex-1 p-6 overflow-auto">{children}</main>
+      {/* Mobile sidebar backdrop click-outside overlay */}
+      {mobileOpen && (
+        <div 
+          onClick={() => setMobileOpen(false)}
+          className="lg:hidden fixed inset-0 z-40 bg-black/40 backdrop-blur-sm pointer-events-auto transition-opacity"
+        />
+      )}
+      <AdminSidebar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} badges={badges} mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} />
+      <div className={`min-h-screen flex flex-col transition-all duration-300 ml-0 lg:ml-[260px] ${collapsed ? 'lg:ml-[70px]' : 'lg:ml-[260px]'}`}>
+        <AdminTopbar notifications={notifications} unreadCount={unreadNotifications} onMenuToggle={() => setMobileOpen(!mobileOpen)} />
+        <main key={location.pathname} className="flex-1 p-4 md:p-6 overflow-auto">{children}</main>
       </div>
     </div>
   )

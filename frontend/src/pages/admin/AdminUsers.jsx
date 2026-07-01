@@ -187,14 +187,14 @@ export function AdminUsersPage({ users, loading, onRefresh }) {
   return (
     <AdminPageShell title={tAdmin('users_title')} action={currentUser?.role === 'admin' ? tAdmin('add_staff') : undefined} onAction={currentUser?.role === 'admin' ? () => setUserModal({ create: true }) : undefined}>
       <div className="bg-white dark:bg-[#1E2130] rounded-2xl p-6 shadow-sm space-y-5">
-        <div className="flex flex-col md:flex-row gap-3">
-          <input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} placeholder={tAdmin('search_users')} className="border border-gray-200 dark:border-gray-700 dark:bg-[#161825] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-100" />
-          <select value={role} onChange={e => { setRole(e.target.value); setPage(1) }} className="border border-gray-200 dark:border-gray-700 dark:bg-[#161825] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-100">
+        <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center w-full">
+          <input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} placeholder={tAdmin('search_users')} className="w-full md:w-auto md:flex-1 border border-gray-200 dark:border-gray-700 dark:bg-[#161825] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-100" />
+          <select value={role} onChange={e => { setRole(e.target.value); setPage(1) }} className="w-full md:w-auto md:flex-1 border border-gray-200 dark:border-gray-700 dark:bg-[#161825] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-100">
             <option value="">{tAdmin('all_roles')}</option><option value="customer">{tAdmin('customer')}</option><option value="admin">Admin</option><option value="staff">{tAdmin('staff')}</option>
           </select>
         </div>
         {loading ? <TableSkeleton rows={6} cols={10} /> : (
-          <div className="overflow-x-auto"><table className="w-full text-left text-sm">
+          <div className="overflow-x-auto"><table className="w-full min-w-[1000px] text-left text-sm">
             <thead><tr className="text-xs uppercase text-gray-400 border-b border-gray-100 dark:border-gray-700"><th className="py-3">{tAdmin('avatar')}</th><th>{tAdmin('name')}</th><th>{tAdmin('email')}</th><th>{tAdmin('phone')}</th><th>{tAdmin('role')}</th><th>{tAdmin('status')}</th><th>{tAdmin('orders_count')}</th><th>{tAdmin('points')}</th><th>{tAdmin('created_at')}</th><th className="text-right">{tAdmin('actions')}</th></tr></thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-700">{paginatedUsers.map(user => (
               <tr key={user.id} className={`${user.deleted_at ? 'opacity-60' : ''} text-gray-700 dark:text-gray-200`}>

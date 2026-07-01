@@ -153,7 +153,7 @@ function AppShell({ selectedProduct, setSelectedProduct }) {
               
               {/* Authentications */}
               <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
+              <Route path="/register" element={<Login />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               
               {/* Checkout & tracking */}

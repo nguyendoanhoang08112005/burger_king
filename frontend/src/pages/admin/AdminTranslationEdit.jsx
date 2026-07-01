@@ -216,7 +216,7 @@ export default function AdminTranslationEdit({ code: propCode }) {
       {/* Bảng Key-Value dịch */}
       <div className="bg-white dark:bg-[#1E2130] rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm border-collapse">
+          <table className="w-full min-w-[700px] text-left text-sm border-collapse">
             <thead>
               <tr className="bg-gray-50/70 dark:bg-[#161825]/50 text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-700">
                 <th className="px-6 py-4 w-[25%]">{tAdmin('key_column', 'Từ khóa')}</th>

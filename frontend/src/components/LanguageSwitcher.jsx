@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useUiStore } from '../store/uiStore'
 import { renderFlag } from '../utils/adminUtils'
 
-const LanguageSwitcher = ({ variant = 'default', scrolled = false }) => {
+const LanguageSwitcher = ({ variant = 'default', scrolled = false, onChangeLanguage }) => {
   // variant: 'default' (customer) | 'compact' (admin) | 'header' (transparent header)
   const { i18n } = useTranslation()
   const [open, setOpen] = useState(false)
@@ -35,6 +35,7 @@ const LanguageSwitcher = ({ variant = 'default', scrolled = false }) => {
     localStorage.setItem('hk_language', langCode)
     i18n.changeLanguage(langCode)
     setOpen(false)
+    if (onChangeLanguage) onChangeLanguage(langCode)
   }
 
   return (

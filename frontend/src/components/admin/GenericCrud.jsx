@@ -678,10 +678,10 @@ export function GenericCrudPage({ title, endpoint, columns, fields, filters = []
   return (
     <AdminPageShell title={titleText || title} action={hasAddAction ? tAdmin('add_new') : undefined} onAction={hasAddAction ? () => navigate(`/admin/${resourceKey}/create`) : undefined}>
       <div className="bg-white dark:bg-[#1E2130] rounded-2xl p-6 shadow-sm space-y-5">
-        <div className="flex flex-col md:flex-row gap-3 items-center">
-          <AdminSearch value={search} onChange={value => { setSearch(value); setPage(1) }} placeholder={tAdmin('search_resource', { title: titleText.toLowerCase() })} className="relative flex-1 min-w-[260px]" />
+        <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center w-full">
+          <AdminSearch value={search} onChange={value => { setSearch(value); setPage(1) }} placeholder={tAdmin('search_resource', { title: titleText.toLowerCase() })} className="relative w-full md:w-auto md:flex-1 min-w-0 md:min-w-[260px]" />
           {filters.map(filter => (
-            <select key={filter.key} value={filterValues[filter.key] || ''} onChange={e => { setFilterValues(prev => ({ ...prev, [filter.key]: e.target.value })); setPage(1) }} className={`${fieldInputClass} flex-1 min-w-[220px]`}>
+            <select key={filter.key} value={filterValues[filter.key] || ''} onChange={e => { setFilterValues(prev => ({ ...prev, [filter.key]: e.target.value })); setPage(1) }} className={`${fieldInputClass} w-full md:w-auto md:flex-1 min-w-0 md:min-w-[220px]`}>
               <option value="">{filterLabel(filter)}</option>
               {(typeof filter.options === 'function' ? filter.options({ categories, products, postCategories, data: crud.data }) : filter.options).map(option => {
                 const rawLabel = option.label && typeof option.label === 'object' ? (option.label[tableLocale] || Object.values(option.label)[0] || '') : option.label
@@ -690,7 +690,7 @@ export function GenericCrudPage({ title, endpoint, columns, fields, filters = []
               })}
             </select>
           ))}
-          <button type="button" onClick={() => { setSearch(''); setFilterValues({}); setPage(1) }} className="px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors cursor-pointer">{tAdmin('reset')}</button>
+          <button type="button" onClick={() => { setSearch(''); setFilterValues({}); setPage(1) }} className="w-full md:w-auto px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors cursor-pointer">{tAdmin('reset')}</button>
         </div>
         {crud.error && <p className="text-sm text-red-500">{crud.error}</p>}
         <AdminTable

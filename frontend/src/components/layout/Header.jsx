@@ -152,15 +152,12 @@ export default function Header() {
         </nav>
 
         {/* Right side controls */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 md:gap-3">
 
-          {/* Language Switcher */}
-          <LanguageSwitcher variant="header" scrolled={true} />
-
-          {/* Cart */}
+          {/* Cart Icon - Visible only on desktop (hidden on mobile) */}
           <button
             onClick={() => useUiStore.getState().setCartDrawerOpen(true)}
-            className="relative p-2 rounded-full cursor-pointer transition-colors hover:bg-black/5 text-[#5C1A16]">
+            className="hidden lg:inline-flex relative p-2 rounded-full cursor-pointer transition-colors hover:bg-black/5 text-[#5C1A16]">
             <ShoppingBag size={20} />
             {cartCount > 0 && (
               <span className="absolute -top-0.5 -right-0.5
@@ -172,76 +169,110 @@ export default function Header() {
             )}
           </button>
 
-          {/* User */}
-          {user ? (
-            <div className="flex items-center gap-3">
-              {/* Profile Link (Avatar + Name) */}
-              <Link to="/profile" className="flex items-center gap-2 group cursor-pointer">
-                {user.avatar ? (
-                  <img
-                    src={assetUrl(user.avatar)}
-                    alt={user.name}
-                    className="w-8 h-8 rounded-full object-cover border-2 border-[#C8102E]/20 group-hover:border-[#C8102E] transition-all"
-                  />
-                ) : (
-                  <div className="w-8 h-8 rounded-full bg-[#C8102E] text-white flex items-center justify-center font-bold text-sm group-hover:bg-[#8A151B] transition-colors">
-                    {user.name.charAt(0).toUpperCase()}
-                  </div>
-                )}
-                <span className="text-sm font-semibold hidden xl:block text-[#5C1A16] group-hover:text-[#C8102E] transition-colors">
-                  {user.name}
-                </span>
-              </Link>
-              
-              {/* Admin badge */}
-              {(user.role === 'admin' || user.role === 'staff') && (
-                <Link to="/admin"
-                  className="bg-[#F5A623] text-[#1A0A00]
-                    text-xs font-bold px-3 py-1.5 rounded-full
-                    hover:opacity-90 transition uppercase
-                    tracking-wide">
-                  Admin
+          {/* Desktop-only controls (hidden on mobile, shown on lg) */}
+          <div className="hidden lg:flex items-center gap-3">
+            {/* Language Switcher */}
+            <LanguageSwitcher variant="header" scrolled={true} />
+
+            {/* User Profile / Admin / Login */}
+            {user ? (
+              <div className="flex items-center gap-3">
+                <Link to="/profile" className="flex items-center gap-2 group cursor-pointer">
+                  {user.avatar ? (
+                    <img
+                      src={assetUrl(user.avatar)}
+                      alt={user.name}
+                      className="w-8 h-8 rounded-full object-cover border-2 border-[#C8102E]/20 group-hover:border-[#C8102E] transition-all"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-[#C8102E] text-white flex items-center justify-center font-bold text-sm group-hover:bg-[#8A151B] transition-colors">
+                      {user.name.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <span className="text-sm font-semibold hidden xl:block text-[#5C1A16] group-hover:text-[#C8102E] transition-colors">
+                    {user.name}
+                  </span>
                 </Link>
-              )}
+                
+                {(user.role === 'admin' || user.role === 'staff') && (
+                  <Link to="/admin"
+                    className="bg-[#F5A623] text-[#1A0A00]
+                      text-xs font-bold px-3 py-1.5 rounded-full
+                      hover:opacity-90 transition uppercase
+                      tracking-wide">
+                    Admin
+                  </Link>
+                )}
 
-              <button onClick={handleLogout}
-                className="text-sm font-medium cursor-pointer text-[#5C1A16]/80 hover:text-[#C8102E] transition-colors ml-1">
-                {t('nav.logout')}
-              </button>
-            </div>
-          ) : (
-            <Link to="/login"
-              className="bg-[#C8102E] hover:bg-[#8A151B]
-                text-white text-sm font-bold px-6 py-2.5
-                rounded-full transition-all
-                hover:-translate-y-0.5 tracking-wide shadow-md">
-              {t('nav.login')}
-            </Link>
-          )}
+                <button onClick={handleLogout}
+                  className="text-sm font-medium cursor-pointer text-[#5C1A16]/80 hover:text-[#C8102E] transition-colors ml-1">
+                  {t('nav.logout')}
+                </button>
+              </div>
+            ) : (
+              <Link to="/login"
+                className="bg-[#C8102E] hover:bg-[#8A151B]
+                  text-white text-sm font-bold px-6 py-2.5
+                  rounded-full transition-all
+                  hover:-translate-y-0.5 tracking-wide shadow-md">
+                {t('nav.login')}
+              </Link>
+            )}
+          </div>
 
-          {/* Mobile menu toggle */}
+          {/* Mobile menu toggle (3-gạch hamburger) */}
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
-            className="lg:hidden p-2 rounded-lg cursor-pointer transition text-[#5C1A16] hover:bg-black/5">
-            {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+            className="lg:hidden p-2 rounded-lg cursor-pointer transition text-[#5C1A16] hover:bg-black/5 z-50">
+            {mobileOpen ? <X size={22} /> : <Menu size={22} />}
           </button>
         </div>
       </div>
 
       {/* Mobile Nav Drawer */}
       {mobileOpen && (
-        <div className="lg:hidden bg-[#FDF6EC] border-t border-[#FBE3B5]/30
-          rounded-b-[20px] shadow-lg px-6 py-4 space-y-2 pointer-events-auto mt-1">
-          {navItems.map(item => (
-            <Link key={item.path} to={item.path}
-              onClick={() => setMobileOpen(false)}
-              className="block py-3 text-sm font-semibold
-                text-[#5C1A16] hover:text-[#C8102E]
-                border-b border-[#FBE3B5]/20 transition-colors">
-              {item.label}
-            </Link>
-          ))}
-        </div>
+        <>
+          {/* Backdrop to intercept clicks outside the drawer */}
+          <div 
+            onClick={() => setMobileOpen(false)}
+            className="lg:hidden fixed inset-0 z-40 bg-black/10 backdrop-blur-none pointer-events-auto"
+          />
+          <div className="lg:hidden bg-[#FDF6EC] border-t border-[#FBE3B5]/30
+            rounded-b-[20px] shadow-lg px-6 py-5 space-y-4 pointer-events-auto mt-1 flex flex-col text-left animate-in fade-in slide-in-from-top-4 duration-200 relative z-50">
+            
+            {/* Navigation Links (Excluding Home and Menu which are in bottom bar) */}
+            <div className="flex flex-col space-y-1">
+              {navItems.filter(item => item.path !== homeUrl && item.path !== menuUrl).map(item => (
+                <Link key={item.path} to={item.path}
+                  onClick={() => setMobileOpen(false)}
+                  className="block py-3 text-[15px] font-bold
+                    text-[#5C1A16] hover:text-[#C8102E]
+                    border-b border-[#FBE3B5]/10 transition-colors">
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+
+            {/* Language Switcher for Mobile */}
+            <div className="py-2 border-b border-[#FBE3B5]/10 flex items-center justify-between">
+              <span className="text-sm font-semibold text-[#5c1a16]/70">{t('settings.language', 'Ngôn ngữ')}</span>
+              <LanguageSwitcher variant="header" scrolled={true} onChangeLanguage={() => setMobileOpen(false)} />
+            </div>
+
+            {/* Admin Panel Access on Mobile */}
+            {user && (user.role === 'admin' || user.role === 'staff') && (
+              <div className="pt-2">
+                <Link 
+                  to="/admin"
+                  onClick={() => setMobileOpen(false)}
+                  className="w-full bg-[#F5A623] text-[#1A0A00] text-center text-sm font-bold py-2.5 px-4 rounded-xl shadow-sm uppercase tracking-wide block"
+                >
+                  Admin Panel
+                </Link>
+              </div>
+            )}
+          </div>
+        </>
       )}
     </header>
   )
