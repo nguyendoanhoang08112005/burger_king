@@ -526,6 +526,7 @@
     "credit": "Designed by Senior Full-stack Team."
   },
   "adminPanel": {
+    "default_to_vietnam_address": "Default to Vietnam (Use administrative API for City/District/Ward)",
     "chatbot_sidebar": "AI Chatbot",
     "show_at_checkout": "Show at checkout",
     "show_at_checkout_th": "Show at checkout",
@@ -1361,5 +1362,17 @@
     "error": "An error occurred, please try again later.",
     "info_title": "Customer Support",
     "info_subtitle": "Contact us directly through the following channels:"
+  },
+  "address": {
+    "enter_manually": "Enter manually / Type address",
+    "use_dropdowns": "Use selection list",
+    "select_province": "Select City / Province",
+    "select_district": "Select District / County",
+    "select_ward": "Select Ward / Sub-district",
+    "province_placeholder": "City / Province / State",
+    "district_placeholder": "District / County",
+    "ward_placeholder": "Ward / Sub-district / Zip",
+    "street_placeholder": "Street address, P.O. Box",
+    "api_error_fallback": "Manual input (API Error)"
   }
 }

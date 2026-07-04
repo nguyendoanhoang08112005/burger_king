@@ -292,7 +292,7 @@
     "new_member_register": "ĐĂNG KÝ THÀNH VIÊN MỚI",
     "welcome_back_title": "Chào Bạn Quay Lại!",
     "welcome_back_desc": "Đăng nhập với tài khoản của bạn để đặt hàng và nhận nhiều ưu đãi hấp dẫn.",
-    "welcome_title": "Chào Bạn Mới!",
+    "welcome_title": "Chào Bạn!",
     "welcome_desc_overlay": "Đăng ký tài khoản thành viên để bắt đầu hành trình thưởng thức ẩm thực tuyệt hảo.",
     "password_confirmation_mismatch": "Mật khẩu xác nhận không khớp.",
     "register_success_welcome": "Đăng ký thành viên mới thành công! Chào mừng bạn gia nhập vương quốc Burger.",
@@ -542,6 +542,7 @@
     "delivery_policy": "Chính Sách Giao Hàng"
   },
   "adminPanel": {
+    "default_to_vietnam_address": "Mặc định cho Việt Nam (Dùng API lấy địa chỉ Tỉnh/Huyện/Xã)",
     "chatbot_sidebar": "AI Chatbot",
     "banner_position_gallery": "Bộ Sưu Tập (Gallery)",
     "banner_position_cta": "Banner CTA",
@@ -1377,5 +1378,17 @@
     "best_value": "TIẾT KIỆM NHẤT",
     "special_discount": "Khuyến Mãi Đặc Biệt",
     "limited_offer": "Số Lượng Có Hạn"
+  },
+  "address": {
+    "enter_manually": "Tự nhập địa chỉ / Nhập tay",
+    "use_dropdowns": "Sử dụng danh sách chọn",
+    "select_province": "Chọn Tỉnh / Thành phố",
+    "select_district": "Chọn Quận / Huyện",
+    "select_ward": "Chọn Phường / Xã",
+    "province_placeholder": "Tỉnh / Thành phố",
+    "district_placeholder": "Quận / Huyện",
+    "ward_placeholder": "Phường / Xã",
+    "street_placeholder": "Số nhà, tên đường",
+    "api_error_fallback": "Tự nhập địa chỉ (API lỗi)"
   }
 }

@@ -526,6 +526,7 @@
     "credit": "Thiết kế bởi Đội ngũ Senior Full-stack."
   },
   "adminPanel": {
+    "default_to_vietnam_address": "Mặc định cho Việt Nam (Dùng API lấy địa chỉ Tỉnh/Huyện/Xã)",
     "chatbot_sidebar": "AI Chatbot",
     "show_at_checkout": "Hiện ở checkout",
     "show_at_checkout_th": "Hiện ở checkout",
@@ -1363,5 +1364,17 @@
     "error": "Có lỗi xảy ra, vui lòng thử lại sau.",
     "info_title": "Tổng Đài Hỗ Trợ",
     "info_subtitle": "Liên hệ trực tiếp với chúng tôi qua các kênh sau:"
+  },
+  "address": {
+    "enter_manually": "Tự nhập địa chỉ / Nhập tay",
+    "use_dropdowns": "Sử dụng danh sách chọn",
+    "select_province": "Chọn Tỉnh / Thành phố",
+    "select_district": "Chọn Quận / Huyện",
+    "select_ward": "Chọn Phường / Xã",
+    "province_placeholder": "Tỉnh / Thành phố",
+    "district_placeholder": "Quận / Huyện",
+    "ward_placeholder": "Phường / Xã",
+    "street_placeholder": "Số nhà, tên đường",
+    "api_error_fallback": "Tự nhập địa chỉ (API lỗi)"
   }
 }

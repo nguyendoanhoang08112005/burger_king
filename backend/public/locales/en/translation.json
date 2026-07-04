@@ -542,6 +542,7 @@
     "delivery_policy": "Delivery Policy"
   },
   "adminPanel": {
+    "default_to_vietnam_address": "Default to Vietnam (Use administrative API for City/District/Ward)",
     "chatbot_sidebar": "AI Chatbot",
     "banner_position_gallery": "Gallery Collage",
     "banner_position_cta": "CTA Banner",
@@ -1375,5 +1376,17 @@
     "best_value": "BEST VALUE",
     "special_discount": "Special Discount",
     "limited_offer": "Limited Offer"
+  },
+  "address": {
+    "enter_manually": "Enter manually / Type address",
+    "use_dropdowns": "Use selection list",
+    "select_province": "Select City / Province",
+    "select_district": "Select District / County",
+    "select_ward": "Select Ward / Sub-district",
+    "province_placeholder": "City / Province / State",
+    "district_placeholder": "District / County",
+    "ward_placeholder": "Ward / Sub-district / Zip",
+    "street_placeholder": "Street address, P.O. Box",
+    "api_error_fallback": "Manual input (API Error)"
   }
 }
