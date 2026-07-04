@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import axios from 'axios'
+import { useUiStore } from '../store/uiStore'
 
 const cleanAddressPart = (text) => {
   if (!text) return ''
@@ -73,8 +74,13 @@ export default function VietnamAddressSelector({
   const [loadingDistricts, setLoadingDistricts] = useState(false)
   const [loadingWards, setLoadingWards] = useState(false)
 
-  const [manualMode, setManualMode] = useState(false)
+  const defaultToVietnam = useUiStore(state => state.publicSettings?.['localization.default_to_vietnam'] !== false)
+  const [manualMode, setManualMode] = useState(!defaultToVietnam)
   const [apiError, setApiError] = useState(false)
+
+  useEffect(() => {
+    setManualMode(!defaultToVietnam)
+  }, [defaultToVietnam])
 
   // Track values to avoid cyclic updates
   const lastPropsRef = useRef({ province, district, ward })
@@ -407,17 +413,19 @@ export default function VietnamAddressSelector({
       </div>
 
       {/* Toggle Manual input fallback */}
-      <div className="sm:col-span-2 flex justify-end text-xs">
-        <button
-          type="button"
-          onClick={toggleManualMode}
-          className="text-[#D62300] hover:underline focus:outline-none cursor-pointer"
-        >
-          {manualMode
-            ? (apiError ? t('address.api_error_fallback', { defaultValue: 'Hệ thống tự nhập (API lỗi)' }) : t('address.use_dropdowns', { defaultValue: 'Sử dụng danh sách chọn' }))
-            : t('address.enter_manually', { defaultValue: 'Tự nhập địa chỉ / Nhập tay' })}
-        </button>
-      </div>
+      {defaultToVietnam && (
+        <div className="sm:col-span-2 flex justify-end text-xs">
+          <button
+            type="button"
+            onClick={toggleManualMode}
+            className="text-[#D62300] hover:underline focus:outline-none cursor-pointer"
+          >
+            {manualMode
+              ? (apiError ? t('address.api_error_fallback', { defaultValue: 'Hệ thống tự nhập (API lỗi)' }) : t('address.use_dropdowns', { defaultValue: 'Sử dụng danh sách chọn' }))
+              : t('address.enter_manually', { defaultValue: 'Tự nhập địa chỉ / Nhập tay' })}
+          </button>
+        </div>
+      )}
     </>
   )
 

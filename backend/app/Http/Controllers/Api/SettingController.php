@@ -103,6 +103,7 @@ class SettingController extends Controller
         'homepage.cta_title'           => ['type' => 'json',   'is_public' => true],
         'homepage.cta_image'           => ['type' => 'image',  'is_public' => true],
         'homepage.cta_btn'             => ['type' => 'json',   'is_public' => true],
+        'localization.default_to_vietnam' => ['type' => 'boolean', 'is_public' => true],
     ];
 
     private const LANGUAGE_CATALOG = [

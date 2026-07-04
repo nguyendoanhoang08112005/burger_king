@@ -529,13 +529,105 @@ class CustomerController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
-        // Convert the text notification data to object
+        // Convert the text notification data to object and translate title/body on the fly
         $formatted = $notifications->map(function ($item) {
+            $data = json_decode($item->data);
+
+            if ($data && is_object($data)) {
+                $type = $item->type;
+                if ($type === 'App\Notifications\AdminNewOrder') {
+                    $data->title = __('api.notifications.new_order_title');
+                    $data->body = __('api.notifications.new_order_body', [
+                        'customer' => $data->customer_name ?? __('api.notifications.guest_customer'),
+                        'code' => $data->order_code ?? '',
+                        'total' => number_format((float) ($data->total ?? 0), 0, ',', '.'),
+                    ]);
+                } elseif ($type === 'App\Notifications\AdminNewReview') {
+                    $data->title = __('api.notifications.new_review_title');
+                    $data->body = __('api.notifications.new_review_body', [
+                        'customer' => $data->customer_name ?? '',
+                        'code' => $data->order_code ?? '',
+                        'rating' => $data->rating ?? 5,
+                    ]);
+                } elseif ($type === 'App\Notifications\AdminNewContact') {
+                    $data->title = __('api.notifications.new_contact_title');
+                    $data->body = __('api.notifications.new_contact_body', [
+                        'customer' => $data->customer_name ?? '',
+                    ]);
+                } elseif ($type === 'App\Notifications\AdminNewNewsletter') {
+                    $data->title = __('api.notifications.new_newsletter_title');
+                    $data->body = __('api.notifications.new_newsletter_body', [
+                        'email' => $data->customer_email ?? '',
+                    ]);
+                } elseif ($type === 'App\Notifications\ProductComplaintWarning') {
+                    $data->title = __('api.notifications.product_complaint_warning_title');
+                    $data->body = __('api.notifications.product_complaint_warning_body', [
+                        'name' => $data->product_name ?? '',
+                        'count' => $data->complaints_count ?? 0,
+                    ]);
+                } elseif ($type === 'App\Notifications\AdminNewComplaint') {
+                    $compType = 'other';
+                    if (isset($data->complaint_id)) {
+                        $compType = \App\Models\Complaint::where('id', $data->complaint_id)->value('type') ?? 'other';
+                    }
+                    $translatedType = __("api.notifications.complaint_type_labels.{$compType}");
+                    if ($translatedType === "api.notifications.complaint_type_labels.{$compType}") {
+                        $typeLabels = [
+                            'wrong_item' => 'Sai món',
+                            'missing_item' => 'Thiếu món',
+                            'bad_quality' => 'Chất lượng kém',
+                            'late_delivery' => 'Giao hàng trễ',
+                            'shipper_attitude' => 'Thái độ shipper',
+                            'other' => 'Vấn đề khác',
+                        ];
+                        $translatedType = $typeLabels[$compType] ?? $compType;
+                    }
+                    $data->title = __('api.notifications.new_complaint_title');
+                    $data->body = __('api.notifications.new_complaint_body', [
+                        'code' => $data->order_code ?? '',
+                        'type' => $translatedType,
+                        'customer' => $data->customer_name ?? 'Khách hàng',
+                    ]);
+                } elseif ($type === 'App\Notifications\OrderStatusChanged') {
+                    $status = $data->status ?? 'pending';
+                    $title = __("api.notifications.order_status_titles.{$status}");
+                    if ($title === "api.notifications.order_status_titles.{$status}") {
+                        $title = __('api.notifications.order_updated_title');
+                    }
+                    $body = __("api.notifications.order_status_bodies.{$status}", ['code' => $data->order_code ?? '']);
+                    if ($body === "api.notifications.order_status_bodies.{$status}") {
+                        $body = __('api.notifications.order_updated_body', ['code' => $data->order_code ?? '']);
+                    }
+                    $data->title = $title;
+                    $data->body = $body;
+                } elseif ($type === 'App\Notifications\ComplaintStatusChanged') {
+                    $status = $data->status ?? 'pending';
+                    $resolution = '';
+                    if (isset($data->complaint_id)) {
+                        $complaintObj = \App\Models\Complaint::find($data->complaint_id);
+                        if ($complaintObj) {
+                            $status = $complaintObj->status;
+                            $resolution = $complaintObj->resolution_note ?? '';
+                        }
+                    }
+                    $statusStr = __("api.notifications.complaint_status_labels.{$status}");
+                    if ($statusStr === "api.notifications.complaint_status_labels.{$status}") {
+                        $statusStr = $status;
+                    }
+                    $data->title = __('api.notifications.complaint_status_changed_title', ['code' => $data->order_code ?? '']);
+                    $data->body = __('api.notifications.complaint_status_changed_body', [
+                        'code' => $data->order_code ?? '',
+                        'status' => $statusStr,
+                        'resolution' => $resolution,
+                    ]);
+                }
+            }
+
             return [
                 'id' => $item->id,
                 'read_at' => $item->read_at,
                 'created_at' => $item->created_at,
-                'data' => json_decode($item->data)
+                'data' => $data
             ];
         });
 
