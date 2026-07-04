@@ -10,7 +10,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        DB::statement("ALTER TABLE banners MODIFY position ENUM('hero', 'blog_hero', 'popup', 'sidebar', 'gallery', 'cta') NOT NULL DEFAULT 'hero'");
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE banners MODIFY position ENUM('hero', 'blog_hero', 'popup', 'sidebar', 'gallery', 'cta') NOT NULL DEFAULT 'hero'");
+        } else if (DB::getDriverName() === 'pgsql') {
+            DB::statement("ALTER TABLE banners ALTER COLUMN position TYPE VARCHAR(255)");
+            DB::statement("ALTER TABLE banners DROP CONSTRAINT IF EXISTS banners_position_check");
+            DB::statement("ALTER TABLE banners ADD CONSTRAINT banners_position_check CHECK (position IN ('hero', 'blog_hero', 'popup', 'sidebar', 'gallery', 'cta'))");
+        }
     }
 
     /**
@@ -19,6 +25,12 @@ return new class extends Migration
     public function down(): void
     {
         DB::statement("UPDATE banners SET position = 'hero' WHERE position IN ('gallery', 'cta')");
-        DB::statement("ALTER TABLE banners MODIFY position ENUM('hero', 'blog_hero', 'popup', 'sidebar') NOT NULL DEFAULT 'hero'");
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE banners MODIFY position ENUM('hero', 'blog_hero', 'popup', 'sidebar') NOT NULL DEFAULT 'hero'");
+        } else if (DB::getDriverName() === 'pgsql') {
+            DB::statement("ALTER TABLE banners ALTER COLUMN position TYPE VARCHAR(255)");
+            DB::statement("ALTER TABLE banners DROP CONSTRAINT IF EXISTS banners_position_check");
+            DB::statement("ALTER TABLE banners ADD CONSTRAINT banners_position_check CHECK (position IN ('hero', 'blog_hero', 'popup', 'sidebar'))");
+        }
     }
 };
