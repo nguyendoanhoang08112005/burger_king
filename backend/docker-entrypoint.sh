@@ -1,6 +1,12 @@
 #!/bin/sh
 set -e
 
+# Copy production environment file to .env if it exists
+if [ -f "/var/www/html/.env.productions" ]; then
+    echo "Copying .env.productions to .env..."
+    cp /var/www/html/.env.productions /var/www/html/.env
+fi
+
 # Update Apache port to listen to Render's dynamic $PORT environment variable
 if [ -n "$PORT" ]; then
     echo "Configuring Apache to listen on port $PORT"
