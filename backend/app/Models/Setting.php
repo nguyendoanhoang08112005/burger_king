@@ -154,7 +154,9 @@ class Setting extends Model
         // safe inside a wrapping DB::transaction().
         $invalidateChatCache = static function (): void {
             try {
-                DB::table('chat_caches')->delete();
+                if (\Illuminate\Support\Facades\Schema::hasTable('chat_caches')) {
+                    DB::table('chat_caches')->delete();
+                }
             } catch (\Exception) {
                 // Non-critical – do not interrupt the setting save.
             }
