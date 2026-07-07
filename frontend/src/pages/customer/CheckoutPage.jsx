@@ -26,6 +26,11 @@ export default function CheckoutPage() {
   const navigate = useNavigate()
 
   const [step, setStep] = useState(1)
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [step])
+
   const [deliveryType, setDelivery] = useState('delivery')
   const [paymentMethod, setPayment] = useState('cod')
   const [couponInput, setCouponInput] = useState('')

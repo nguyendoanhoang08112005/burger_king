@@ -282,6 +282,7 @@ export function AdminTopbar({ notifications = [], unreadCount = 0, onMenuToggle 
   const tAdmin = useAdminText()
   const [isDark, setIsDark] = useState(() => localStorage.getItem('adminDarkMode') === 'dark')
   const [notificationsOpen, setNotificationsOpen] = useState(false)
+  const [avatarOpen, setAvatarOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(0)
@@ -289,6 +290,7 @@ export function AdminTopbar({ notifications = [], unreadCount = 0, onMenuToggle 
   const searchInputRef = useRef(null)
   const searchContainerRef = useRef(null)
   const notificationMenuRef = useRef(null)
+  const avatarMenuRef = useRef(null)
 
   useEffect(() => {
     setIsDark(initDarkMode())
@@ -355,6 +357,19 @@ export function AdminTopbar({ notifications = [], unreadCount = 0, onMenuToggle 
     document.addEventListener('mousedown', handlePointerDown)
     return () => document.removeEventListener('mousedown', handlePointerDown)
   }, [])
+
+  useEffect(() => {
+    if (!avatarOpen) return undefined
+
+    const handlePointerDown = event => {
+      if (avatarMenuRef.current && !avatarMenuRef.current.contains(event.target)) {
+        setAvatarOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handlePointerDown)
+    return () => document.removeEventListener('mousedown', handlePointerDown)
+  }, [avatarOpen])
 
   useEffect(() => {
     const handleKeyDown = event => {
@@ -563,30 +578,63 @@ export function AdminTopbar({ notifications = [], unreadCount = 0, onMenuToggle 
             </div>
           )}
         </div>
-        <div className="flex items-center gap-2.5 pl-2 cursor-pointer group">
-          {user?.avatar ? (
-            <img
-              src={assetUrl(user.avatar)}
-              alt={user.name || 'Admin'}
-              className="w-8 h-8 rounded-full object-cover flex-shrink-0"
-            />
-          ) : (
-            <div className="w-8 h-8 rounded-full bg-[#D62300] flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
-              {(user?.name || 'A').charAt(0).toUpperCase()}
+        <div ref={avatarMenuRef} className="relative flex items-center gap-2.5 pl-2 cursor-pointer group">
+          <button
+            type="button"
+            onClick={() => setAvatarOpen(!avatarOpen)}
+            className="flex items-center gap-2.5 cursor-pointer focus:outline-none"
+          >
+            {user?.avatar ? (
+              <img
+                src={assetUrl(user.avatar)}
+                alt={user.name || 'Admin'}
+                className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-[#D62300] flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+                {(user?.name || 'A').charAt(0).toUpperCase()}
+              </div>
+            )}
+            <div className="hidden lg:block text-left">
+              <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 leading-tight">{user?.name || 'Admin'}</p>
+              <p className="text-xs text-gray-400">{tAdmin('admin_role')}</p>
             </div>
-          )}
-          <div className="hidden lg:block">
-            <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 leading-tight">{user?.name || 'Admin'}</p>
-            <p className="text-xs text-gray-400">{tAdmin('admin_role')}</p>
-          </div>
+          </button>
+          
           <button
             type="button"
             onClick={handleLogout}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors ml-1"
+            className="hidden lg:block p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors ml-1"
             aria-label="Logout"
           >
             <LogOut size={15} />
           </button>
+
+          {avatarOpen && (
+            <div className="lg:hidden absolute right-0 mt-2 top-full w-48 rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-[#1E2130] shadow-xl overflow-hidden z-50 py-1.5 animate-fade-in">
+              <a
+                href="/"
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => setAvatarOpen(false)}
+                className="flex items-center gap-2.5 px-4 py-2.5 text-xs text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+              >
+                <ExternalLink size={14} className="text-gray-400" />
+                <span>{tAdmin('view_site')}</span>
+              </a>
+              <button
+                type="button"
+                onClick={() => {
+                  setAvatarOpen(false)
+                  handleLogout()
+                }}
+                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-red-600 hover:bg-red-50/50 dark:hover:bg-red-500/10 transition-colors cursor-pointer text-left font-semibold"
+              >
+                <LogOut size={14} />
+                <span>{tAdmin('logout', 'Đăng xuất')}</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </header>

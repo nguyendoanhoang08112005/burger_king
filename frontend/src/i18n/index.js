@@ -36,7 +36,7 @@ export const initI18n = async () => {
       defaultNS: 'translation',
       backend: {
         // Tải file translation thông qua API để giải quyết triệt để CORS
-        loadPath: `${apiBaseUrl}/locales/{{lng}}/{{ns}}.json?v=1.0.16`,
+        loadPath: `${apiBaseUrl}/locales/{{lng}}/{{ns}}.json?v=1.0.18`,
       },
       detection: {
         order: ['localStorage', 'navigator'],
