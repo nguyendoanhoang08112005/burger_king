@@ -19,7 +19,7 @@ export default function OrderTimeline({ isCancelled, steps, currentStepIndex, t 
       <h3 className="font-bold text-[20px] text-primary tracking-wide uppercase mb-6 text-center">{t('order.delivery_status')}</h3>
       <div className="relative flex flex-col md:flex-row justify-between gap-6 md:gap-0">
         {/* Timeline connectors */}
-        <div className="absolute top-4 left-4 md:left-0 md:right-0 h-full md:h-0.5 bg-gray-200 z-0" />
+        <div className="absolute top-4 left-4 md:left-0 md:right-0 w-0.5 md:w-auto h-full md:h-0.5 bg-gray-200 z-0" />
         
         {steps.map((st, idx) => {
           const active = idx <= currentStepIndex

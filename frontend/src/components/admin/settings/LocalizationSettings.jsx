@@ -68,12 +68,6 @@ export default function LocalizationSettings({
         />
       </div>
 
-      <hr className="border-gray-100 dark:border-gray-800 my-4" />
-      <SettingToggle 
-        label={tAdmin('default_to_vietnam_address', 'Mặc định cho Việt Nam (Dùng API lấy địa chỉ Tỉnh/Huyện/Xã)')} 
-        checked={settings['localization.default_to_vietnam'] !== false} 
-        onChange={value => updateSetting('localization.default_to_vietnam', value)} 
-      />
     </div>
   )
 }

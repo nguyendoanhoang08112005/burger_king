@@ -345,6 +345,13 @@ export default function HomePage({ onSelectProduct }) {
         .animate-spin-slow {
           animation: spin-slow 20s linear infinite;
         }
+        .no-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+        .no-scrollbar {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
       `}} />
 
       {/* ─── SECTION 1: HERO (CENTERED SHOWCASE) ─── */}
@@ -419,20 +426,20 @@ export default function HomePage({ onSelectProduct }) {
               <div className="w-16 h-1 bg-[var(--color-primary)] mx-auto mt-3 rounded-full" />
             </div>
 
-            <div className="flex flex-wrap gap-8 justify-center px-4">
+            <div className="flex overflow-x-auto md:flex-wrap gap-6 md:gap-8 justify-start md:justify-center px-4 pb-4 md:pb-0 no-scrollbar snap-x snap-mandatory">
               {categories.map((cat, index) => (
                 <Link
                   key={cat.id}
                   data-aos="zoom-in"
                   data-aos-delay={index * 80}
                   to={`/menu?category=${cat.slug}`}
-                  className="group shrink-0 flex flex-col items-center text-center transition-all duration-300"
+                  className="group shrink-0 flex flex-col items-center text-center transition-all duration-300 snap-start"
                 >
                   <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden border-2 border-[var(--color-secondary)]/30 bg-[#FBE3B5]/25 shadow-glass group-hover:border-[var(--color-secondary)] group-hover:shadow-premium group-hover:scale-105 transition-all duration-300 flex items-center justify-center">
                     <LazyImage
                       src={assetUrl(cat.image)}
                       alt={cat.name}
-                      className="w-[80%] h-[80%] object-contain transition-transform duration-500 group-hover:scale-110"
+                      className="w-[80%] h-[80%] rounded-full transition-transform duration-500 group-hover:scale-110"
                     />
                   </div>
                   <h4 className="font-bold text-sm text-[var(--color-dark)] uppercase tracking-wide mt-3 group-hover:text-primary transition-colors duration-200">

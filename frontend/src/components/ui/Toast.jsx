@@ -8,7 +8,7 @@ export default function Toast() {
   if (!toast) return null
 
   return (
-    <div className={`fixed bottom-6 right-6 z-[9999] flex items-center gap-3 rounded-[8px] px-5 py-4 shadow-premium border transition-all duration-200 animate-float ${
+    <div className={`fixed top-24 bottom-auto left-4 right-4 md:left-auto md:right-6 z-[9999] flex items-center justify-between md:justify-start gap-3 rounded-[8px] px-5 py-4 shadow-premium border transition-all duration-200 animate-float ${
       toast.type === 'error' 
         ? 'bg-white border-primary text-primary' 
         : 'bg-white border-secondary text-secondary'

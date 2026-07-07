@@ -275,14 +275,29 @@ class LocaleController extends Controller
 
         foreach (['vi', 'en'] as $lang) {
             $backendFile = "{$backendPath}/{$lang}/translation.json";
-            if (!file_exists($backendFile)) {
-                $frontendFile = "{$frontendPath}/{$lang}/translation.json";
-                if (file_exists($frontendFile)) {
-                    if (!is_dir("{$backendPath}/{$lang}")) {
-                        mkdir("{$backendPath}/{$lang}", 0755, true);
-                    }
-                    copy($frontendFile, $backendFile);
+            $frontendFile = "{$frontendPath}/{$lang}/translation.json";
+
+            if (file_exists($frontendFile)) {
+                if (!is_dir("{$backendPath}/{$lang}")) {
+                    mkdir("{$backendPath}/{$lang}", 0755, true);
+                }
+
+                if (file_exists($backendFile)) {
+                    // Deep merge translation keys from frontend to backend to automatically sync new keys
+                    $backendData = json_decode(file_get_contents($backendFile), true) ?: [];
+                    $frontendData = json_decode(file_get_contents($frontendFile), true) ?: [];
+                    
+                    $merged = $this->array_merge_recursive_distinct($backendData, $frontendData);
+                    
+                    file_put_contents(
+                        $backendFile,
+                        json_encode($merged, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)
+                    );
                 } else {
+                    copy($frontendFile, $backendFile);
+                }
+            } else {
+                if (!file_exists($backendFile)) {
                     if (!is_dir("{$backendPath}/{$lang}")) {
                         mkdir("{$backendPath}/{$lang}", 0755, true);
                     }

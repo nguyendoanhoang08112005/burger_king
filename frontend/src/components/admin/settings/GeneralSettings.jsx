@@ -112,6 +112,11 @@ export default function GeneralSettings({
         checked={!!settings['general.maintenance_mode']} 
         onChange={value => updateSetting('general.maintenance_mode', value)} 
       />
+      <SettingToggle 
+        label={tAdmin('default_to_vietnam_address', 'Mặc định cho Việt Nam (Dùng API lấy địa chỉ Tỉnh/Huyện/Xã)')} 
+        checked={settings['localization.default_to_vietnam'] !== false} 
+        onChange={value => updateSetting('localization.default_to_vietnam', value)} 
+      />
       <SettingTextarea 
         label={tAdmin('maintenance_message')} 
         value={getTransValue(settings['general.maintenance_message'])} 

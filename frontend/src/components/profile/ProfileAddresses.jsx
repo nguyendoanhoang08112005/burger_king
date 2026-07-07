@@ -10,7 +10,7 @@ export default function ProfileAddresses() {
   const { showToast } = useUiStore()
 
   const emptyAddress = useCallback(() => ({
-    label: t('address.home_label'),
+    label: '',
     recipient_name: '',
     phone: '',
     province: '',
@@ -18,7 +18,7 @@ export default function ProfileAddresses() {
     ward: '',
     street: '',
     is_default: false
-  }), [t])
+  }), [])
 
   const [addresses, setAddresses] = useState([])
   const [loading, setLoading] = useState(false)
@@ -72,9 +72,16 @@ export default function ProfileAddresses() {
 
   const handleSaveAddress = (e) => {
     e.preventDefault()
+    
+    // Gán nhãn mặc định Nhà riêng nếu để trống
+    const payload = {
+      ...newAddress,
+      label: newAddress.label.trim() ? newAddress.label : t('address.home_label', 'Nhà riêng')
+    }
+
     const request = editingAddressId
-      ? apiClient.put(`/addresses/${editingAddressId}`, newAddress)
-      : apiClient.post('/addresses', newAddress)
+      ? apiClient.put(`/addresses/${editingAddressId}`, payload)
+      : apiClient.post('/addresses', payload)
 
     request
       .then(res => {
@@ -85,10 +92,10 @@ export default function ProfileAddresses() {
         ))
         setShowAddressForm(false)
         resetAddressForm()
-        showToast(t(editingAddressId ? 'profile.address_updated' : 'profile.address_created'))
+        showToast(t(editingAddressId ? 'profile.address_updated' : 'profile.address_created', editingAddressId ? 'Cập nhật địa chỉ thành công' : 'Thêm địa chỉ thành công'))
       }).catch(err => {
         console.error(err)
-        showToast(t('profile.address_save_error'), 'error')
+        showToast(t('profile.address_save_error', 'Không thể lưu địa chỉ, vui lòng thử lại'), 'error')
       })
   }
 
@@ -184,35 +191,38 @@ export default function ProfileAddresses() {
         <form onSubmit={handleSaveAddress} className="p-5 rounded-xl border border-[#E8E8E8] bg-[#F8F8F8] grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="sm:col-span-2">
             <h3 className="text-sm font-bold uppercase tracking-wide text-[#1A1A1A]">
-              {editingAddressId ? t('profile.edit_address') : t('profile.add_address')}
+              {editingAddressId ? t('profile.edit_address', 'Chỉnh sửa địa chỉ') : t('profile.add_address', 'Thêm địa chỉ mới')}
             </h3>
           </div>
           <div>
-            <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">{t('address.label')}</label>
+            <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">{t('address.label', 'Tên gợi nhớ (VD: Nhà riêng, Văn phòng)')}</label>
             <input 
               type="text" 
               required
               value={newAddress.label}
+              placeholder={t('address.home_label', 'Nhà riêng')}
               onChange={(e) => setNewAddress({ ...newAddress, label: e.target.value })}
               className="w-full bg-[#F8F8F8] border border-[#E8E8E8] rounded-[10px] py-[14px] px-[16px] text-sm text-[#1A1A1A] focus:outline-none focus:border-primary focus:ring-3 focus:ring-primary/10 transition-all duration-200"
             />
           </div>
           <div>
-            <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">{t('checkout.recipient_name')}</label>
+            <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">{t('checkout.recipient_name', 'Tên người nhận')}</label>
             <input 
               type="text" 
               required
               value={newAddress.recipient_name}
+              placeholder={t('address.recipient_placeholder', 'Nguyễn Văn A')}
               onChange={(e) => setNewAddress({ ...newAddress, recipient_name: e.target.value })}
               className="w-full bg-[#F8F8F8] border border-[#E8E8E8] rounded-[10px] py-[14px] px-[16px] text-sm text-[#1A1A1A] focus:outline-none focus:border-primary focus:ring-3 focus:ring-primary/10 transition-all duration-200"
             />
           </div>
           <div>
-            <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">{t('address.delivery_phone')}</label>
+            <label className="block text-[12px] font-semibold tracking-[0.5px] text-[#888888] mb-2 uppercase">{t('address.delivery_phone', 'Số điện thoại nhận hàng')}</label>
             <input 
               type="tel" 
               required
               value={newAddress.phone}
+              placeholder={t('address.phone_placeholder', '0901234567')}
               onChange={(e) => setNewAddress({ ...newAddress, phone: e.target.value })}
               className="w-full bg-[#F8F8F8] border border-[#E8E8E8] rounded-[10px] py-[14px] px-[16px] text-sm text-[#1A1A1A] focus:outline-none focus:border-primary focus:ring-3 focus:ring-primary/10 transition-all duration-200"
             />
@@ -236,7 +246,7 @@ export default function ProfileAddresses() {
               onChange={(e) => setNewAddress({ ...newAddress, is_default: e.target.checked })}
               className="w-4 h-4 rounded text-primary focus:ring-primary bg-white border-[#E8E8E8]"
             />
-            <span className="text-xs text-gray-500">{t('address.set_default')}</span>
+            <span className="text-xs text-gray-500">{t('address.set_default', 'Đặt làm địa chỉ giao hàng mặc định')}</span>
           </div>
 
           <div className="sm:col-span-2 flex gap-2">
