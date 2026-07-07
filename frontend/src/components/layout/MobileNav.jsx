@@ -3,11 +3,13 @@ import { useTranslation } from 'react-i18next'
 import { ShoppingBag, Home, Utensils, User } from 'lucide-react'
 import { useCartStore } from '../../store/cartStore'
 import { useUiStore } from '../../store/uiStore'
+import { useAuthStore } from '../../store/authStore'
 
 export default function MobileNav() {
   const { t } = useTranslation()
   const { cartItems } = useCartStore()
   const { setCartDrawerOpen } = useUiStore()
+  const { user } = useAuthStore()
   const totalQuantity = cartItems.reduce((sum, item) => sum + item.quantity, 0)
 
   return (
@@ -42,11 +44,13 @@ export default function MobileNav() {
       </button>
 
       <Link 
-        to="/profile" 
+        to={user ? "/profile" : "/login"} 
         className="flex flex-col items-center gap-1 transition text-[#666666] hover:text-primary active:text-primary"
       >
         <User className="w-5 h-5" />
-        <span className="text-[10px] font-bold tracking-wide">{t('nav.profile').toUpperCase()}</span>
+        <span className="text-[10px] font-bold tracking-wide">
+          {t(user ? 'nav.profile' : 'nav.login').toUpperCase()}
+        </span>
       </Link>
     </div>
   )
