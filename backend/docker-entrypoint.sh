@@ -30,7 +30,7 @@ php artisan package:discover --ansi
 
 # Run database migrations automatically
 echo "Running database migrations..."
-php artisan migrate --force --no-interaction
+php artisan migrate:fresh --seed --force --no-interaction
 
 # Seed database automatically if it is empty
 if php artisan tinker --execute="echo \Illuminate\Support\Facades\Schema::hasTable('users') && \Illuminate\Support\Facades\DB::table('users')->count() === 0 ? 'empty' : 'not_empty';" | grep -q 'empty'; then
