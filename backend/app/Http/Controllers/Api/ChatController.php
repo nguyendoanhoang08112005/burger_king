@@ -510,9 +510,9 @@ class ChatController extends Controller
             $estimatedTokensToday += (int) ceil($wordCount * 1.3) + 200;
         }
 
-        $limitRpm = 15;
-        $limitTpm = 1000000;
-        $limitRpd = 1500;
+        $limitRpm = (int) env('GEMINI_LIMIT_RPM', 15);
+        $limitTpm = (int) env('GEMINI_LIMIT_TPM', 1000000);
+        $limitRpd = (int) env('GEMINI_LIMIT_RPD', 1500);
 
         $remainingRequestsToday = max(0, $limitRpd - $requestsToday);
         $remainingTokensToday = max(0, ($limitRpd * 2000) - $estimatedTokensToday);

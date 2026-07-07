@@ -50,6 +50,7 @@ export default function CheckoutPage() {
   const [scheduledAt, setScheduledAt] = useState('')
   const [note, setNote] = useState('')
   const [loading, setLoading] = useState(false)
+  const [orderPlaced, setOrderPlaced] = useState(false)
   const [loyaltyInfo, setLoyaltyInfo] = useState({
     balance: user?.loyalty_balance || 0,
     vnd_per_point: 100,
@@ -181,7 +182,7 @@ export default function CheckoutPage() {
     return () => clearTimeout(timer)
   }, [deliveryType, selectedAddress, manualAddress.province, manualAddress.district, manualAddress.ward, manualAddress.street, totals.subtotal])
 
-  if (cartItems.length === 0) {
+  if (cartItems.length === 0 && !orderPlaced) {
     return <Navigate to="/menu" />
   }
 
@@ -278,6 +279,7 @@ export default function CheckoutPage() {
 
     apiClient.post('/orders', payload)
       .then(res => {
+        setOrderPlaced(true)
         clearCart()
         showToast(t('checkout.order_created'))
         setLoading(false)
