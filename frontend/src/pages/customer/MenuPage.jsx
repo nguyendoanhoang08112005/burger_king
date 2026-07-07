@@ -155,7 +155,7 @@ export default function MenuPage({ onSelectProduct }) {
             placeholder={t('menu.search_placeholder')}
             value={search}
             onChange={(e) => handleSearchChange(e.target.value)}
-            className="w-full bg-[#F8F8F8] border border-[#E8E8E8] rounded-[10px] px-5 py-3 text-sm text-[#1A1A1A] focus:outline-none focus:border-primary focus:ring-3 focus:ring-primary/10 transition-all duration-200"
+            className="w-full bg-[#F8F8F8] border border-[#E8E8E8] rounded-[10px] px-5 py-3 text-sm text-[#1A1A1A] placeholder:text-[11px] sm:placeholder:text-sm focus:outline-none focus:border-primary focus:ring-3 focus:ring-primary/10 transition-all duration-200"
           />
         </div>
 

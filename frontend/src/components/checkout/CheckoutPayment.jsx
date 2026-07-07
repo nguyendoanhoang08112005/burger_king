@@ -93,7 +93,7 @@ export default function CheckoutPayment({
   t
 }) {
   return (
-    <div className="p-[28px_32px] rounded-2xl bg-white border border-[#E8E8E8] shadow-premium space-y-6 text-left">
+    <div className="p-5 sm:p-[28px_32px] rounded-2xl bg-white border border-[#E8E8E8] shadow-premium space-y-6 text-left">
       <h2 className="font-bold text-[22px] text-[#1A1A1A] uppercase tracking-wide">{t('checkout.payment_method')}</h2>
       
       <PaymentMethodSelector selected={paymentMethod} onChange={setPayment} t={t} />

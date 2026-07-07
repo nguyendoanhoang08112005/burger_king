@@ -25,6 +25,7 @@ import RealTimeNotificationLoader from './components/ui/RealTimeNotificationLoad
 
 // Other storefront pages / components
 import ScrollToTopButton from './components/ScrollToTopButton'
+import ScrollToTop from './components/ScrollToTop'
 import ChatWidget from './components/chat/ChatWidget'
 
 // Lazy load Pages
@@ -116,6 +117,7 @@ function AppShell({ selectedProduct, setSelectedProduct }) {
   return (
     <div className={`min-h-screen text-[#1A1A1A] flex flex-col antialiased selection:bg-primary selection:text-white ${isAdminRoute ? 'bg-[#F4F6F8]' : 'bg-[#FFFAF5] pb-16 md:pb-0'}`}>
         <AosRefresh />
+        <ScrollToTop />
         <SessionGuard />
         <PublicSettingsLoader />
         <Toaster
