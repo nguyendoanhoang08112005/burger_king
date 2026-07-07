@@ -161,7 +161,7 @@ function AppShell({ selectedProduct, setSelectedProduct }) {
               <Route path="/orders/tracking/:code" element={<OrderDetailTracking />} />
               
               {/* Customer & Admin panels */}
-              <Route path="/profile" element={<Profile onSelectProduct={setSelectedProduct} />} />
+              <Route path="/profile" element={<ProtectedRoute><Profile onSelectProduct={setSelectedProduct} /></ProtectedRoute>} />
               
               {/* Policies & Info */}
               <Route path="/about" element={<About />} />

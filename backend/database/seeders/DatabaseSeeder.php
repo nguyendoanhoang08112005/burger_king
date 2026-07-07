@@ -46,19 +46,19 @@ class DatabaseSeeder extends Seeder
         $adminSeed = [
             'email' => env('SEED_ADMIN_EMAIL', 'admin@hamburgerking.com'),
             'name' => env('SEED_ADMIN_NAME', 'Admin User'),
-            'password' => env('SEED_ADMIN_PASSWORD') ?: Str::random(32),
+            'password' => env('SEED_ADMIN_PASSWORD') ?: '12345678',
             'phone' => env('SEED_ADMIN_PHONE', '0900000000'),
         ];
         $staffSeed = [
             'email' => env('SEED_STAFF_EMAIL', 'staff@hamburgerking.com'),
             'name' => env('SEED_STAFF_NAME', 'Store Manager'),
-            'password' => env('SEED_STAFF_PASSWORD') ?: Str::random(32),
+            'password' => env('SEED_STAFF_PASSWORD') ?: '12345678',
             'phone' => env('SEED_STAFF_PHONE', '0900000001'),
         ];
         $customerSeed = [
             'email' => env('SEED_CUSTOMER_EMAIL', 'customer@hamburgerking.com'),
             'name' => env('SEED_CUSTOMER_NAME', 'Demo Customer'),
-            'password' => env('SEED_CUSTOMER_PASSWORD') ?: Str::random(32),
+            'password' => env('SEED_CUSTOMER_PASSWORD') ?: '12345678',
             'phone' => env('SEED_CUSTOMER_PHONE', '0900000002'),
         ];
 
