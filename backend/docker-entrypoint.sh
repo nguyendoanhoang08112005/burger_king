@@ -32,9 +32,9 @@ php artisan package:discover --ansi
 echo "Running database migrations..."
 php artisan migrate --force --no-interaction
 
-# Seed database automatically if it is empty
-if php artisan tinker --execute="echo \Illuminate\Support\Facades\Schema::hasTable('users') && \Illuminate\Support\Facades\DB::table('users')->count() === 0 ? 'empty' : 'not_empty';" | grep -q 'empty'; then
-    echo "Database is empty. Seeding database..."
+# Seed database automatically if it is empty of products
+if php artisan tinker --execute="echo \Illuminate\Support\Facades\Schema::hasTable('products') && \Illuminate\Support\Facades\DB::table('products')->count() === 0 ? 'empty' : 'not_empty';" | grep -q 'empty'; then
+    echo "Products table is empty. Seeding database..."
     php artisan db:seed --force --no-interaction
 fi
 

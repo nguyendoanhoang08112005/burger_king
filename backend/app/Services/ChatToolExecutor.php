@@ -176,8 +176,15 @@ class ChatToolExecutor
         return Cache::remember($cacheKey, 1800, function () use ($category) {
             $query = Product::where('is_available', true);
             if ($category) {
+                $categoryLower = mb_strtolower(trim($category));
+                if (str_contains($categoryLower, 'burger') || str_contains($categoryLower, 'hamburger')) {
+                    $category = 'burgers';
+                }
+
                 $query->whereHas('category', function ($q) use ($category) {
-                    $q->where('slug', $category)->orWhere('name', 'like', "%{$category}%");
+                    $categoryLower = mb_strtolower($category);
+                    $q->where('slug', $category)
+                      ->orWhere(\Illuminate\Support\Facades\DB::raw('lower(name)'), 'like', "%{$categoryLower}%");
                 });
             }
             $products = $query->get()->map(function ($p) {
