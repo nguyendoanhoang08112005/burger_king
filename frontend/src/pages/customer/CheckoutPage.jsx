@@ -282,11 +282,12 @@ export default function CheckoutPage() {
         showToast(t('checkout.order_created'))
         setLoading(false)
         
-        // Redirect to the payment gateway URL returned by the backend.
-        if (res.data.payment_url) {
-          // If the gateway is online, let's redirect
+        // Redirect to the payment gateway URL returned by the backend (only for online payment gateways).
+        if (res.data.payment_url && !res.data.payment_url.includes('/orders/tracking/')) {
+          // If the gateway is online (e.g. VNPay/Stripe), let's redirect
           window.location.href = res.data.payment_url
         } else {
+          // COD or points: use navigate to go to tracking page smoothly!
           navigate(`/orders/tracking/${res.data.order.order_code}`)
         }
       }).catch(err => {
