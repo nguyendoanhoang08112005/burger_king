@@ -8,13 +8,7 @@ import apiClient from '../api/axios'
 import { useAuthStore } from '../store/authStore'
 
 // Layout & Components
-import {
-  AdminLayout,
-  ConfirmDialog,
-  adminPermissionModules,
-  adminPathModule,
-  canAccessAdminModule,
-} from '../components/layout/AdminLayout'
+import { AdminLayout } from '../components/layout/AdminLayout'
 
 // Generic CRUD Page components
 import { GenericCrudPage, GenericCrudFormPage, crudPages } from '../components/admin/GenericCrud'
@@ -29,6 +23,10 @@ import {
   notificationBody,
   playNotificationSound,
   useAdminText,
+  ConfirmDialog,
+  adminPermissionModules,
+  adminPathModule,
+  canAccessAdminModule,
 } from '../utils/adminShared'
 
 // Standalone Page Components

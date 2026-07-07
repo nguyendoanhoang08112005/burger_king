@@ -244,6 +244,7 @@ export function AdminSidebar({ collapsed, onToggle, badges, mobileOpen, onClose 
                     to={item.path}
                     end={item.path === '/admin'}
                     title={collapsed ? tAdmin(item.labelKey) : undefined}
+                    onClick={onClose}
                     className={({ isActive }) => `
                       flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg transition-all duration-150 group relative
                       ${collapsed ? 'justify-center' : ''}
@@ -596,6 +597,17 @@ export function AdminLayout({ children, badges, notifications, unreadNotificatio
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const location = useLocation()
+
+  useEffect(() => {
+    if (mobileOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [mobileOpen])
 
   return (
     <div className="admin-layout min-h-screen bg-[#F4F6F8] dark:bg-[#161825] text-gray-900 dark:text-gray-100">

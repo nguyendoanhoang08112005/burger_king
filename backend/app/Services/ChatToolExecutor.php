@@ -206,7 +206,7 @@ class ChatToolExecutor
         $p = Product::where('is_available', true)
             ->where(function ($q) use ($queryStr) {
                 $q->where('slug', $queryStr)
-                  ->orWhere('name', 'like', "%{$queryStr}%")
+                  ->orWhere(\Illuminate\Support\Facades\DB::raw('lower(name)'), 'like', '%' . mb_strtolower($queryStr) . '%')
                   ->orWhere('sku', $queryStr);
             })
             ->with(['sizes', 'category'])
