@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\ContactController;
 */
 
 // --- PUBLIC STOREFRONT ENDPOINTS ---
+Route::get('/health', fn() => response()->noContent());
 Route::get('/homepage', [HomepageController::class, 'index']);
 Route::get('/products', [CustomerController::class, 'products']);
 Route::get('/products/{slug}', [CustomerController::class, 'productDetail']);
