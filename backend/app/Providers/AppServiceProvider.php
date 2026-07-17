@@ -25,6 +25,19 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Define rate limiters for protection against DDoS and brute-force attacks
+        \Illuminate\Support\Facades\RateLimiter::for('api', function (\Illuminate\Http\Request $request) {
+            return \Illuminate\Cache\RateLimiting\Limit::perMinute(60)->by($request->ip());
+        });
+
+        \Illuminate\Support\Facades\RateLimiter::for('auth', function (\Illuminate\Http\Request $request) {
+            return \Illuminate\Cache\RateLimiting\Limit::perMinute(10)->by($request->ip());
+        });
+
+        \Illuminate\Support\Facades\RateLimiter::for('chatbot', function (\Illuminate\Http\Request $request) {
+            return \Illuminate\Cache\RateLimiting\Limit::perMinute(10)->by($request->ip());
+        });
+
         try {
             if (!Schema::hasTable('settings')) {
                 return;

@@ -12,7 +12,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        $middleware->trustProxies(at: '*');
+        
         $middleware->api(prepend: [
+            'throttle:api',
             \App\Http\Middleware\SetLocale::class,
             \App\Http\Middleware\CheckMaintenanceMode::class,
             \App\Http\Middleware\EnsureAccountActive::class,
