@@ -46,16 +46,20 @@ Route::post('/contacts', [ContactController::class, 'submitContact']);
 Route::post('/newsletter', [ContactController::class, 'submitNewsletter']);
 
 // --- PUBLIC CHATBOT ENDPOINTS ---
-Route::post('/chat/session', [ChatController::class, 'createSession']);
-Route::get('/chat/history/{sid}', [ChatController::class, 'getHistory']);
-Route::delete('/chat/session/{sid}', [ChatController::class, 'deleteSession']);
-Route::post('/chat/message', [ChatController::class, 'sendMessage']);
+Route::middleware('throttle:chatbot')->group(function () {
+    Route::post('/chat/session', [ChatController::class, 'createSession']);
+    Route::get('/chat/history/{sid}', [ChatController::class, 'getHistory']);
+    Route::delete('/chat/session/{sid}', [ChatController::class, 'deleteSession']);
+    Route::post('/chat/message', [ChatController::class, 'sendMessage']);
+});
 
 // --- PUBLIC AUTH ENDPOINTS ---
-Route::post('/auth/register', [AuthController::class, 'register']);
-Route::post('/auth/login', [AuthController::class, 'login']);
-Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword']);
-Route::post('/auth/reset-password', [AuthController::class, 'resetPassword']);
+Route::middleware('throttle:auth')->group(function () {
+    Route::post('/auth/register', [AuthController::class, 'register']);
+    Route::post('/auth/login', [AuthController::class, 'login']);
+    Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword']);
+    Route::post('/auth/reset-password', [AuthController::class, 'resetPassword']);
+});
 
 // --- PUBLIC PAYMENT CALLBACK WEBHOOKS ---
 Route::get('/payment/vnpay/callback', [PaymentController::class, 'vnpayCallback']);
