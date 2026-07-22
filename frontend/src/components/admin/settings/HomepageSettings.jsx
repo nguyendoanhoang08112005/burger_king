@@ -85,6 +85,20 @@ export default function HomepageSettings({
     })
   }, [])
 
+  useEffect(() => {
+    if (combos.length > 0) {
+      if (settings['homepage.deal1_id'] === undefined || settings['homepage.deal1_id'] === null || settings['homepage.deal1_id'] === '') {
+        updateSetting('homepage.deal1_id', combos[0]?.id || '')
+      }
+      if (settings['homepage.deal2_id'] === undefined || settings['homepage.deal2_id'] === null || settings['homepage.deal2_id'] === '') {
+        updateSetting('homepage.deal2_id', combos[1]?.id || combos[0]?.id || '')
+      }
+      if (settings['homepage.deal3_id'] === undefined || settings['homepage.deal3_id'] === null || settings['homepage.deal3_id'] === '') {
+        updateSetting('homepage.deal3_id', combos[2]?.id || combos[1]?.id || combos[0]?.id || '')
+      }
+    }
+  }, [combos, settings, updateSetting])
+
   if (loading) {
     return (
       <div className="flex justify-center items-center py-12">
@@ -243,7 +257,7 @@ export default function HomepageSettings({
                 { n: 3, label: "Card 3 (Signature Burgers)", imgKey: 'homepage.deal3_image', typeKey: 'homepage.deal3_type', idKey: 'homepage.deal3_id', fallback: fallback3 },
               ].map(({ n, label, imgKey, typeKey, idKey, fallback }) => {
                 const currentType = settings[typeKey] || 'combo'
-                const currentId = settings[idKey] || ''
+                const currentId = settings[idKey] || (currentType === 'combo' ? (combos[n - 1]?.id || '') : '')
                 const listItems = currentType === 'product' ? products : combos
                 return (
                   <div key={n} className="flex flex-col sm:flex-row gap-4 p-3 rounded-xl bg-gray-50 dark:bg-[#161825] border border-gray-100 dark:border-slate-700">

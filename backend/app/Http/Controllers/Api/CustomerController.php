@@ -529,8 +529,24 @@ class CustomerController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
+        // Optimize: Collect all complaint_ids from notifications to eager load them in one batch query.
+        $complaintIds = [];
+        foreach ($notifications as $item) {
+            $data = json_decode($item->data);
+            if ($data && is_object($data) && isset($data->complaint_id)) {
+                $complaintIds[] = $data->complaint_id;
+            }
+        }
+
+        $complaints = [];
+        if (!empty($complaintIds)) {
+            $complaints = \App\Models\Complaint::whereIn('id', array_unique($complaintIds))
+                ->get()
+                ->keyBy('id');
+        }
+
         // Convert the text notification data to object and translate title/body on the fly
-        $formatted = $notifications->map(function ($item) {
+        $formatted = $notifications->map(function ($item) use ($complaints) {
             $data = json_decode($item->data);
 
             if ($data && is_object($data)) {
@@ -568,7 +584,8 @@ class CustomerController extends Controller
                 } elseif ($type === 'App\Notifications\AdminNewComplaint') {
                     $compType = 'other';
                     if (isset($data->complaint_id)) {
-                        $compType = \App\Models\Complaint::where('id', $data->complaint_id)->value('type') ?? 'other';
+                        $complaintObj = $complaints->get($data->complaint_id);
+                        $compType = $complaintObj ? $complaintObj->type : 'other';
                     }
                     $translatedType = __("api.notifications.complaint_type_labels.{$compType}");
                     if ($translatedType === "api.notifications.complaint_type_labels.{$compType}") {
@@ -604,7 +621,7 @@ class CustomerController extends Controller
                     $status = $data->status ?? 'pending';
                     $resolution = '';
                     if (isset($data->complaint_id)) {
-                        $complaintObj = \App\Models\Complaint::find($data->complaint_id);
+                        $complaintObj = $complaints->get($data->complaint_id);
                         if ($complaintObj) {
                             $status = $complaintObj->status;
                             $resolution = $complaintObj->resolution_note ?? '';

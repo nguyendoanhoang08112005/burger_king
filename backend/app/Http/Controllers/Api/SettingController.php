@@ -144,17 +144,20 @@ class SettingController extends Controller
         $request->validate(['settings' => 'required|array']);
 
         try {
-            DB::transaction(function () use ($request) {
+            // Read all existing settings in 1 single SELECT query to prevent 50+ individual SELECTs in the loop.
+            $existingSettings = Setting::all()->keyBy('key');
+
+            DB::transaction(function () use ($request, $existingSettings) {
                 // Temporarily disable model events (like saved/deleted hooks that clear chatbot cache)
                 // during batch updates to prevent hundreds of repetitive SQL queries.
-                Setting::withoutEvents(function () use ($request) {
+                Setting::withoutEvents(function () use ($request, $existingSettings) {
                     foreach ($request->settings as $key => $value) {
                         // Skip blank sensitive values to preserve the stored secret.
                         if (in_array($key, self::SENSITIVE_SETTING_KEYS, true) && ($value === '' || $value === null)) {
                             continue;
                         }
 
-                        $setting       = Setting::where('key', $key)->first();
+                        $setting       = $existingSettings->get($key);
                         $dynamicConfig = self::DYNAMIC_SETTINGS[$key] ?? null;
 
                         // Only persist known or explicitly allowed dynamic keys.
@@ -162,8 +165,18 @@ class SettingController extends Controller
                             continue;
                         }
 
+                        // ULTIMATE OPTIMIZATION: Check if the value has actually changed.
+                        // If the new value is identical to the current value, skip the write entirely.
+                        if ($setting) {
+                            $serializedNewValue = Setting::serializeValue($value, $setting->type);
+                            if ($setting->value === $serializedNewValue) {
+                                continue;
+                            }
+                        }
+
                         // Pass false to clearCache parameter to prevent clearing cache 50+ times repetitively
                         Setting::set($key, $value, [
+                            'model'     => $setting,
                             'group'     => $setting?->group     ?? str($key)->before('.')->toString(),
                             'type'      => $setting?->type      ?? ($dynamicConfig['type']      ?? 'text'),
                             'is_public' => $setting?->is_public ?? ($dynamicConfig['is_public'] ?? false),

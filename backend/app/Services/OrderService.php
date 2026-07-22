@@ -41,21 +41,39 @@ class OrderService
             $subtotal = 0.00;
             $itemsData = [];
 
+            // Optimize: Collect all product_ids and topping_ids to eager load them in batch.
+            $productIds = collect($data['items'])->pluck('product_id')->unique()->filter()->values()->all();
+            $products = Product::with('sizes')->whereIn('id', $productIds)->get()->keyBy('id');
+
+            $toppingIds = [];
+            foreach ($data['items'] as $item) {
+                if (!empty($item['toppings']) && is_array($item['toppings'])) {
+                    $toppingIds = array_merge($toppingIds, $item['toppings']);
+                }
+            }
+            $toppings = [];
+            if (!empty($toppingIds)) {
+                $toppings = ProductTopping::whereIn('id', array_unique($toppingIds))->get()->keyBy('id');
+            }
+
             // 1. Calculate items subtotal and validate items
             foreach ($data['items'] as $item) {
-                $product = Product::findOrFail($item['product_id']);
+                $product = $products->get($item['product_id']);
+                if (!$product) {
+                    throw new Exception(__('api.errors.product_unavailable', ['name' => 'ID #' . $item['product_id']]));
+                }
                 if (!$product->is_available) {
                     throw new Exception(__('api.errors.product_unavailable', ['name' => $product->name]));
                 }
 
                 $price = $product->sale_price ?? $product->base_price;
 
-                // Handle size extra price
+                // Handle size extra price (eager-loaded from product relation)
                 $sizeModel = null;
                 if (!empty($item['size'])) {
-                    $sizeModel = ProductSize::where('product_id', $product->id)
-                        ->where('size', $item['size'])
-                        ->first();
+                    $sizeModel = $product->sizes->first(function ($sizeObj) use ($item) {
+                        return $sizeObj->size === $item['size'];
+                    });
                     if ($sizeModel) {
                         $price += $sizeModel->extra_price;
                     }
@@ -63,12 +81,15 @@ class OrderService
                 $selectedSize = !empty($item['size']) ? $item['size'] : null;
                 $sizeSku = $sizeModel?->sku ?? ($selectedSize && $product->sku ? "{$product->sku}-{$selectedSize}" : null);
 
-                // Handle toppings extra prices
+                // Handle toppings extra prices (pre-loaded from toppings collection)
                 $toppingsList = [];
                 $toppingPriceSum = 0.00;
                 if (!empty($item['toppings'])) {
                     foreach ($item['toppings'] as $toppingId) {
-                        $topping = ProductTopping::findOrFail($toppingId);
+                        $topping = $toppings->get($toppingId);
+                        if (!$topping) {
+                            throw new Exception(__('api.errors.topping_unavailable', ['name' => 'ID #' . $toppingId]));
+                        }
                         if (!$topping->is_available) {
                             throw new Exception(__('api.errors.topping_unavailable', ['name' => $topping->name]));
                         }
