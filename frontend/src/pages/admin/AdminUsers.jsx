@@ -119,7 +119,7 @@ export function UserFormModal({ user, onClose, onSaved }) {
               {adminPermissionModules.map(module => (
                 <label key={module} className="flex items-center gap-2 rounded-xl border border-gray-100 dark:border-gray-700 p-3 text-sm cursor-pointer">
                   <input type="checkbox" checked={form.permissions.includes(module)} onChange={() => togglePermission(module)} />
-                  {tAdmin(module)}
+                  {module === 'chatbot' ? tAdmin('chatbot_sidebar') : tAdmin(module)}
                 </label>
               ))}
             </div>
