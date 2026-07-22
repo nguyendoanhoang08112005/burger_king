@@ -38,6 +38,10 @@ if php artisan tinker --execute="echo \Illuminate\Support\Facades\Schema::hasTab
     php artisan db:seed --force --no-interaction
 fi
 
+# Create storage symlink
+echo "Creating storage symlink..."
+php artisan storage:link --force --no-interaction
+
 # Optimize Laravel caching for production
 echo "Caching Laravel configuration, routes, and views..."
 php artisan config:cache
