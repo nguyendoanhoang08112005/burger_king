@@ -145,26 +145,31 @@ class SettingController extends Controller
 
         try {
             DB::transaction(function () use ($request) {
-                foreach ($request->settings as $key => $value) {
-                    // Skip blank sensitive values to preserve the stored secret.
-                    if (in_array($key, self::SENSITIVE_SETTING_KEYS, true) && ($value === '' || $value === null)) {
-                        continue;
+                // Temporarily disable model events (like saved/deleted hooks that clear chatbot cache)
+                // during batch updates to prevent hundreds of repetitive SQL queries.
+                Setting::withoutEvents(function () use ($request) {
+                    foreach ($request->settings as $key => $value) {
+                        // Skip blank sensitive values to preserve the stored secret.
+                        if (in_array($key, self::SENSITIVE_SETTING_KEYS, true) && ($value === '' || $value === null)) {
+                            continue;
+                        }
+
+                        $setting       = Setting::where('key', $key)->first();
+                        $dynamicConfig = self::DYNAMIC_SETTINGS[$key] ?? null;
+
+                        // Only persist known or explicitly allowed dynamic keys.
+                        if (!$setting && !$dynamicConfig) {
+                            continue;
+                        }
+
+                        // Pass false to clearCache parameter to prevent clearing cache 50+ times repetitively
+                        Setting::set($key, $value, [
+                            'group'     => $setting?->group     ?? str($key)->before('.')->toString(),
+                            'type'      => $setting?->type      ?? ($dynamicConfig['type']      ?? 'text'),
+                            'is_public' => $setting?->is_public ?? ($dynamicConfig['is_public'] ?? false),
+                        ], false);
                     }
-
-                    $setting       = Setting::where('key', $key)->first();
-                    $dynamicConfig = self::DYNAMIC_SETTINGS[$key] ?? null;
-
-                    // Only persist known or explicitly allowed dynamic keys.
-                    if (!$setting && !$dynamicConfig) {
-                        continue;
-                    }
-
-                    Setting::set($key, $value, [
-                        'group'     => $setting?->group     ?? str($key)->before('.')->toString(),
-                        'type'      => $setting?->type      ?? ($dynamicConfig['type']      ?? 'text'),
-                        'is_public' => $setting?->is_public ?? ($dynamicConfig['is_public'] ?? false),
-                    ]);
-                }
+                });
             });
         } catch (\Throwable $e) {
             Log::error('Settings update failed', [
@@ -175,7 +180,17 @@ class SettingController extends Controller
             return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         }
 
+        // Clear all database settings caching once after all updates are persisted.
         Setting::clearCache();
+
+        // Invalidate the chatbot cache once at the end of all settings updates.
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('chat_caches')) {
+                DB::table('chat_caches')->delete();
+            }
+        } catch (\Exception $e) {
+            Log::warning('Failed to invalidate chat cache during settings batch update: ' . $e->getMessage());
+        }
 
         return response()->json(['success' => true, 'message' => 'Settings saved successfully.']);
     }

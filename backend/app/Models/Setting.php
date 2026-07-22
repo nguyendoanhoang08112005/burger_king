@@ -42,7 +42,7 @@ class Setting extends Model
 
     // ─── Write ─────────────────────────────────────────────────────────────────
 
-    public static function set(string $key, mixed $value, ?array $meta = null): void
+    public static function set(string $key, mixed $value, ?array $meta = null, bool $clearCache = true): void
     {
         $type = $meta['type'] ?? static::where('key', $key)->value('type') ?? static::inferType($value);
 
@@ -61,7 +61,9 @@ class Setting extends Model
             ]
         );
 
-        static::clearCache($key);
+        if ($clearCache) {
+            static::clearCache($key);
+        }
     }
 
     // ─── Cache ─────────────────────────────────────────────────────────────────
