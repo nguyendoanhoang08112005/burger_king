@@ -44,22 +44,38 @@ class Setting extends Model
 
     public static function set(string $key, mixed $value, ?array $meta = null, bool $clearCache = true): void
     {
-        $type = $meta['type'] ?? static::where('key', $key)->value('type') ?? static::inferType($value);
+        // Extract pre-loaded model if provided to bypass SELECT query.
+        $model = $meta['model'] ?? null;
+
+        $type = $meta['type'] 
+            ?? ($model ? $model->type : static::where('key', $key)->value('type')) 
+            ?? static::inferType($value);
 
         // Promote to json when value is an array/object but the declared type is not.
         if (is_array($value) && $type !== 'json') {
             $type = 'json';
         }
 
-        static::updateOrCreate(
-            ['key' => $key],
-            [
-                'group'     => $meta['group'] ?? str($key)->before('.')->toString(),
-                'value'     => static::serializeValue($value, $type),
+        $serializedValue = static::serializeValue($value, $type);
+
+        if ($model instanceof self) {
+            $model->update([
+                'group'     => $meta['group'] ?? $model->group,
+                'value'     => $serializedValue,
                 'type'      => $type,
-                'is_public' => $meta['is_public'] ?? static::where('key', $key)->value('is_public') ?? false,
-            ]
-        );
+                'is_public' => $meta['is_public'] ?? $model->is_public,
+            ]);
+        } else {
+            static::updateOrCreate(
+                ['key' => $key],
+                [
+                    'group'     => $meta['group'] ?? str($key)->before('.')->toString(),
+                    'value'     => $serializedValue,
+                    'type'      => $type,
+                    'is_public' => $meta['is_public'] ?? ($model ? $model->is_public : static::where('key', $key)->value('is_public')) ?? false,
+                ]
+            );
+        }
 
         if ($clearCache) {
             static::clearCache($key);
